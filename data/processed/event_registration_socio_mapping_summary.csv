@@ -1,0 +1,12 @@
+﻿metric,value
+total_registration_rows,2202
+rows_matched_to_any_source,1584
+rows_linked_to_official_socio_current,472
+rows_where_matched_socio_is_official,472
+rows_where_company_field_is_official,124
+rows_where_selected_socio_is_official,0
+potential_rescues_from_company_or_selected_socio,9
+subscriber_matched_rows,1259
+subscriber_matched_not_official,990
+rows_company_is_known_entity,1189
+rows_matched_socio_is_known_entity,1560

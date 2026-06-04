@@ -1,0 +1,211 @@
+﻿endpoint,column,dtype,missing_count,missing_percent,unique_count,example_values
+members,_source_id,int64,0,0.0,414,75095 | 75094 | 75049
+members,Socio,str,2,0.48,139,ICMM | Instituto de Óptica (CSIC) | ENHOL
+members,Nombre,str,0,0.0,274,Tiago | Francisco Javier  | Berta
+members,Apellidos,str,0,0.0,394,Neves | Solís Céspedes  | Gomez-Lor
+members,Correo,str,0,0.0,403,t.a.regoneves@utwente.nl | j.solis@io.cfmac.csic.es | bgl@icmm.csic.es
+members,Municipio prof.,str,19,4.59,135,Cantoblanco | Madrid | Tudela
+members,Provincia prof.,str,4,0.97,23,Madrid | Navarra | Guipuzkoa
+members,Función,str,0,0.0,15,Emprendedor/a | Investigación científica | Dirección
+members,Cargo,str,3,0.72,300,Business Developer | Profesor de investigación  | Investigadora Científica
+members,Pais de origen,str,3,0.72,18,Portugal | España | Antigua y Barbuda
+members,Universidad,str,25,6.04,263,TU Delft | Doctorado en cc. Físicas | Universidad Autonoma de Madrid
+members,Fecha nacimiento,str,26,6.28,176,04/05/2026 | 09/11/1997 | 08/04/1981
+members,Hijos,int64,0,0.0,2,0 | 1
+members,Fecha hijo-01,float64,288,69.57,21,2020.0 | 2012.0 | 2013.0
+members,Fecha hijo-02,float64,350,84.54,16,2018.0 | 2014.0 | 2024.0
+members,Fecha hijo-03,float64,405,97.83,6,2013.0 | 2021.0 | 2024.0
+members,Tipo user LinkedIn,str,0,0.0,5,Publicador ocasional | Lector ocasional | No usuario
+members,Engag. In SECPHO,str,0,0.0,5,Soy seguidor | No seguidor | Reacciono con likes
+members,Persona Clave,float64,346,83.57,2,0.0 | 1.0
+members,Nivel experiencia,str,401,96.86,2,Mid-level | Senior
+members,Tono,str,394,95.17,3,Apasionado o entusiasta | Neutro | Cálido y cercano
+members,Persona contacto,str,399,96.38,5,Sergio | Sandra | Rosa
+members,Estado,str,0,0.0,2,['Asociado'] | ['Potencial']
+members,Tecnologías,str,57,13.77,198,"Materiales avanzados, Microelectrónica y semiconductores | Fotónica, Materiales avanzados, Sistemas láser | Fotónica, Materiales avanzados, Microelectrónica y semiconductores, Sensórica avanzada"
+members,Subtecnologías,str,114,27.54,295,"Materiales avanzados: Materiales conductores térmicos avanzados, Nanomateriales – Microelectrónica y semiconductores: Circuitos RF y microondas (para 5G, radar, comunicaciones), Electrónica basada en materiales 2D (grafeno, disulfuro de molibdeno), Electrónica de potencia (IGBTs, MOSFETs de potencia), Materiales compuestos para semiconductores, Semiconductores de banda ancha (SiC, GaN, GaAs), Tecnologías de fabricación de chips (finos, flexibles y transparentes), Tecnologías de integración heterogénea (chiplets y SiPs - System in Package) | Fotónica: Fotónica no lineal, Impresión óptica 3D – Materiales avanzados: Materiales de cambio de fase (PCM), Nanomateriales, Recubrimientos inteligentes – Sistemas láser: Excimer, Láseres Ultrarrápidos (pico y femtosegundos), Neodimio-YAG | Fotónica: Espectroscopía avanzada (Raman, infrarroja, UV-visible), Sensores fototérmicos – Materiales avanzados: Materiales de cambio de fase (PCM), Materiales fotocatalíticos – Microelectrónica y semiconductores: Electrónica flexible e impresa – Sensórica avanzada: Sensores optoquímicos"
+members,Tecnologías json,str,0,0.0,342,"[{""parent"":""Materiales avanzados"",""sub"":[""Materiales conductores térmicos avanzados"",""Nanomateriales""]},{""parent"":""Microelectrónica y semiconductores"",""sub"":[""Circuitos RF y microondas (para 5G, radar, comunicaciones)"",""Electrónica basada en materiales 2D (grafeno, disulfuro de molibdeno)"",""Electrónica de potencia (IGBTs, MOSFETs de potencia)"",""Materiales compuestos para semiconductores"",""Semiconductores de banda ancha (SiC, GaN, GaAs)"",""Tecnologías de fabricación de chips (finos, flexibles y transparentes)"",""Tecnologías de integración heterogénea (chiplets y SiPs - System in Package)""]}] | [{""parent"":""Fotónica"",""sub"":[""Fotónica no lineal"",""Impresión óptica 3D""]},{""parent"":""Materiales avanzados"",""sub"":[""Materiales de cambio de fase (PCM)"",""Nanomateriales"",""Recubrimientos inteligentes""]},{""parent"":""Sistemas láser"",""sub"":[""Excimer"",""Láseres Ultrarrápidos (pico y femtosegundos)"",""Neodimio-YAG""]}] | [{""parent"":""Fotónica"",""sub"":[""Espectroscopía avanzada (Raman, infrarroja, UV-visible)"",""Sensores fototérmicos""]},{""parent"":""Materiales avanzados"",""sub"":[""Materiales de cambio de fase (PCM)"",""Materiales fotocatalíticos""]},{""parent"":""Microelectrónica y semiconductores"",""sub"":[""Electrónica flexible e impresa""]},{""parent"":""Sensórica avanzada"",""sub"":[""Sensores optoquímicos""]}]"
+members,Ámbitos,str,0,0.0,196,"['Energía limpia y eficiente', 'New Space, defensa y seguridad'] | ['Acción climática y medio ambiente', 'Energía limpia y eficiente', 'Industria 4.0'] | ['Acción climática y medio ambiente', 'Energía limpia y eficiente', 'Smart cities']"
+members,Sectores,str,60,14.49,277,"Defensa, Espacio | Fabricación industrial, Sector energético | Construcción, Industria química, Sector energético, Seguridad"
+members,Subsectores,str,162,39.13,250,"Fabricación industrial: Desarrollo y caracterización de materiales, Fabricación de estructuras nanométricas, Fabricación de superficies funcionales, Texturizado – Sector energético: Baterías, Energía solar fotovoltaica | Construcción: Smart Windows – Industria química: Caracterización productos químicos, Investigación, Pinturas, tintas y protección de superficies – Sector energético: Energía solar fotovoltaica, Energy Harvesting – Seguridad: Detección explosivos | Aeronáutica: NDT metales, Sistemas de imagen para testeo de la nave – Agroalimentación: Acüicultura y marítimo, Controles de calidad alimentaria – Automoción: Sensores en el vehículo, Sistemas de seguridad y visión periférica – Construcción: Arqueología, Edificios sostenibles, Inspección de propiedades mecánicas, Medición de propiedades mecánicas, Sensores y detectores para entornos agresivos, Smart Buildings, Vibrometría – Defensa: Materiales avanzados para blindaje y camuflaje, Robots autónomos y sistemas de desactivación de explosivos (EOD), Sistemas de energía autónoma en el campo, Tecnologías de energía para defensa (energía portátil, energía dirigida), Vehículos marítimos (submarinos, fragatas, portaaviones) – Espacio: Materiales avanzados para el espacio – Fabricación industrial: Desarrollo y caracterización de materiales, Fabricación aditiva – Ferroviario: Monitorización de infraestructuras, Monitorización de material rodante, Sensorización de bogies, ejes, rodales y ruedas, Vibraciones y ruido inducido – Industria química: Análisis físico-químicos y ensayos mecánicos, Cristalografía y Caracterización de materiales, Desarrollo y caracterización de materiales, Investigación, Metalografía – Medioambiente: Agricultura sostenible, Lucha contra el cambio climático, Meteorología y climatología, Reciclaje y Tratamiento de residuos, Sostenibilidad – Naval: Minería submarina, Sistemas de detección submarina (sonares y radares) – Patrimonio cultural: Arqueología y excavaciones, Investigación científica aplicada al patrimonio (materiales, datación, análisis históricos) – Salud: Dermatología, Ginecología, Imagen Médica, Tratamientos no invasivos, Urología – Sector energético: Energía eléctrica, Energy Harvesting, Redes inteligentes (smart grids) – Seguridad: Visión nocturna"
+members,Sectores json,str,0,0.0,344,"[{""parent"":""Defensa"",""sub"":[]},{""parent"":""Espacio"",""sub"":[]}] | [{""parent"":""Fabricación industrial"",""sub"":[""Desarrollo y caracterización de materiales"",""Fabricación de estructuras nanométricas"",""Fabricación de superficies funcionales"",""Texturizado""]},{""parent"":""Sector energético"",""sub"":[""Baterías"",""Energía solar fotovoltaica""]}] | [{""parent"":""Construcción"",""sub"":[""Smart Windows""]},{""parent"":""Industria química"",""sub"":[""Caracterización productos químicos"",""Investigación"",""Pinturas, tintas y protección de superficies""]},{""parent"":""Sector energético"",""sub"":[""Energía solar fotovoltaica"",""Energy Harvesting""]},{""parent"":""Seguridad"",""sub"":[""Detección explosivos""]}]"
+members,Patentes,float64,335,80.92,13,2.0 | 5.0 | 3.0
+members,Tecn. en patentes,str,403,97.34,6,Materiales Avanzados | Fotónica | Microelectrónica y Semiconductores
+members,Sect. en patentes,str,404,97.58,9,Seguridad | Todos | Telecomunicaciones
+members,Patentes json,str,402,97.1,12,"[{""titulo"":""Uso de un compuesto fluorescente como componente de tinta de seguridad y  tinta de seguridad "",""codigo"":""PCT\/ES2022\/070597"",""year"":""2022"",""tecnologia"":""Materiales Avanzados"",""sector"":""Seguridad""}] | [{""titulo"":"""",""codigo"":"""",""year"":"""",""tecnologia"":""Materiales Avanzados"",""sector"":""""}] | [{""titulo"":""Dispositivo óptico configurable"",""codigo"":""ES2711456"",""year"":""2018"",""tecnologia"":""Fotónica"",""sector"":""Todos""}]"
+members,Publicaciones,float64,322,77.78,17,4.0 | 3.0 | 2.0
+members,Necesidades Gen,str,341,82.37,63,"Acceso al mercado: Acceso a nuevos mercados, Acceso a financiación pública Nacional: Acceso a ayudas públicas nacionales para inversión en I+D y desarrollo de proyectos tecnológicos, Acceso a financiación pública Europea: Acceso a convocatorias de subvención europeas y conexión con consorcios para desarrollar proyectos tecnológicos, Búsqueda de inversión privada: Acceso a capital privado para financiar el crecimiento, desarrollo y escalabilidad, Colaboraciones estratégicas: Potenciar alianzas con otras entidades para proyectos conjuntos | Acceso al mercado: Acceso a nuevos mercados, Acceso a financiación pública Nacional: Acceso a ayudas públicas nacionales para inversión en I+D y desarrollo de proyectos tecnológicos, Acceso a financiación pública Europea: Acceso a convocatorias de subvención europeas y conexión con consorcios para desarrollar proyectos tecnológicos, Búsqueda de inversión privada: Acceso a capital privado para financiar el crecimiento, desarrollo y escalabilidad, Acceso a talento: Captación y retención de profesionales altamente cualificados | Búsqueda de inversión privada: Acceso a capital privado para financiar el crecimiento, desarrollo y escalabilidad, Colaboraciones estratégicas: Potenciar alianzas con otras entidades para proyectos conjuntos, Visibilidad: Incrementar la presencia en el sector y el reconocimiento de capacidades"
+members,Necesidades Esp,str,100,24.15,183,"Acceso a financiación pública Nacional: Acceso a ayudas públicas nacionales para desarrollar investigaciones y proyectos, Acceso a financiación pública Europea: Acceso a convocatorias de subvención europeas y conexión con consorcios para desarrollar investigaciones y proyectos, Conexión con la industria: Conectar con empresas de diferentes sectores, Colaboraciones académicas: Conexión con otros investigadores o instituciones de investigación, Visibilidad: Visibilidad a sus patentes, investigaciones y logros | Acceso a financiación pública Nacional: Acceso a ayudas públicas nacionales para desarrollar investigaciones y proyectos, Acceso a financiación pública Europea: Acceso a convocatorias de subvención europeas y conexión con consorcios para desarrollar investigaciones y proyectos, Conexión con la industria: Conectar con empresas de diferentes sectores, Colaboraciones académicas: Conexión con otros investigadores o instituciones de investigación, Acceso a infraestructuras: Acceso a laboratorios, equipos avanzados y recursos necesarios para el desarrollo | Acceso a financiación pública Nacional: Acceso a ayudas públicas nacionales para desarrollar investigaciones y proyectos, Conexión con la industria: Conectar con empresas de diferentes sectores, Acceso a talento: Conexión con investigadores de alto nivel y técnicos cualificados, Acceso a infraestructuras: Acceso a laboratorios, equipos avanzados y recursos necesarios para el desarrollo, Vigilancia tecnológica: Acceso a tendencias científicas y deep tech relevantes"
+members,Idiomas,str,23,5.56,52,"Español, Inglés, Francés, Portugués | Inglés | Español, Inglés, Alemán, Italiano, Gallego"
+members,Instrumentos,str,26,6.28,32,Contrabajo | No toco ninguno | Guitarra clásica
+members,Hobbies,str,26,6.28,237,"Cocina, Música, Videojuegos | Manualidades | Jardinería"
+members,Deportes,str,26,6.28,180,"Ajedrez, Fútbol | Fitness | Senderismo"
+members,Equipo,str,387,93.48,5,Real Madrid CF | Valencia CF | FC Barcelona
+members,País,str,3,0.72,18,Portugal | España | Antigua y Barbuda
+members,Género,str,0,0.0,3,Masculino | Femenino | Prefiero no decirlo
+members,Alimentación,str,0,0.0,6,Omnívoro/a | Vegetariano/a | Otra dieta o costumbre
+members,Captación json,str,391,94.44,23,"[{""captacion_fecha"":""20260427"",""captacion_fase"":""Recontactar más adelante"",""captacion_comentarios"":""Le fuimos a visitar el 22\/04 a porposito del Summit y para tener algun reto. Hoy nos ha enviado unos que nos dijo en la reunion."",""captacion_autor"":""silvia""}] | [{""captacion_fecha"":""20260220"",""captacion_fase"":""Pendiente de respuesta"",""captacion_comentarios"":""Me reuno con Marc Fornell para conocernos. Invierten en deep tech en fase early stage. Les invito al 19M"",""captacion_autor"":""sergio""}] | [{""captacion_fecha"":""20260216"",""captacion_fase"":""Pendiente de respuesta"",""captacion_comentarios"":""Mantengo reunión con Luca y les gusta el cluster, aunque no tienen mucho dinero. Lo ven interesante para desarrollo de producto aunque ahora están buscando clientes en sector lujo y ahí no les podemos ayudar tanto."",""captacion_autor"":""sergio""},{""captacion_fecha"":"""",""captacion_fase"":"""",""captacion_comentarios"":"""",""captacion_autor"":""""}]"
+suscriptores,_source_id,int64,0,0.0,7968,0 | 1 | 2
+suscriptores,Email,str,0,0.0,7968,jarias@aimen.es | notero@aimen.es | aprada@aimen.es
+suscriptores,Nombre,str,267,3.35,2903,Jorge | Nerea | Alvaro
+suscriptores,Apellidos,str,485,6.09,5687,Arias | Otero | Prada
+suscriptores,Cargo,str,3180,39.91,2967,PhD Physics · LASER APPLICATION CENTRE | Laser microprocessing researcher | Responsable de Desarrollo de Producto
+suscriptores,Socio,str,4293,53.88,1178,AIMEN Centro Tecnológico | Grupo Álava | CalSens
+suscriptores,Empresa,str,317,3.98,4560,AIMEN Centro Tecnológico | Aimen | Álava Ingenieros
+suscriptores,Teléfono,str,4165,52.27,3554,986344000 (Ext. 3272) | 627495711 | 630963344
+suscriptores,Provincia,str,4957,62.21,52,Pontevedra | Barcelona | Valencia
+suscriptores,Sector,str,7055,88.54,19,Automoción | Salud | Defensa
+suscriptores,Listas,str,248,3.11,529,"Socios de SECPhO, Usuarios Koonstel, Bilasurf, Expertos sin rellenar el formulario 02/03/26, Expertos sin rellenar el formulario | Socios de SECPhO, Usuarios Koonstel, Expertos sin rellenar el formulario, Expertos sin rellenar el formulario 02/03/26 | Socios de SECPhO, Usuarios Koonstel, Bilasurf"
+suscriptores,% Open rate,float64,0,0.0,3573,25.86 | 24.57 | 13.34
+suscriptores,% Click rate,float64,0,0.0,1855,17.51 | 10.78 | 9.26
+suscriptores,Suscrito desde,str,762,9.56,574,02/03/2026 | 17/10/2024 | 05/02/2024
+suscriptores,Emails,int64,0,0.0,879,1102 | 1095 | 1094
+datosnegocio,_source_id,int64,0,0.0,192,0 | 1 | 2
+datosnegocio,Socio,str,0,0.0,192,2EyesVision | 5SKILL SOLUTIONS | Abertis
+datosnegocio,Tipo de empresa,str,0,0.0,8,Startup o Spinoff | Pyme tecnológica | End User o Coporate
+datosnegocio,Tipo de socio,str,0,0.0,6,Socio | OIC | Potencial
+datosnegocio,Pub./Priv.,str,24,12.5,2,privado | publico
+datosnegocio,Socio Estratégico,float64,49,25.52,2,0.0 | 1.0
+datosnegocio,Prog. Inversión,float64,1,0.52,2,1.0 | 0.0
+datosnegocio,Fecha ult. act.,str,181,94.27,9,30/03/2026 | 03/03/2026 | 07/04/2026
+datosnegocio,Link a ficha/deck,str,175,91.15,17,https://secpho.sharepoint.com/:b:/s/secphoteam2/IQCbjASu8aopS7W5x3mTgg3QAa4UaEdZrIRPYS2QBbYG1HM?e=05N6xq | https://secpho.sharepoint.com/:b:/s/secphoteam2/IQB7UicfhjvBS4zefJ60RiBUARgtutCeANiNdXh78wMf5B8?e=fLrj4e | https://secpho.sharepoint.com/:b:/s/secphoteam2/IQBRyCdA64WOT7a7x01Moqp1ASQHNmdA2P-QzeRwv8ma0EA?e=1AuYZO
+datosnegocio,Inversores,str,188,97.92,4,"Bullnet Capital | Namarel Ventures; Grow Venture Partners; Intempo Ventures; Next Gen Ventures II; BA syndicate | Seven Seas Capital, con la participación de Ship2B Ventures e Inclimo Tech Fund"
+datosnegocio,Etapa startup,str,154,80.21,4,Serie A | Semilla | Pre-semilla
+datosnegocio,Año constitución,str,36,18.75,153,03/07/2015 | 25/06/2015 | 24/02/1967
+datosnegocio,Inversion recibida,float64,160,83.33,24,7500000.0 | 10.0 | 0.0
+datosnegocio,Inversion buscada,float64,150,78.12,22,5000000.0 | 100.0 | 0.0
+datosnegocio,Meses valle,float64,192,100.0,0,
+datosnegocio,Nivel de participación,str,0,0.0,6,Nuevo | No definido | Poco activo
+datosnegocio,Regiones interés actual,str,149,77.6,33,"NE Asiático, SE Asiático, Norteamérica, Sudamérica, Australia y Oceanía | Europa | Norteamérica, Europa, NE Asiático"
+datosnegocio,Regiones interés futuro,str,154,80.21,31,"América Central y Caribe, Sudamérica, África, Oriente Medio, Asia Central y Meridional | Sudamérica | Europa, Norteamérica"
+datosnegocio,Cadena de valor,str,0,0.0,25,Fabricación de sistemas | Ingeniería e integración | Usuario final
+datosnegocio,Resumen actividad,str,37,19.27,144,"Investigación, desarrollo y comercialización de tecnologías innovadoras en oftalmología | Actvidades de programacion informatica, consultorias, gestion de recursos.. | Operador de referencia internacional en la gestión de vías de alta capacidad, calidad y soluciones inteligentes de movilidad."
+datosnegocio,Fecha inicio fondos,str,183,95.31,9,17/03/2025 | 01/01/2023 | 07/02/2025
+datosnegocio,Tamaño fondos,float64,176,91.67,14,100000000.0 | 180000000.0 | 250000000.0
+datosnegocio,Min ticket,float64,177,92.19,10,250000.0 | 7000000.0 | 100000.0
+datosnegocio,Max ticket,float64,175,91.15,12,2500000.0 | 10000000.0 | 500000.0
+datosnegocio,Fases enfoque,str,172,89.58,8,"Pre-semilla, Semilla | Serie A, Serie B | Serie B, Expansión"
+datosnegocio,Regiones enfoque,str,179,93.23,2,"Europa | Norteamérica, Sudamérica, América Central y Caribe, NE Asiático, SE Asiático, Asia Central y Meridional, Australia y Oceanía, Europa"
+datosnegocio,Startups en portfolio,float64,182,94.79,10,45.0 | 10.0 | 52.0
+datosnegocio,Interés en tecnologías,str,184,95.83,7,Ciberseguridad y Cloud Computing; Microelectrónica y Semiconductores; Sistemas de Comunicación y Transmisión de Datos | Ciberseguridad y Cloud Computing | Inteligencia Artificial y datos; Tecnologías Cuánticas; Todas
+datosnegocio,Interés en ámbitos,str,177,92.19,13,Energía limpia y eficiente; Salud y bienestar | Salud y bienestar | Acción climática y medio ambiente; Energía limpia y eficiente; Salud y bienestar
+datosnegocio,Interés en sectores,str,177,92.19,10,Espacio; Medioambiente; Salud; Sector energético | Salud | Medioambiente; Salud; Seguridad
+datosnegocio,Cifra de negocio,str,0,0.0,126,"240.997,00 € | 569.237,00 € | No definido"
+datosnegocio,Num. de empleados,float64,44,22.92,86,17.0 | 19.0 | 2.0
+datosnegocio,Exportación,str,69,35.94,39,100 % | 0 % | 7 %
+datosnegocio,CNAE,float64,83,43.23,46,7211.0 | 6203.0 | 7112.0
+datoscontacto,_source_id,int64,0,0.0,2395,0 | 1 | 2
+datoscontacto,ID,int64,0,0.0,2395,49137 | 57659 | 14029
+datoscontacto,Entidad,str,1,0.04,2387,- | 1d3a | 28DIGITAL
+datoscontacto,Contacto_Nombre,str,312,13.03,1988,Daniel Bermudez | Jesús de Pablos | Eduardo Troche Pesqueira
+datoscontacto,Contacto_Apellidos,str,2184,91.19,201,Pérez | Roman Rodríguez | Quince
+datoscontacto,Contacto_Cargo,str,842,35.16,990,Project Manager | Ecosystem Lead | Green Digital | CFO
+datoscontacto,Contacto_Email,str,248,10.35,2135,bermudezrd@protonmail.com | eduardo.troche@28digital.eu | xperez@2eyesvision.com
+datoscontacto,Contacto_Tel1,str,779,32.53,1592,622193995 | 699974435 | 673813398
+datoscontacto,Contacto_Tel2,str,2353,98.25,41,658.91.84.82 | 945298289 | +34 660 43 24 13
+datoscontacto,Razón social,str,1338,55.87,1051,1d3a | 2EyesVision | 3DZings
+datoscontacto,NIF,str,1948,81.34,424,B87335907 | B66564485 | B01832344
+datoscontacto,Teléfono,str,2102,87.77,290,673813398 | 635 70 85 24 | +34667314185
+datoscontacto,Web,str,1847,77.12,543,http://www.1d3a.com/ | http://www.2eyesvision.com/ | www.3M.com/es
+datoscontacto,F_Dirección,str,1814,75.74,573,"Plaza de la Encina, 10 Nucleo 3 Planta 4 | Plaza can Suris, S/N,  | Calderón de la Barca, 8"
+datoscontacto,F_Municipio,str,1789,74.7,234,Tres Cantos | Cornellà del Llobregat | Murcia
+datoscontacto,F_CP,str,1834,76.58,315,28760 | 08940 | 30001
+datoscontacto,F_Provincia,str,1729,72.19,36,Madrid | Barcelona | Murcia
+datoscontacto,F_CA,str,1674,69.9,16,Madrid | Cataluña | Murcia
+datoscontacto,Admin_Nombre,str,2141,89.39,146,Administración | Marta | Alejandro
+datoscontacto,Admin_Apellidos,str,2305,96.24,86,Guerrero | Falcones Rosich | Garcia
+datoscontacto,Admin_Cargo,str,2281,95.24,78,Administración | Marta Guerrero | Técnico administración y finanzas
+datoscontacto,Admin_Email,str,2203,91.98,190,admin@2eyesvision.com | administracion@5skill.com | afalcones@addicrafteng.com
+datoscontacto,Admin_Tel1,str,2337,97.58,58,615842977 | +34 954 006 114 | 902495000
+datoscontacto,Admin_Tel2,str,2390,99.79,5,935707782 | 93 521 7500 (general) | 93 403 93 74
+datoscontacto,P_Dirección,str,2258,94.28,137,"Plaza de la Encina, 10 Nucleo 3 Planta 4 | C/Maestro Clave, nº 1 Pta. 6 | Venta de la Estrella, 6 Pab 130"
+datoscontacto,P_Municipio,str,2260,94.36,81,Tres Cantos | Valencia | Vitoria
+datoscontacto,P_CP,float64,2259,94.32,109,28760.0 | 46001.0 | 1006.0
+datoscontacto,P_Provincia,str,2250,93.95,20,Madrid | Navarra | Valencia
+datoscontacto,P_CA,str,2253,94.07,11,Madrid | Comunitat Valenciana | País Vasco
+actosagenda,_source_id,int64,0,0.0,521,72937 | 70936 | 67494
+actosagenda,ID,int64,0,0.0,521,72937 | 70936 | 67494
+actosagenda,Fecha,str,0,0.0,490,10-11-2026 | 30-09-2026 | 15-09-2026
+actosagenda,Ubicación,str,4,0.77,3,internacional | nacional | online
+actosagenda,Provincia,str,351,67.37,21,Navarra | Madrid | Valencia
+actosagenda,País,str,467,89.64,17,Alemania | KEKE | USUS
+actosagenda,Ciudad,str,293,56.24,76,Munich | Pamplona | Barcelona
+actosagenda,Lugar,str,340,65.26,128,Trade fair center messe münchen | Eurecat | Centro para el Desarrollo Tecnológico y la Innovación (CDTI)
+actosagenda,Título,str,0,0.0,516,"SEMICON Europa | Munich | SECPHO SUMMIT 2026 | Market Focus | Fotónica ambiental: monitorización para medir en tiempo real contaminantes en aire, agua y suelos"
+actosagenda,Num. ponentes,float64,358,68.71,16,0.0 | 10.0 | 2.0
+actosagenda,Num. asistentes,float64,357,68.52,59,115.0 | 146.0 | 18.0
+actosagenda,Num. registrados,float64,489,93.86,28,171.0 | 119.0 | 127.0
+actosagenda,Link,str,0,0.0,521,https://www.secpho.org/agenda/semicon-europa-2026/ | https://www.secpho.org/agenda/summit-2026/ | https://www.secpho.org/agenda/fotonica-ambiental/
+actosagenda,Tipología,str,0,0.0,14,['International'] | ['Networking'] | ['Market Focus']
+actosagenda,Tecnología,str,0,0.0,32,"['Microelectrónica y Semiconductores'] | ['AR/VR', 'Biotecnología', 'Blockchain', 'Ciberseguridad y Cloud Computing', 'Fabricación Aditiva', 'Fotónica', 'Iluminación avanzada', 'Inteligencia Artificial y datos', 'IoT', 'Materiales Avanzados', 'Microelectrónica y Semiconductores', 'Robótica y Drones', 'Sensórica avanzada', 'Sistemas láser'] | ['Inteligencia Artificial y datos', 'Robótica y Drones', 'Sensórica avanzada']"
+actosagenda,Ámbito,str,0,0.0,18,"['Industria 4.0'] | ['Acción climática y medio ambiente', 'Agricultura, bosques y océanos', 'Energía limpia y eficiente', 'Industria 4.0', 'Movilidad inteligente', 'New Space, defensa y seguridad', 'Salud y bienestar', 'Seguridad alimentaria', 'Smart cities'] | ['Acción climática y medio ambiente']"
+actosagenda,Sector,str,0,0.0,29,"['Fabricación industrial'] | ['Aeronáutica', 'Agroalimentación', 'Automoción', 'Construcción', 'Cosmética y Estética', 'Defensa', 'Espacio', 'Fabricación industrial', 'Ferroviario', 'Industria química', 'Logística', 'Materias primas', 'Medioambiente', 'Naval', 'Patrimonio Cultural', 'Salud', 'Sector energético', 'Sector farmacéutico', 'Seguridad', 'Telecomunicaciones', 'Turismo'] | ['Medioambiente']"
+actosagenda,En colaboración,bool,0,0.0,2,False | True
+actosagenda,Partner,str,42,8.06,85,"Bilasurf consortium | Zabala, CDTI | Icmab, Alba sinctrotrón, INMA"
+retos,_source_id,int64,0,0.0,174,74957 | 74755 | 73043
+retos,Num. reto,str,0,0.0,174,0215 | 0214 | 0213
+retos,Título,str,0,0.0,174,"Identificación de aplicaciones deep tech para polvo ultrafino de cobre de composición isotópica natural (Cu63/Cu65) | Seguridad industrial en planta: prevención de atropellos e interacciones de riesgo entre maquinaria móvil y operarios en zonas de maniobra reducida | Nuevos materiales para asfaltos, asfalto autorreparables y modelos predictivos de mantenimiento"
+retos,Descripción,str,163,93.68,11,"<p data-start=""267"" data-end=""520"">Desde SECPHO lanzamos este reto con el objetivo de identificar <strong data-start=""330"" data-end=""379"">posibles aplicaciones deep tech de alto valor</strong> para un material singular, así como detectar entidades interesadas en <strong data-start=""450"" data-end=""499"">testarlo, validarlo o explorar su adquisición</strong> para usos concretos.</p>
+<p data-start=""522"" data-end=""1022"">El material disponible consiste en <strong data-start=""557"" data-end=""618"">polvo ultrafino de cobre de composición isotópica natural</strong>, <strong data-start=""620"" data-end=""637"">no radiactivo</strong>, con una composición de <strong data-start=""662"" data-end=""684"">^63Cu 69,1% ± 0,05</strong> y <strong data-start=""687"" data-end=""709"">^65Cu 30,9% ± 0,05</strong>, y una <strong data-start=""717"" data-end=""747"">pureza química del 99,999%</strong>. Se presenta en <strong data-start=""764"" data-end=""822"">ampollas de vidrio estabilizadas en atmósfera de argón</strong> para preservar sus propiedades, y la documentación técnica disponible incluye certificados de análisis emitidos por IGAS, así como micrografías SEM del material.</p>
+<p data-start=""522"" data-end=""1022"">Por sus características, este material parece especialmente relevante para explorar aplicaciones en ámbitos como <strong data-start=""1137"" data-end=""1488"">microelectrónica y semiconductores, microcomponentes, electrónica crítica, PCB e interconexión avanzada, tintas y pastas conductivas, electrónica impresa, fabricación aditiva metálica, pulvimetalurgia y sinterizado, aleaciones avanzadas, thermal management, apantallamiento electromagnético EMI/EMC, sensórica, baterías y almacenamiento energético</strong>, así como otras aplicaciones de materiales funcionales donde puedan ser diferenciales la <strong data-start=""1578"" data-end=""1599"">ultra alta pureza</strong>, la <strong data-start=""1604"" data-end=""1626"">granulometría fina</strong>, la <strong data-start=""1631"" data-end=""1655"">morfología del polvo</strong> o la <strong data-start=""1661"" data-end=""1689"">estabilidad del material</strong>. Las micrografías disponibles muestran agregados formados por partículas primarias muy finas, usualmente inferiores a 2 µm.</p>
+<p data-start=""522"" data-end=""1022"">Según la información facilitada, el producto fue fabricado por <strong data-start=""1916"" data-end=""1957"">ZAO Piromet (Ryazan, Federación Rusa)</strong> e importado a Suiza antes de la imposición de sanciones. Actualmente se encuentra almacenado en una instalación segura en <strong data-start=""2080"" data-end=""2110"">Embrach (cantón de Zúrich)</strong>, en zona franca, lo que en principio puede facilitar la logística de una eventual operación. La documentación de custodia disponible hace referencia a <strong data-start=""2262"" data-end=""2274"">16 cajas</strong> con un peso neto total de <strong data-start=""2301"" data-end=""2313"">1.008 kg</strong> de “ultra pure copper powder”.</p>
+<p data-start=""522"" data-end=""1022"">A través de este reto, nos interesa identificar tanto <strong data-start=""2438"" data-end=""2464"">casos de uso concretos</strong> como posibles <strong data-start=""2479"" data-end=""2505"">sinergias entre socios</strong> para ensayos, validaciones, pilotos o colaboraciones en torno a este material. Invitamos a las entidades interesadas a indicarnos brevemente <strong data-start=""2647"" data-end=""2682"">qué aplicación potencial le ven</strong>, <strong data-start=""2684"" data-end=""2729"">por qué podría aportar valor en su ámbito</strong>, <strong data-start=""2731"" data-end=""2776"">qué tipo de validación o test requerirían</strong> y si su interés es, por ahora, <strong data-start=""2808"" data-end=""2824"">exploratorio</strong>, orientado a <strong data-start=""2838"" data-end=""2873"">recibir más información técnica</strong>, a <strong data-start=""2877"" data-end=""2896"">testar muestras</strong>, a <strong data-start=""2900"" data-end=""2930"">valorar una posible compra</strong> o a <strong data-start=""2935"" data-end=""2981"">explorar una colaboración con otros socios</strong>.</p>
+<p data-start=""522"" data-end=""1022""><strong>ANEXOS</strong></p>
+En el apartado de más información se puede acceder a 4 anexos que incluyen Informes y Certificados de Análisis, SKR de almacenamiento y una foto del producto. | <p data-start=""381"" data-end=""887"">Una empresa industrial plantea un reto de seguridad orientado a prevenir situaciones de riesgo derivadas de la convivencia entre <strong data-start=""510"" data-end=""542"">operarios y maquinaria móvil</strong> en una <strong data-start=""550"" data-end=""587"">zona logística interior de planta</strong> con espacio reducido, maniobras frecuentes y elevada exposición operativa. El objetivo es identificar soluciones que permitan <strong data-start=""714"" data-end=""791"">evitar, reducir o eliminar el riesgo de atropello o interacción peligrosa</strong> entre personas y equipos móviles en este tipo de entorno.</p>
+<p data-start=""889"" data-end=""1653"">El caso de uso parte de una zona específica de planta en la que recientemente se ha evidenciado un riesgo crítico asociado a la operativa entre una <strong data-start=""1037"" data-end=""1061"">carretilla elevadora</strong> y un operario. La necesidad es contar con una solución robusta que impida que la maquinaria opere en condiciones de riesgo cuando haya una persona dentro del área peligrosa, con una lógica de seguridad automática y con el menor impacto posible sobre la operativa diaria. Aunque el foco inicial está en este caso concreto, la empresa también valora propuestas con potencial de <strong data-start=""1438"" data-end=""1456"">replicabilidad</strong> a otros equipos móviles, como carretillas frontales o laterales, palas, grúas autopropulsadas u otra maquinaria similar.</p>
+<p data-start=""1655"" data-end=""2364"">Como referencia, la zona a monitorizar puede considerarse de aproximadamente unos <strong data-start=""1766"" data-end=""1776"">200 m²</strong>. Se trata de un entorno exigente, con convivencia constante entre personas y vehículos industriales, distancias de maniobra reducidas y una necesidad clara de separar de forma segura las zonas de operación de maquinaria y las zonas seguras para el personal. En el caso analizado, la maquinaria de referencia es una <strong data-start=""2092"" data-end=""2140"">carretilla eléctrica Kalmar ECE70-6 (80/24V)</strong>. Actualmente existen distintos niveles de equipamiento en visión artificial, desde cámaras traseras estándar hasta algunas unidades con cámaras avanzadas con IA y detección de personas.</p>
+<p data-start=""2366"" data-end=""3170"">La solución deberá responder adecuadamente a un entorno industrial complejo. Entre los condicionantes a tener en cuenta destacan la presencia de <strong data-start=""2511"" data-end=""2532"">elementos móviles</strong> en la zona, en particular devanadoras con movimiento a 90º y velocidad baja; la existencia de <strong data-start=""2627"" data-end=""2665"">partículas metálicas en suspensión</strong>; y las <strong data-start=""2673"" data-end=""2703"">variaciones de iluminación</strong> provocadas por la apertura del portón de acceso de maquinaria, en función del momento del día y de la incidencia solar. También deben contemplarse posibles obstáculos, estructuras y situaciones de visibilidad parcial que puedan afectar al rendimiento de soluciones basadas en visión o sensórica. Estas condiciones hacen especialmente importante que la propuesta sea robusta, fiable y contrastada en entornos industriales reales.</p>
+<p data-start=""3172"" data-end=""4021"">La empresa está abierta a diferentes enfoques de solución. Por un lado, interesan propuestas aplicables de forma general a maquinaria móvil que permitan detectar presencia humana y activar una <strong data-start=""3365"" data-end=""3402"">respuesta automática de seguridad</strong>, idealmente mediante parada de la máquina en caso de riesgo, salvo en aquellos procesos en los que ello pudiera generar un peligro adicional. Por otro lado, en este caso concreto existe también un interés especial por soluciones basadas en <strong data-start=""3643"" data-end=""3688"">cerramiento perimetral con enclavamientos</strong>, de forma que pueda bloquearse la apertura de accesos o determinadas maniobras cuando la maquinaria se encuentre operativa en el interior de la zona. La preferencia expresada por la empresa apunta precisamente a este tipo de enfoques robustos desde el punto de vista de la seguridad industrial.</p>
+<p data-start=""4023"" data-end=""4781"">Se valorarán especialmente aquellas propuestas que ofrezcan <strong data-start=""4083"" data-end=""4115"">detección fiable de personas</strong>, buen comportamiento en condiciones de visibilidad compleja, <strong data-start=""4177"" data-end=""4210"">baja tasa de falsos positivos</strong>, integración razonable sobre equipos existentes y potencial de escalado a otros tipos de maquinaria o áreas de planta. También será importante que la solución tenga sentido en términos de coste, mantenimiento y despliegue. La empresa busca preferentemente <strong data-start=""4467"" data-end=""4516"">soluciones ya validadas en entorno industrial</strong>, dado el carácter agresivo de sus instalaciones. Solo se considerarían propuestas de menor madurez si aportan una mejora muy relevante y diferencial frente a las soluciones ya disponibles.</p>
+<p data-start=""4783"" data-end=""5354"">Como limitación relevante, la empresa considera que los sistemas basados exclusivamente en <strong data-start=""4874"" data-end=""4905"">tags o wearables personales</strong> no resultan adecuados como solución principal en este caso, ya que la proximidad constante entre personas y máquinas provocaría alertas continuas y reduciría la utilidad del sistema. En cambio, encajan especialmente propuestas relacionadas con <strong data-start=""5150"" data-end=""5315"">sensórica industrial, visión artificial, enclavamientos, seguridad funcional, control de accesos, automatización e integración de sistemas sobre maquinaria móvil</strong>.</p>
+<p data-start=""5356"" data-end=""5421""><strong data-start=""5356"" data-end=""5421"">En el siguiente apartado de ""más información"" se pueden consultar algunas imágenes para comprender mejor el contexto del reto.</strong></p>
+&nbsp; | Una operadora internacional de infraestructuras de transporte nos plantea este reto con el objetivo de explorar y evaluar tecnologías emergentes aplicadas a pavimentos, incluyendo asfaltos autorreparables, modificados y/o nuevos materiales, con el fin de r<strong>educir el deterioro prematuro, optimizar las intervenciones de conservación y aumentar la resiliencia de la infraestructura vial</strong> frente a cargas extremas y condiciones climáticas adversas. Asimismo, establecer modelos predictivos de mantenimiento que permitan anticipar fallas, optimizar recursos y mejorar la toma de decisiones operacionales.
+<h4>Situación Actual:</h4>
+<ul>
+ 	<li>Proyecto en Italia: Se introdujo el uso de RAP (Reclaimed Asphalt Pavement) con hasta un 30% en capa de rodadura con mezcla drenante.</li>
+ 	<li>Incremento de deterioro prematuro, perdida de material (desprendimiento), en autopistas con condiciones climáticas adversas (lluvia principalmente). Baja durabilidad</li>
+ 	<li>Inspección visual completa (deterioros) 1 vez al año.</li>
+ 	<li>Oportunidad de mejora en la fiabilidad de modelos predictivos</li>
+ 	<li>Fabricación de mezclas asfálticas con alta temperatura &gt; 180ºC</li>
+</ul>
+<h4>Limitaciones</h4>
+<ul>
+ 	<li>Presupuesto limitado</li>
+ 	<li>Interés de la Unidad de negocio</li>
+</ul>
+<h4>Interés y Consideraciones Claves</h4>
+<ul>
+ 	<li><strong> </strong>Materiales resilientes frente a condiciones climáticas adversa</li>
+ 	<li>Materiales reciclados</li>
+ 	<li>Asfaltos autorreparables</li>
+ 	<li>Modelo Predictivo de pavimento</li>
+</ul>
+<strong><u>Enfoques Fundamentales:</u></strong>
+<ul>
+ 	<li>Mayor durabilidad del pavimento (Climatología y tráfico pesado)</li>
+ 	<li>Reducción de la Huella de carbono: Reducción de CO₂ en todo el ciclo de vida de los materiales (diseño, planta, transporte, obra y mantenimiento).</li>
+ 	<li>Reforzar la economía circular en las operaciones</li>
+ 	<li>Mejorar las propiedades funcionales (antruido, drenantes, rozamiento)</li>
+ 	<li>Reducir costes globales de</li>
+ 	<li><strong>Modelos Predictivos con IA</strong>
+<ul>
+ 	<li>Procesamiento de los parámetros de auscultación (IRI, deflexiones, fisuras, textura).</li>
+ 	<li>Predecir fallas por fatiga, deformaciones y fisuración térmica.</li>
+ 	<li>Evaluar el desempeño a lo largo del ciclo de vida del pavimento para generar valor en la toma de decisiones.</li>
+ 	<li>Fácil integración con Gemelo digital o plataforma de visualización.</li>
+</ul>
+</li>
+</ul>
+<h3>Próximos pasos</h3>
+Si vuestra entidad dispone de tecnologías, capacidades o experiencia aplicable, os agradeceríamos que lo indiquéis <strong>con detalle</strong> en este breve formulario antes del próximo <strong>20 de febrero</strong>. Una vez analizadas las respuestas recibidas, os invitaremos a participar en un Innovation Workshop online el 26 de febrero a las 12:30h.
+
+<em>*El servicio de retos tecnológicos es exclusivo para socios del ecosistema SECPHO. </em>
+<em>Si tu entidad todavía no es socia y quieres que te informemos sobre el valor que aportamos a nuestros socios puedes dejarnos tus datos <a href=""https://www.secpho.org/quieres-conocernos-mejor/"">aquí</a> y te contactaremos para explicarte cómo te podemos ayudar.</em>"
+retos,Sector/es,str,2,1.15,22,Fabricación industrial | Construcción | Salud
+retos,Entidad emisora,str,94,54.02,50,Aleatica | Promsa | LVD Biotech
+retos,Fecha envío,str,64,36.78,95,24/04/2026 | 14/04/2026 | 02/02/2026
+retos,Fecha cierre,str,64,36.78,95,05/05/2026 | 22/04/2026 | 20/02/2026
+retos,Entidades que aplican,str,102,58.62,65,"Beamagine, SAIKARIS, Vicomtech, CEIT, Nabla Vision, Tekniker | Eurecat, SISTAM, SAIKARIS | Imasenic, Beamagine, IKERLAN"
+retos,Tipo de conexión,str,105,60.34,6,Workshop online | Conexión individual vía correo | Workshop presencial
+retos,¿Surge proyecto?,str,0,0.0,3,No sabemos | Sí | No
+retos,Socio beneficiado,str,164,94.25,8,"IRIS Technology Solutions S.L., AINIA | Phase Photonics | MTS Tech"

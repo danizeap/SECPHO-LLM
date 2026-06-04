@@ -1,0 +1,193 @@
+﻿socio,company_type,member_type,readiness_score,readiness_label,member_profile_count,subscriber_contact_count,retos_as_issuer_count,retos_as_applicant_count,has_activity_summary,has_main_contact_email,province,website
+2EyesVision,Startup o Spinoff,Socio,100,High,5,12,1,0,True,True,Madrid,http://www.2eyesvision.com/
+AIMEN Centro Tecnológico,Centro o Grupo de I+D+i,Socio,100,High,5,31,0,5,True,True,Pontevedra,http://www.aimen.es
+AINIA,Centro o Grupo de I+D+i,Socio,100,High,5,28,0,8,True,True,Valencia,http://www.ainia.es
+AMS Technologies,Pyme tecnológica,Socio,100,High,1,4,0,1,True,True,Barcelona,http://www.amstechnologies.com
+ASINCAR,Centro o Grupo de I+D+i,Socio,100,High,5,8,0,1,True,True,Asturias,https://www.asincar.com/
+Alter Technology,Gran Empresa tecnológica,Socio,100,High,4,26,0,11,True,True,Sevilla,http://www.altertechnology.com
+Aotech,Startup o Spinoff,Socio,100,High,3,3,0,5,True,True,Bizkaia,https://www.aotech.es/
+ArcelorMittal,End User o Coporate,Socio,100,High,1,10,5,0,True,True,Bizkaia,https://corporate.arcelormittal.com/
+AsorCAD Engineering,Pyme tecnológica,Socio,100,High,3,6,0,5,True,True,Barcelona,http://www.asorcad.es
+BIOBEE semiconductors,Startup o Spinoff,Socio,100,High,1,2,0,1,True,True,Badajoz,https://biobee.tech/
+Beamagine,Micropyme tecnológica,Socio,100,High,2,5,0,11,True,True,Barcelona,http://beamagine.com/
+Beawre,Startup o Spinoff,Socio,100,High,1,2,0,1,True,True,Barcelona,https://es.beawre.com/
+CAT UAV,Pyme tecnológica,Socio,100,High,1,6,1,6,True,True,Barcelona,https://www.catuav.com/
+CD6 - UPC,Centro o Grupo de I+D+i,Socio,100,High,2,13,0,10,True,True,Barcelona,http://www.cd6.upc.edu
+CEIT,Centro o Grupo de I+D+i,Socio,100,High,16,33,0,15,True,True,Gipuzkoa,http://www.ceit.es
+CEMDATIC - UPM,Centro o Grupo de I+D+i,Socio,100,High,2,11,0,3,True,True,Madrid,https://cemdatic.upm.es
+COVAP,End User o Coporate,Socio,100,High,2,10,1,0,True,True,Córdoba,https://www.covap.es/?sl=es
+CVBLab,Centro o Grupo de I+D+i,Socio,100,High,3,4,0,1,True,True,Valencia,https://www.cvblab.webs.upv.es/en/home/
+CVC,Centro o Grupo de I+D+i,Socio,100,High,1,10,0,2,True,True,Barcelona,http://www.cvc.uab.cat
+CalSens,Pyme tecnológica,Socio,100,High,4,9,0,2,True,True,Valencia,http://www.cal-sens.com
+Celsa,End User o Coporate,Socio,100,High,2,6,6,0,True,True,Barcelona,http://celsagroup.com/
+Diip Artificial Intelligence,Startup o Spinoff,Socio,100,High,1,2,0,2,True,True,Barcelona,https://diipai.io/
+Draco Systems,Micropyme tecnológica,Socio,100,High,1,3,0,9,True,True,Barcelona,http://www.dracosystems.net/
+Dronomy,Startup o Spinoff,Socio,100,High,1,2,0,4,True,True,Madrid,https://www.dronomy.es/
+EXOM engineering,Startup o Spinoff,Socio,100,High,4,6,0,1,True,True,Bizkaia,https://www.exomengineering.com/
+Eurecat,Centro o Grupo de I+D+i,Socio,100,High,12,69,0,22,True,True,Barcelona,http://eurecat.org
+Fujitsu,Gran Empresa tecnológica,Socio,100,High,4,14,0,6,True,True,Madrid,https://www.fujitsu.com/es/
+GPAINNOVA,Pyme tecnológica,Socio,100,High,2,10,5,1,True,True,Barcelona,https://www.gpainnova.com/
+Greenlight Solutions,Micropyme tecnológica,Socio,100,High,3,5,0,4,True,True,Madrid,https://www.greenlightsl.com/
+ICFO,Centro o Grupo de I+D+i,Socio,100,High,2,37,0,10,True,True,Barcelona,http://www.icfo.eu
+IKERLAN,Centro o Grupo de I+D+i,Socio,100,High,3,15,0,1,True,True,Gipuzkoa,ikerlan.es
+IMB-CNM,Centro o Grupo de I+D+i,Socio,100,High,10,18,0,9,True,True,Barcelona,http://www.imb-cnm.csic.es/index.php/en
+IN2UB,Centro o Grupo de I+D+i,Socio,100,High,2,13,0,9,True,True,Barcelona,http://www.ub.edu/in2ub
+IOVI Intelligent Vision,Micropyme tecnológica,Socio,100,High,2,6,0,5,True,True,Sevilla,https://www.inesoptics.com/
+Imasenic,Micropyme tecnológica,Socio,100,High,1,2,0,8,True,True,Barcelona,https://www.imasenic.com/
+LVD Biotech,Gran Empresa tecnológica,Socio,100,High,1,6,2,0,True,True,Barcelona,https://www.lvdbiotech.com/
+Leitat,Centro o Grupo de I+D+i,Socio,100,High,13,46,0,18,True,True,Barcelona,http://www.leitat.org
+LÚCID,Pyme tecnológica,Baja Solicitada,100,High,2,7,0,1,True,True,Barcelona,https://www.lucid.pro/
+Macsa ID,Pyme tecnológica,Socio,100,High,2,15,0,3,True,True,Barcelona,http://www.macsa.com
+Mapsi Photonics,Startup o Spinoff,Socio,100,High,1,2,0,2,True,True,Barcelona,https://mapsi.es/
+Monocrom,Pyme tecnológica,Socio,100,High,5,7,0,5,True,True,Barcelona,https://www.monocrom.com
+New Infrared Technologies,Micropyme tecnológica,Socio,100,High,3,9,0,4,True,True,Madrid,http://www.niteurope.com
+Pal Robotics,Pyme tecnológica,Socio,100,High,3,11,1,0,True,True,Barcelona,www.pal-robotics.com
+ProCareLight,Micropyme tecnológica,Socio,100,High,3,6,0,6,True,True,Barcelona,http://www.procarelight.com
+Quside,Micropyme tecnológica,Socio,100,High,1,14,0,3,True,True,Barcelona,http://www.quside.com/
+Radiantis,Micropyme tecnológica,Socio,100,High,4,7,1,3,True,True,Barcelona,http://www.radiantis.com
+Robotnik,Pyme tecnológica,Socio,100,High,7,12,0,4,True,True,Valencia,https://www.robotnik.eu/
+Rosepetal,Startup o Spinoff,Socio,100,High,1,2,0,2,True,True,Barcelona,https://www.rosepetal.ai/
+SAIKARIS,Startup o Spinoff,Socio,100,High,1,1,0,2,True,True,,https://www.saikaris.com/
+SISTAM,Startup o Spinoff,Socio,100,High,1,2,0,6,True,True,Madrid,http://www.lidax.com/en/
+Stimulo,Pyme tecnológica,Socio,100,High,5,6,0,7,True,True,Barcelona,https://stimulo.com/
+Subsea Mechatronics,Startup o Spinoff,Socio,100,High,1,3,0,2,True,True,Las Palmas,https://www.subseamechatronics.com/
+Tecnalia,Centro o Grupo de I+D+i,Socio,100,High,14,58,1,12,True,True,Bizkaia,http://www.tecnalia.com
+Tekniker,Centro o Grupo de I+D+i,Socio,100,High,7,53,0,14,True,True,Gipuzkoa,http://www.tekniker.es
+Thales Alenia Space España,Gran Empresa tecnológica,Socio,100,High,5,4,1,0,True,True,Madrid,https://www.thalesaleniaspace.com/en
+VLC Photonics,End User o Coporate,Socio,100,High,5,16,0,1,True,True,Valencia,http://www.vlcphotonics.com
+Vicomtech,Centro o Grupo de I+D+i,Socio,100,High,4,19,0,1,True,True,Gipuzkoa,http://www.vicomtech.org/
+Zabala Innovation,Gran Empresa tecnológica,Socio,100,High,1,53,1,0,True,True,Navarra,https://www.zabala.es/
+Zepren Solutions,Startup o Spinoff,Socio,100,High,2,7,0,7,True,True,Zaragoza,https://zepren.com/
+bcb,Pyme tecnológica,Socio,100,High,1,9,0,9,True,True,Madrid,http://www.bcb.es
+rbz,Pyme tecnológica,Socio,100,High,1,7,0,8,True,True,Madrid,http://www.rbzrobotdesign.com
+t2c,Pyme tecnológica,Socio,100,High,2,6,0,3,True,True,Barcelona,https://t2client.com/
+Nulab,Startup o Spinoff,Socio,85,High,1,5,0,3,False,True,Navarra,http://www.nulab.es
+UAB,Centro o Grupo de I+D+i,Socio,85,High,8,36,0,4,False,True,Barcelona,https://www.uab.cat/web/departamento-de-ciencia-animal-y-de-los-alimentos-1345750244233.html
+5SKILL SOLUTIONS,Pyme tecnológica,Socio,80,High,3,4,0,0,True,True,Barcelona,https://5skill.com/
+ADDICRAFT ENGINEERING,Startup o Spinoff,Socio,80,High,2,1,0,0,True,True,Barcelona,https://www.addicrafteng.com/
+ASENSE,Pyme tecnológica,Socio,80,High,4,6,0,0,True,True,Madrid,https://www.asensenova.com/
+Alba Synchrotron,Centro o Grupo de I+D+i,Socio,80,High,3,8,0,0,True,True,Barcelona,http://www.cells.es
+Biyiud,Startup o Spinoff,Socio,80,High,1,3,0,0,True,True,Barcelona,https://www.biyiud.eco/es/
+Bullnet Capital,Inversores y gestoras de VC o PE,Socio,80,High,1,6,0,0,True,True,Madrid,http://www.bullnetcapital.com
+CIMNE,Centro o Grupo de I+D+i,Socio,80,High,4,9,0,0,True,True,Barcelona,https://www.cimne.com/
+Clave Capital,Inversores y gestoras de VC o PE,Potencial,80,High,1,4,0,0,True,True,,
+Coherent España,Gran Empresa tecnológica,Socio,80,High,2,2,0,0,True,True,Navarra,http://www.rofin.es
+DeepTech Builder,Inversores y gestoras de VC o PE,Baja,80,High,5,4,0,0,True,True,Valencia,https://deeptechbuilder.com/
+Delvy,Micropyme tecnológica,Socio,80,High,1,11,0,0,True,True,Barcelona,https://delvy.es/
+Deneb Medical,Micropyme tecnológica,Socio,80,High,1,4,0,0,True,True,Gipuzkoa,https://denebmedical.es/
+EASO VENTURES SCR,Inversores y gestoras de VC o PE,Socio,80,High,2,3,0,0,True,True,Gipuzkoa,www.easoventures.com
+FUNDACIÓN GENERAL CSIC,Centro o Grupo de I+D+i,Socio,80,High,2,6,0,0,True,True,Madrid,WWW.FGCSIC.ES
+Fagor Automation,Gran Empresa tecnológica,Socio,80,High,2,5,0,0,True,True,Gipuzkoa,https://www.fagorautomation.com/
+Graphenea,Pyme tecnológica,Socio,80,High,6,6,0,0,True,True,Gipuzkoa,https://www.graphenea.com/
+Grupo Oesía,Gran Empresa tecnológica,Socio,80,High,9,11,0,0,True,True,Madrid,https://grupooesia.com/
+Hamamatsu Photonics,Gran Empresa tecnológica,Socio,80,High,3,11,0,0,True,True,Barcelona,http://www.hamamatsu.es
+ICMAB - CSIC,Centro o Grupo de I+D+i,Socio,80,High,10,19,0,0,True,True,Barcelona,http://icmab.es
+INBROOLL,Micropyme tecnológica,Socio,80,High,3,4,0,0,True,True,Girona,https://inbrooll.com/es/
+INDO,Pyme tecnológica,Socio,80,High,1,4,0,0,True,True,Barcelona,http://www.indo.es
+INMA-CSIC,Entidades Públicas e Instituciones,Socio,80,High,1,6,0,0,True,True,Zaragoza,https://inma.unizar-csic.es/
+IRTA,Centro o Grupo de I+D+i,Socio,80,High,10,19,0,0,True,True,Barcelona,www.irta.es
+Instituto de Óptica (CSIC),Centro o Grupo de I+D+i,Socio,80,High,6,22,0,0,True,True,Madrid,https://www.io.csic.es/
+KD,Pyme tecnológica,Socio,80,High,4,17,0,0,True,True,Madrid,http://www.kdpof.com
+Kadans Science Partner,Pyme tecnológica,Socio,80,High,1,3,0,0,True,True,Madrid,https://www.kadans.es/
+LAINTEC,Centro o Grupo de I+D+i,Socio,80,High,1,4,0,0,True,True,Araba,https://www.daisalux.com/es-es/
+LIDAX,Pyme tecnológica,Socio,80,High,1,3,0,0,True,True,Madrid,www.lidax.com
+MASENSE TECH,Startup o Spinoff,Socio,80,High,2,3,0,0,True,True,Madrid,https://www.masensetech.com/
+MiCos Iberia,Micropyme tecnológica,Socio,80,High,1,1,0,0,True,True,Barcelona,http://www.pimicos.es
+NIMBLE Diagnostics,Startup o Spinoff,Socio,80,High,1,2,0,0,True,True,Barcelona,https://www.dxnimble.com/
+Nanoker,Pyme tecnológica,Socio,80,High,1,4,0,0,True,True,Asturias,www.nanoker.com
+Northern Waves AB,Startup o Spinoff,Socio,80,High,1,3,0,0,True,True,,https://northern-waves.com/
+PONTI & PARTNERS,Pyme tecnológica,Socio,80,High,3,10,0,0,True,True,Barcelona,https://www.ponti.pro
+Palex Scientific,Gran Empresa tecnológica,Socio,80,High,8,1,0,0,True,True,Madrid,https://izasascientific.com/es
+Photonics Research Labs,Centro o Grupo de I+D+i,Socio,80,High,2,14,0,0,True,True,Valencia,http://www.prl.upv.es/
+Sensofar Metrology,Pyme tecnológica,Socio,80,High,3,7,0,0,True,True,Barcelona,https://www.sensofar.com/metrology/
+Star Robotics,Micropyme tecnológica,Socio,80,High,2,3,0,0,True,True,Madrid,https://star-robotics.com/
+WOOPTIX,Pyme tecnológica,Socio,80,High,2,11,0,0,True,True,Madrid,https://wooptix.com/
+shinephi,Startup o Spinoff,Socio,80,High,3,2,0,0,True,True,Barcelona,https://shinephi.tech/
+Abertis,End User o Coporate,OIC,70,Medium,0,3,1,0,True,True,Madrid,https://www.abertis.com/
+Air Drone Logistics,Micropyme tecnológica,Socio,70,Medium,0,2,0,1,True,True,Madrid,https://www.airdronelogistics.es/
+Aleatica,End User o Coporate,OIC,70,Medium,0,3,3,0,True,True,,
+BSH,End User o Coporate,OIC,70,Medium,0,4,3,0,True,True,Zaragoza,
+Hospital Germans Trias i Pujol,Centro o Grupo de I+D+i,OIC,70,Medium,0,3,1,0,True,True,Barcelona,
+Laser Line Scanning,Startup o Spinoff,Socio,70,Medium,0,3,0,1,True,True,Madrid,
+Lenz Instruments,Micropyme tecnológica,Socio,70,Medium,0,3,0,6,True,True,Barcelona,http://www.lenz-instruments.com
+Micrauto,Micropyme tecnológica,Socio,70,Medium,0,3,1,1,True,True,Barcelona,http://www.micrauto.es/
+Nabla Vision,Startup o Spinoff,Socio,70,Medium,0,2,0,5,True,True,Barcelona,https://www.nablavision.com/
+Ommatidia Lidar,Startup o Spinoff,Socio,70,Medium,0,10,0,3,True,True,Madrid,https://ommatidia-lidar.com/
+Qurv Technologies,Startup o Spinoff,Socio,70,Medium,0,3,0,3,True,True,Barcelona,https://www.qurv.tech/
+TEKHNĒ,Startup o Spinoff,Socio,70,Medium,0,2,0,3,True,True,Madrid,https://tekhne.pro/
+UPV - EHU,Centro o Grupo de I+D+i,Socio,70,Medium,0,7,0,2,True,True,Bizkaia,https://www.ehu.eus/es/
+Visiona,Micropyme tecnológica,Socio,70,Medium,0,5,0,2,True,True,Navarra,http://www.visionasl.com
+singular things,Startup o Spinoff,Socio,70,Medium,0,6,0,5,True,True,Madrid,https://singularthings.io/
+Nanophotonics Technology Center,Centro o Grupo de I+D+i,Socio,65,Medium,2,22,0,0,False,True,Valencia,https://www.ntc.upv.es/
+Ocean Ecostructures,Startup o Spinoff,Socio,65,Medium,1,5,0,0,False,True,Barcelona,https://www.oceanecostructures.com/
+ICMM,Entidades Públicas e Instituciones,Socio,60,Medium,14,0,0,0,True,True,Madrid,https://www.icmm.csic.es/es
+Solar MEMS Technologies,Pyme tecnológica,Socio,60,Medium,3,0,0,0,True,True,Sevilla,https://solar-mems.com/
+Laboratorios HARTMANN,End User o Coporate,OIC,55,Medium,0,1,1,0,False,True,Madrid,
+Promsa,End User o Coporate,OIC,55,Medium,0,2,2,0,False,True,Barcelona,
+Recursos Laser,Micropyme tecnológica,Socio,55,Medium,0,1,0,7,False,True,Barcelona,http://www.recursoslaser.es/
+SENER,End User o Coporate,OIC,55,Medium,0,6,0,1,False,True,Bizkaia,
+Airbus Defence&Space,End User o Coporate,OIC,50,Medium,0,2,0,0,True,True,Madrid,https://www.airbus.com/es/products-services/space/liderando-la-tecnologia-espacial-made-in-spain
+Analog thinking,Startup o Spinoff,Socio,50,Medium,0,1,0,0,True,True,Barcelona,https://www.analog-thinking.com/
+Angulas Aguinaga,End User o Coporate,OIC,50,Medium,0,4,0,0,True,True,Gipuzkoa,
+Asabys Partners,Inversores y gestoras de VC o PE,Potencial,50,Medium,0,3,0,0,True,True,,https://asabys.com/
+Axon Partners Group,Inversores y gestoras de VC o PE,Potencial,50,Medium,0,2,0,0,True,True,Madrid,https://www.axonpartnersgroup.com/
+Backfund,Inversores y gestoras de VC o PE,Potencial,50,Medium,0,2,0,0,True,True,,
+Baux,End User o Coporate,OIC,50,Medium,0,1,0,0,True,True,Barcelona,https://baux.es/
+Big Sur Ventures,Inversores y gestoras de VC o PE,Socio,50,Medium,0,3,0,0,True,True,Madrid,https://www.bigsurventures.vc/
+CDTI,Entidades Públicas e Instituciones,Socio,50,Medium,0,52,0,0,True,True,,https://www.cdti.es/
+CODORNIU,End User o Coporate,OIC,50,Medium,0,3,0,0,True,True,Barcelona,https://www.codorniu.com/
+Elewit,Inversores y gestoras de VC o PE,Potencial,50,Medium,0,1,0,0,True,True,,
+FOSSA Systems,Pyme tecnológica,Socio,50,Medium,0,4,0,0,True,True,Madrid,https://fossa.systems/es/
+Fundación Idonial,Centro o Grupo de I+D+i,Socio,50,Medium,0,4,0,0,True,True,Asturias,https://idonial.com/es/
+HIMIKODE,Startup o Spinoff,Socio,50,Medium,0,5,0,0,True,True,Lugo,https://himikode.com/
+Hasten Ventures,Inversores y gestoras de VC o PE,Potencial,50,Medium,0,1,0,0,True,True,Bizkaia,
+Hospital Clínic de Barcelona,Centro o Grupo de I+D+i,OIC,50,Medium,0,13,0,0,True,True,Barcelona,www.hospitalclinic.org
+Inmersia,Micropyme tecnológica,Socio,50,Medium,0,4,0,0,True,True,Barcelona,https://www.inmersia.com
+Invivo Capital,Inversores y gestoras de VC o PE,Potencial,50,Medium,0,1,0,0,True,True,,https://invivo.capital/es/#home
+MAIMAN ELECTRONICS,Startup o Spinoff,Socio,50,Medium,0,2,0,0,True,True,Barcelona,https://www.maimanelectronics.com/
+Master in Photonics - Europhotonics,Centro o Grupo de I+D+i,Socio,50,Medium,0,3,0,0,True,True,Barcelona,http://www.photonicsbcn.eu
+Mundi Ventures,Inversores y gestoras de VC o PE,Potencial,50,Medium,0,1,0,0,True,True,,
+OPTOSIGMA,Gran Empresa tecnológica,Socio,50,Medium,0,3,0,0,True,True,,https://www.optosigma.com/eu_en/
+QPO,Startup o Spinoff,Socio,50,Medium,0,4,0,0,True,True,Barcelona,www.qpolens.com
+Sensofar Medical,Micropyme tecnológica,Socio,50,Medium,0,5,0,0,True,True,Barcelona,https://www.sensofar.com/medical/
+Suma Capital,Inversores y gestoras de VC o PE,Potencial,50,Medium,0,1,0,0,True,True,,https://sumacapital.com/
+Swanlaab Venture Factory,Inversores y gestoras de VC o PE,Potencial,50,Medium,0,1,0,0,True,True,,
+UDIT,Centro o Grupo de I+D+i,Socio,50,Medium,0,10,0,0,True,True,Madrid,https://udit.es/
+WA4STEAM,Inversores y gestoras de VC o PE,Potencial,50,Medium,0,6,0,0,True,True,Barcelona,https://wa4steam.com/
+YSIUM MEDICAL,Startup o Spinoff,Socio,50,Medium,0,2,0,0,True,True,Navarra,www.ysiummedical.com
+iPronics,Pyme tecnológica,Socio,50,Medium,0,10,0,0,True,True,Valencia,https://ipronics.com/
+Adara Ventures,Inversores y gestoras de VC o PE,Potencial,35,Low,0,1,0,0,False,True,,
+BBraun,End User o Coporate,OIC,35,Low,0,3,0,0,False,True,Barcelona,https://www.bbraun.es/es.html
+CRB Health Tech,Inversores y gestoras de VC o PE,Potencial,35,Low,0,1,0,0,False,True,,
+Cargill,End User o Coporate,OIC,35,Low,0,1,0,0,False,True,Barcelona,https://www.cargill.es/es/inicio
+"Demea Sustainable Investments, S.A.",Inversores y gestoras de VC o PE,Potencial,35,Low,0,1,0,0,False,True,,
+Encomenda,Inversores y gestoras de VC o PE,Potencial,35,Low,0,1,0,0,False,True,,
+Fides Capital,Inversores y gestoras de VC o PE,Potencial,35,Low,0,1,0,0,False,True,,
+Frit Ravich,End User o Coporate,OIC,35,Low,0,10,0,0,False,True,Girona,www.fritravich.com
+HP,End User o Coporate,OIC,35,Low,0,9,0,0,True,False,Madrid,
+ICF CAPITAL,Inversores y gestoras de VC o PE,Potencial,35,Low,0,2,0,0,False,True,,
+Lubrizol,Gran Empresa tecnológica,OIC,35,Low,0,7,0,0,False,True,Barcelona,https://www.lipotec.com/es/home/
+Mahou san Miguel,Inversores y gestoras de VC o PE,Potencial,35,Low,0,1,0,0,False,True,,
+Navantia,End User o Coporate,OIC,35,Low,0,5,0,0,False,True,Madrid,https://www.navantia.es/es/
+SETT,Inversores y gestoras de VC o PE,Partner,35,Low,0,5,0,0,False,True,,
+Sens Solutions,Startup o Spinoff,Socio,35,Low,0,3,0,0,False,True,Barcelona,https://www.sens.solutions/en/home/
+Standard Profil,End User o Coporate,OIC,35,Low,0,1,0,0,True,False,La Rioja,
+TMB,End User o Coporate,OIC,35,Low,0,3,0,0,False,True,Barcelona,www.tmb.cat
+TRADEBE,End User o Coporate,OIC,35,Low,0,5,0,0,False,True,Barcelona,https://www.tradebe.com/
+VIGO Ventures,Inversores y gestoras de VC o PE,Potencial,35,Low,0,2,0,0,False,True,,http://vigo.ventures/
+Evlox,End User o Coporate,OIC,30,Low,0,0,0,0,True,True,Madrid,
+Lecta,End User o Coporate,OIC,20,Low,0,1,0,0,False,False,Barcelona,
+Nestlé,End User o Coporate,OIC,20,Low,0,2,0,0,False,False,Barcelona,https://empresa.nestle.es/es
+Repsol,End User o Coporate,OIC,20,Low,0,17,0,0,False,False,Madrid,https://www.repsol.com/es/
+Roca,End User o Coporate,OIC,20,Low,0,3,0,0,False,False,Barcelona,https://www.roca.es/
+SEAT,End User o Coporate,OIC,20,Low,0,7,0,0,False,False,Barcelona,https://www.seat.es/
+Telefónica,End User o Coporate,OIC,20,Low,0,4,0,0,False,False,Madrid,
+BANCO SABADELL BStartup10,Inversores y gestoras de VC o PE,Potencial,15,Low,0,0,0,0,False,True,,
+Blind Faith Ventures,Inversores y gestoras de VC o PE,Potencial,15,Low,0,0,0,0,False,True,,
+CCL Label,End User o Coporate,OIC,15,Low,0,0,0,0,True,False,Barcelona,
+Continental Automotive Spain,End User o Coporate,OIC,15,Low,0,0,0,0,True,False,Madrid,https://www.continentalautomotive.es/
+Grupo Elecnor,End User o Coporate,OIC,15,Low,0,0,0,0,False,True,,https://www.elecnor.com/home
+Rumbo Ventures,Inversores y gestoras de VC o PE,Potencial,15,Low,0,0,0,0,False,True,,
+Ship2B Ventures,Inversores y gestoras de VC o PE,Potencial,15,Low,0,0,0,0,False,True,,
+Velcro,End User o Coporate,OIC,15,Low,0,0,0,0,True,False,Barcelona,
+BBVA,End User o Coporate,OIC,0,Low,0,0,0,0,False,False,Bizkaia,

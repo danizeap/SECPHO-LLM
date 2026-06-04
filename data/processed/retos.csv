@@ -1,0 +1,400 @@
+﻿_source_id,Num. reto,Título,Descripción,Sector/es,Entidad emisora,Fecha envío,Fecha cierre,Entidades que aplican,Tipo de conexión,¿Surge proyecto?,Socio beneficiado
+74957,0215,Identificación de aplicaciones deep tech para polvo ultrafino de cobre de composición isotópica natural (Cu63/Cu65),"<p data-start=""267"" data-end=""520"">Desde SECPHO lanzamos este reto con el objetivo de identificar <strong data-start=""330"" data-end=""379"">posibles aplicaciones deep tech de alto valor</strong> para un material singular, así como detectar entidades interesadas en <strong data-start=""450"" data-end=""499"">testarlo, validarlo o explorar su adquisición</strong> para usos concretos.</p>
+<p data-start=""522"" data-end=""1022"">El material disponible consiste en <strong data-start=""557"" data-end=""618"">polvo ultrafino de cobre de composición isotópica natural</strong>, <strong data-start=""620"" data-end=""637"">no radiactivo</strong>, con una composición de <strong data-start=""662"" data-end=""684"">^63Cu 69,1% ± 0,05</strong> y <strong data-start=""687"" data-end=""709"">^65Cu 30,9% ± 0,05</strong>, y una <strong data-start=""717"" data-end=""747"">pureza química del 99,999%</strong>. Se presenta en <strong data-start=""764"" data-end=""822"">ampollas de vidrio estabilizadas en atmósfera de argón</strong> para preservar sus propiedades, y la documentación técnica disponible incluye certificados de análisis emitidos por IGAS, así como micrografías SEM del material.</p>
+<p data-start=""522"" data-end=""1022"">Por sus características, este material parece especialmente relevante para explorar aplicaciones en ámbitos como <strong data-start=""1137"" data-end=""1488"">microelectrónica y semiconductores, microcomponentes, electrónica crítica, PCB e interconexión avanzada, tintas y pastas conductivas, electrónica impresa, fabricación aditiva metálica, pulvimetalurgia y sinterizado, aleaciones avanzadas, thermal management, apantallamiento electromagnético EMI/EMC, sensórica, baterías y almacenamiento energético</strong>, así como otras aplicaciones de materiales funcionales donde puedan ser diferenciales la <strong data-start=""1578"" data-end=""1599"">ultra alta pureza</strong>, la <strong data-start=""1604"" data-end=""1626"">granulometría fina</strong>, la <strong data-start=""1631"" data-end=""1655"">morfología del polvo</strong> o la <strong data-start=""1661"" data-end=""1689"">estabilidad del material</strong>. Las micrografías disponibles muestran agregados formados por partículas primarias muy finas, usualmente inferiores a 2 µm.</p>
+<p data-start=""522"" data-end=""1022"">Según la información facilitada, el producto fue fabricado por <strong data-start=""1916"" data-end=""1957"">ZAO Piromet (Ryazan, Federación Rusa)</strong> e importado a Suiza antes de la imposición de sanciones. Actualmente se encuentra almacenado en una instalación segura en <strong data-start=""2080"" data-end=""2110"">Embrach (cantón de Zúrich)</strong>, en zona franca, lo que en principio puede facilitar la logística de una eventual operación. La documentación de custodia disponible hace referencia a <strong data-start=""2262"" data-end=""2274"">16 cajas</strong> con un peso neto total de <strong data-start=""2301"" data-end=""2313"">1.008 kg</strong> de “ultra pure copper powder”.</p>
+<p data-start=""522"" data-end=""1022"">A través de este reto, nos interesa identificar tanto <strong data-start=""2438"" data-end=""2464"">casos de uso concretos</strong> como posibles <strong data-start=""2479"" data-end=""2505"">sinergias entre socios</strong> para ensayos, validaciones, pilotos o colaboraciones en torno a este material. Invitamos a las entidades interesadas a indicarnos brevemente <strong data-start=""2647"" data-end=""2682"">qué aplicación potencial le ven</strong>, <strong data-start=""2684"" data-end=""2729"">por qué podría aportar valor en su ámbito</strong>, <strong data-start=""2731"" data-end=""2776"">qué tipo de validación o test requerirían</strong> y si su interés es, por ahora, <strong data-start=""2808"" data-end=""2824"">exploratorio</strong>, orientado a <strong data-start=""2838"" data-end=""2873"">recibir más información técnica</strong>, a <strong data-start=""2877"" data-end=""2896"">testar muestras</strong>, a <strong data-start=""2900"" data-end=""2930"">valorar una posible compra</strong> o a <strong data-start=""2935"" data-end=""2981"">explorar una colaboración con otros socios</strong>.</p>
+<p data-start=""522"" data-end=""1022""><strong>ANEXOS</strong></p>
+En el apartado de más información se puede acceder a 4 anexos que incluyen Informes y Certificados de Análisis, SKR de almacenamiento y una foto del producto.",,,24/04/2026,05/05/2026,,,No sabemos,
+74755,0214,Seguridad industrial en planta: prevención de atropellos e interacciones de riesgo entre maquinaria móvil y operarios en zonas de maniobra reducida,"<p data-start=""381"" data-end=""887"">Una empresa industrial plantea un reto de seguridad orientado a prevenir situaciones de riesgo derivadas de la convivencia entre <strong data-start=""510"" data-end=""542"">operarios y maquinaria móvil</strong> en una <strong data-start=""550"" data-end=""587"">zona logística interior de planta</strong> con espacio reducido, maniobras frecuentes y elevada exposición operativa. El objetivo es identificar soluciones que permitan <strong data-start=""714"" data-end=""791"">evitar, reducir o eliminar el riesgo de atropello o interacción peligrosa</strong> entre personas y equipos móviles en este tipo de entorno.</p>
+<p data-start=""889"" data-end=""1653"">El caso de uso parte de una zona específica de planta en la que recientemente se ha evidenciado un riesgo crítico asociado a la operativa entre una <strong data-start=""1037"" data-end=""1061"">carretilla elevadora</strong> y un operario. La necesidad es contar con una solución robusta que impida que la maquinaria opere en condiciones de riesgo cuando haya una persona dentro del área peligrosa, con una lógica de seguridad automática y con el menor impacto posible sobre la operativa diaria. Aunque el foco inicial está en este caso concreto, la empresa también valora propuestas con potencial de <strong data-start=""1438"" data-end=""1456"">replicabilidad</strong> a otros equipos móviles, como carretillas frontales o laterales, palas, grúas autopropulsadas u otra maquinaria similar.</p>
+<p data-start=""1655"" data-end=""2364"">Como referencia, la zona a monitorizar puede considerarse de aproximadamente unos <strong data-start=""1766"" data-end=""1776"">200 m²</strong>. Se trata de un entorno exigente, con convivencia constante entre personas y vehículos industriales, distancias de maniobra reducidas y una necesidad clara de separar de forma segura las zonas de operación de maquinaria y las zonas seguras para el personal. En el caso analizado, la maquinaria de referencia es una <strong data-start=""2092"" data-end=""2140"">carretilla eléctrica Kalmar ECE70-6 (80/24V)</strong>. Actualmente existen distintos niveles de equipamiento en visión artificial, desde cámaras traseras estándar hasta algunas unidades con cámaras avanzadas con IA y detección de personas.</p>
+<p data-start=""2366"" data-end=""3170"">La solución deberá responder adecuadamente a un entorno industrial complejo. Entre los condicionantes a tener en cuenta destacan la presencia de <strong data-start=""2511"" data-end=""2532"">elementos móviles</strong> en la zona, en particular devanadoras con movimiento a 90º y velocidad baja; la existencia de <strong data-start=""2627"" data-end=""2665"">partículas metálicas en suspensión</strong>; y las <strong data-start=""2673"" data-end=""2703"">variaciones de iluminación</strong> provocadas por la apertura del portón de acceso de maquinaria, en función del momento del día y de la incidencia solar. También deben contemplarse posibles obstáculos, estructuras y situaciones de visibilidad parcial que puedan afectar al rendimiento de soluciones basadas en visión o sensórica. Estas condiciones hacen especialmente importante que la propuesta sea robusta, fiable y contrastada en entornos industriales reales.</p>
+<p data-start=""3172"" data-end=""4021"">La empresa está abierta a diferentes enfoques de solución. Por un lado, interesan propuestas aplicables de forma general a maquinaria móvil que permitan detectar presencia humana y activar una <strong data-start=""3365"" data-end=""3402"">respuesta automática de seguridad</strong>, idealmente mediante parada de la máquina en caso de riesgo, salvo en aquellos procesos en los que ello pudiera generar un peligro adicional. Por otro lado, en este caso concreto existe también un interés especial por soluciones basadas en <strong data-start=""3643"" data-end=""3688"">cerramiento perimetral con enclavamientos</strong>, de forma que pueda bloquearse la apertura de accesos o determinadas maniobras cuando la maquinaria se encuentre operativa en el interior de la zona. La preferencia expresada por la empresa apunta precisamente a este tipo de enfoques robustos desde el punto de vista de la seguridad industrial.</p>
+<p data-start=""4023"" data-end=""4781"">Se valorarán especialmente aquellas propuestas que ofrezcan <strong data-start=""4083"" data-end=""4115"">detección fiable de personas</strong>, buen comportamiento en condiciones de visibilidad compleja, <strong data-start=""4177"" data-end=""4210"">baja tasa de falsos positivos</strong>, integración razonable sobre equipos existentes y potencial de escalado a otros tipos de maquinaria o áreas de planta. También será importante que la solución tenga sentido en términos de coste, mantenimiento y despliegue. La empresa busca preferentemente <strong data-start=""4467"" data-end=""4516"">soluciones ya validadas en entorno industrial</strong>, dado el carácter agresivo de sus instalaciones. Solo se considerarían propuestas de menor madurez si aportan una mejora muy relevante y diferencial frente a las soluciones ya disponibles.</p>
+<p data-start=""4783"" data-end=""5354"">Como limitación relevante, la empresa considera que los sistemas basados exclusivamente en <strong data-start=""4874"" data-end=""4905"">tags o wearables personales</strong> no resultan adecuados como solución principal en este caso, ya que la proximidad constante entre personas y máquinas provocaría alertas continuas y reduciría la utilidad del sistema. En cambio, encajan especialmente propuestas relacionadas con <strong data-start=""5150"" data-end=""5315"">sensórica industrial, visión artificial, enclavamientos, seguridad funcional, control de accesos, automatización e integración de sistemas sobre maquinaria móvil</strong>.</p>
+<p data-start=""5356"" data-end=""5421""><strong data-start=""5356"" data-end=""5421"">En el siguiente apartado de ""más información"" se pueden consultar algunas imágenes para comprender mejor el contexto del reto.</strong></p>
+&nbsp;",Fabricación industrial,,14/04/2026,22/04/2026,"Beamagine, SAIKARIS, Vicomtech, CEIT, Nabla Vision, Tekniker",,No sabemos,
+73043,0213,"Nuevos materiales para asfaltos, asfalto autorreparables y modelos predictivos de mantenimiento","Una operadora internacional de infraestructuras de transporte nos plantea este reto con el objetivo de explorar y evaluar tecnologías emergentes aplicadas a pavimentos, incluyendo asfaltos autorreparables, modificados y/o nuevos materiales, con el fin de r<strong>educir el deterioro prematuro, optimizar las intervenciones de conservación y aumentar la resiliencia de la infraestructura vial</strong> frente a cargas extremas y condiciones climáticas adversas. Asimismo, establecer modelos predictivos de mantenimiento que permitan anticipar fallas, optimizar recursos y mejorar la toma de decisiones operacionales.
+<h4>Situación Actual:</h4>
+<ul>
+ 	<li>Proyecto en Italia: Se introdujo el uso de RAP (Reclaimed Asphalt Pavement) con hasta un 30% en capa de rodadura con mezcla drenante.</li>
+ 	<li>Incremento de deterioro prematuro, perdida de material (desprendimiento), en autopistas con condiciones climáticas adversas (lluvia principalmente). Baja durabilidad</li>
+ 	<li>Inspección visual completa (deterioros) 1 vez al año.</li>
+ 	<li>Oportunidad de mejora en la fiabilidad de modelos predictivos</li>
+ 	<li>Fabricación de mezclas asfálticas con alta temperatura &gt; 180ºC</li>
+</ul>
+<h4>Limitaciones</h4>
+<ul>
+ 	<li>Presupuesto limitado</li>
+ 	<li>Interés de la Unidad de negocio</li>
+</ul>
+<h4>Interés y Consideraciones Claves</h4>
+<ul>
+ 	<li><strong> </strong>Materiales resilientes frente a condiciones climáticas adversa</li>
+ 	<li>Materiales reciclados</li>
+ 	<li>Asfaltos autorreparables</li>
+ 	<li>Modelo Predictivo de pavimento</li>
+</ul>
+<strong><u>Enfoques Fundamentales:</u></strong>
+<ul>
+ 	<li>Mayor durabilidad del pavimento (Climatología y tráfico pesado)</li>
+ 	<li>Reducción de la Huella de carbono: Reducción de CO₂ en todo el ciclo de vida de los materiales (diseño, planta, transporte, obra y mantenimiento).</li>
+ 	<li>Reforzar la economía circular en las operaciones</li>
+ 	<li>Mejorar las propiedades funcionales (antruido, drenantes, rozamiento)</li>
+ 	<li>Reducir costes globales de</li>
+ 	<li><strong>Modelos Predictivos con IA</strong>
+<ul>
+ 	<li>Procesamiento de los parámetros de auscultación (IRI, deflexiones, fisuras, textura).</li>
+ 	<li>Predecir fallas por fatiga, deformaciones y fisuración térmica.</li>
+ 	<li>Evaluar el desempeño a lo largo del ciclo de vida del pavimento para generar valor en la toma de decisiones.</li>
+ 	<li>Fácil integración con Gemelo digital o plataforma de visualización.</li>
+</ul>
+</li>
+</ul>
+<h3>Próximos pasos</h3>
+Si vuestra entidad dispone de tecnologías, capacidades o experiencia aplicable, os agradeceríamos que lo indiquéis <strong>con detalle</strong> en este breve formulario antes del próximo <strong>20 de febrero</strong>. Una vez analizadas las respuestas recibidas, os invitaremos a participar en un Innovation Workshop online el 26 de febrero a las 12:30h.
+
+<em>*El servicio de retos tecnológicos es exclusivo para socios del ecosistema SECPHO. </em>
+<em>Si tu entidad todavía no es socia y quieres que te informemos sobre el valor que aportamos a nuestros socios puedes dejarnos tus datos <a href=""https://www.secpho.org/quieres-conocernos-mejor/"">aquí</a> y te contactaremos para explicarte cómo te podemos ayudar.</em>",Construcción,Aleatica,02/02/2026,20/02/2026,"Eurecat, SISTAM, SAIKARIS",Workshop online,No sabemos,
+73042,0212,Sensórica	integrada	en vehículos operativos con plataforma	de visualización de datos + Gemelo Digital,"El objetivo de este reto que nos plantea una operadora internacional de infraestructuras de transporte es desarrollar un <strong>sistema integral de sensórica inteligente incorporado en un vehículo</strong> de operación para obtener de manera automatizada, continua y precisa información relevante sobre <strong>el estado de la autopista</strong>. A través de la recopilación y procesamiento avanzado de datos, se busca <strong>mejorar la gestión, supervisión y toma de decisiones sobre la carretera</strong>, proporcionando una visión completa, actualizada y evolutiva de sus condiciones. Con ello se pretende optimizar los procesos de conservación, incrementar la seguridad operativa y facilitar el análisis técnico mediante tecnologías digitales y modelos basados en datos.
+<h4>Situación Actual de la empresa:</h4>
+<ul>
+ 	<li>Contamos con gemelos digitales de las Unidades de Negocio; sin embargo, estos no se mantienen actualizados y operan sobre plataformas complejas.</li>
+ 	<li>Los inventarios y las auscultaciones se realizan de forma manual y, en gran medida, mediante subcontratistas. Esto genera ineficiencias operativas y produce información heterogénea, procedente de múltiples proveedores y sin un estándar común, lo que dificulta su integración y aprovechamiento.</li>
+</ul>
+<h4>Limitaciones</h4>
+<ul>
+ 	<li>Presupuesto limitado</li>
+ 	<li>Capacidad de integración, arquitectura abierta y modulable</li>
+ 	<li>Facilidad de uso, integración y escalabilidad en diferentes unidades de negocios (diferentes países)</li>
+</ul>
+<h4>Requisitos de la Nueva Solución</h4>
+<strong><u>La solución debe incluir:</u></strong>
+<ul>
+ 	<li><strong>Sensores + Visión Artificial + Gemelo Digital + Analítica Predictiva</strong></li>
+</ul>
+<strong> </strong><strong><u>Debe abarcar los siguientes casos de uso:</u></strong>
+<ul>
+ 	<li><strong> </strong>Inventario vial, señales, marcas, barreras</li>
+ 	<li>Auscultación: detección de anomalías (robos, daños, grietas, desgastes,)</li>
+ 	<li>Inspección de seguridad en cortes de carril, alertas y</li>
+ 	<li>Comparación histórica de pasadas de</li>
+ 	<li>Gemelos digitales Geometría 3D:
+Entrono de simulación - réplicas de los activos:
+<ul>
+ 	<li>Tareas de mantenimientos</li>
+ 	<li>Comportamiento de nuevos materiales bajo diferentes escenarios</li>
+ 	<li>Carriles reversibles</li>
+ 	<li>Gestión peajes</li>
+ 	<li>Condiciones meteorológicas</li>
+ 	<li>Reconstrucción de siniestros viales</li>
+</ul>
+</li>
+</ul>
+<h4>Alcance</h4>
+<ul>
+ 	<li>Iniciar con un piloto en una de nuestras unidades de negocio</li>
+ 	<li>Debe estar diseñado para escalarse fácilmente al resto de nuestras unidades de negocio en otros países.</li>
+</ul>
+<h3>Próximos pasos</h3>
+Si vuestra entidad dispone de tecnologías, capacidades o experiencia aplicable, os agradeceríamos que lo indiquéis <strong>con detalle</strong> en este breve formulario antes del próximo <strong>20 de febrero</strong>. Una vez analizadas las respuestas recibidas, os invitaremos a participar en un Innovation Workshop online el 26 de febrero a las 12:30h.
+
+<em>*El servicio de retos tecnológicos es exclusivo para socios del ecosistema SECPHO.</em>
+<em>Si tu entidad todavía no es socia y quieres que te informemos sobre el valor que aportamos a nuestros socios puedes dejarnos tus datos <a href=""https://www.secpho.org/quieres-conocernos-mejor/"">aquí</a> y te contactaremos para explicarte cómo te podemos ayudar.</em>",Construcción,Aleatica,02/02/2026,20/02/2026,"Imasenic, Beamagine, IKERLAN",Workshop online,No sabemos,
+73041,0211,Detección Temprana de Filtraciones de Agua en Túnel,"Una <strong>operadora internacional de infraestructuras viarias </strong>nos plantea este reto con el objetivo de implementar una <strong>Plataforma de Detección y Gestión Preventiva de Filtraciones </strong>(PDGPF–AVO) que permita:
+<ul>
+ 	<li>Detectar emanaciones incipientes de agua</li>
+ 	<li>Identificar su origen probable</li>
+ 	<li>Clasificar nivel de riesgo</li>
+ 	<li>Alertar tempranamente antes de que el agua llegue a la calzada</li>
+ 	<li>Priorizar acciones preventivas</li>
+</ul>
+<h4><strong>Situación actual:</strong></h4>
+Filtraciones de agua en el túnel y trincheras, las cuales pueden provenir de:
+<ul>
+ 	<li>Napa subterránea</li>
+ 	<li>Drenajes colmatados</li>
+ 	<li>Juntas estructurales deterioradas</li>
+ 	<li>Fisuras en revestimientos</li>
+ 	<li>Infiltraciones desde superficie</li>
+</ul>
+<strong><u>Riesgos Claves Asociados:</u></strong>
+<ul>
+ 	<li>Deterioro progresivo del hormigón</li>
+ 	<li>Corrosión de armaduras</li>
+ 	<li>Daño a sistemas eléctricos e ITS</li>
+ 	<li>Aparición de agua en calzada (riesgo operacional)</li>
+ 	<li>Observaciones IFE y planes remediales</li>
+</ul>
+<h4>Limitaciones</h4>
+Parte de la cubierta interior del túnel cuenta con Glasales que no permiten una visualización de las paredes estructurales, esto hace que la detección de filtraciones en ocasiones solo se reconoce una vez que asoma por el murete lateral y frente a una inspección visual de este.
+<h4>Requisitos de la Nueva Solución</h4>
+<strong><u>La solución debe combinar:</u></strong>
+<ul>
+ 	<li><strong>Sensores + Visión Artificial + Gemelo Digital + Analítica Predictiva</strong></li>
+ 	<li><strong>Integración directa al ecosistema ITS y de conservación de AVO</strong></li>
+</ul>
+<strong><u>Componentes principales</u></strong>
+<ul>
+ 	<li><strong><u>Sensores de detección temprana</u></strong></li>
+</ul>
+<ol>
+ 	<li>Sensores de humedad superficial: Ubicados en muros, bóvedas y juntas que:
+<ul>
+ 	<li>Detectan aumento anómalo de humedad</li>
+ 	<li>Operan incluso sin goteo visible</li>
+</ul>
+</li>
+ 	<li>Sensores de conductividad / presencia de agua: Ubicados en canales de drenaje, puntos bajos que:
+<ul>
+ 	<li>Diferencien humedad ambiental vs agua libre</li>
+</ul>
+</li>
+ 	<li>Sensores térmicos (cámaras IR) para detectar:
+<ul>
+ 	<li>Enfriamiento localizado</li>
+ 	<li>Patrones de infiltración</li>
+ 	<li>Filtraciones ocultas</li>
+</ul>
+</li>
+</ol>
+<ul>
+ 	<li><strong><u>Inspección con Visión Artificial</u></strong></li>
+</ul>
+<ol>
+ 	<li>Cámaras fijas y móviles con IA</li>
+ 	<li>Detección automática    de    <strong>goteos,    escurrimientos,    manchas    de    humedad, eflorescencias</strong></li>
+ 	<li>Comparación temporal (antes / después)</li>
+</ol>
+<ul>
+ 	<li><u></u><strong><u>Integración con gemelo digital AVO</u></strong></li>
+</ul>
+<ol>
+ 	<li>Cada punto de filtración se <strong>georreferencia y se asocia a elemento </strong>estructural BIM</li>
+ 	<li><strong>Análisis: </strong>cercanía a drenajes, juntas e instalaciones</li>
+ 	<li><strong>Resultado: </strong>Identificación del origen probable de la filtración</li>
+</ol>
+<h3>Próximos pasos</h3>
+Si vuestra entidad dispone de tecnologías, capacidades o experiencia aplicable, os agradeceríamos que lo indiquéis <strong>con detalle</strong> en este breve formulario antes del próximo <strong>20 de febrero</strong>. Una vez analizadas las respuestas recibidas, os invitaremos a participar en un Innovation Workshop online el 26 de febrero a las 12:30h.
+
+<em>*El servicio de retos tecnológicos es exclusivo para socios del ecosistema SECPHO. </em>
+<em>Si tu entidad todavía no es socia y quieres que te informemos sobre el valor que aportamos a nuestros socios puedes dejarnos tus datos <a href=""https://www.secpho.org/quieres-conocernos-mejor/"">aquí</a> y te contactaremos para explicarte cómo te podemos ayudar.</em>",Construcción,Aleatica,02/02/2026,20/02/2026,"Imasenic, bcb, Eurecat, Beamagine, singular things, Nabla Vision, CalSens",Workshop online,No sabemos,
+69212,0194,Sistema de proyección para replanteo en mesas de prefabricados de hormigón,"&nbsp;
+
+Una importante empresa del sector de la construcción nos plantea un reto para avanzar en la digitalización y la eficiencia de su proceso de fabricación de paneles prefabricados de hormigón arquitectónico e industrial. La empresa dispone de 8 centros por todo el territorio nacional, donde en algunos existen más de una nave destinada sólo a la producción de paneles.
+
+Actualmente, el replanteo de huecos, anclajes, puertas o ventanas sobre las mesas de producción (moldes) se realiza manualmente, midiendo con cinta y marcando con yeso o sprays. Este proceso es lento, dependiente de la pericia del operario y con riesgo de errores que generan retrabajos, sobrecostes y problemas ergonómicos.
+
+Lo que se busca es un sistema de <strong>proyección</strong> capaz de trasladar directamente a la mesa el plano digital de fabricación (IFC, DXF, DWG), de modo que los operarios vean con luz las líneas exactas donde colocar cada elemento. Con ello se conseguiría:
+<ul data-spread=""false"">
+ 	<li><strong>Ahorro de tiempo</strong> en el montaje.</li>
+ 	<li><strong>Menos errores y retrabajos</strong>, con mayor eficiencia del proceso.</li>
+ 	<li><strong>Mayor precisión y calidad</strong> en los paneles.</li>
+ 	<li><strong>Digitalización</strong> de un proceso que hoy sigue siendo manual.</li>
+ 	<li><strong>Mejoras ergonómicas</strong> para el personal de fábrica.</li>
+</ul>
+👉 En pocas palabras: se trata de pasar de <strong>“dibujar a mano” a “proyectar con luz”</strong> los planos sobre la mesa de producción, con rapidez, precisión y seguridad.
+<h3>Contexto y especificaciones</h3>
+A continuación detallamos aspectos a tener en cuenta del entorno de trabajo:
+<ul>
+ 	<li><strong>Dimensiones variables de las mesas</strong>: Los paneles fabricados son rectangulares, con longitudes habituales de 8,7 m y máximas de hasta 14 m. El ancho estándar es de 2,49 m, alcanzando hasta 3,20 m en panel industrial. Las mesas son muy grandes (más de 50 metros).</li>
+ 	<li>Se producen sobre mesas horizontales metálicas (chapas de acero), en naves que pueden contar con hasta 9 mesas, aunque lo habitual es 4. En algunos casos, las mesas pueden alcanzar <strong>75 m de longitud</strong>, por lo que el sistema debe cubrir grandes superficies de proyección.</li>
+ 	<li><strong>Altura de proyección</strong> entre 7 y 11 m desde la estructura superior de la nave.</li>
+ 	<li><strong>Ancho</strong> máximo a proyectar: 4 m.</li>
+ 	<li><strong>Tolerancia de proyección requerida</strong>: ±1–2 mm.</li>
+ 	<li>Proyección con <strong>visibilidad por colores</strong> para poder secuenciar capas, proyectar símbolos o textos.</li>
+ 	<li><strong>Condiciones ambientales</strong>: presencia de polvo, vibraciones y exposición a calor en planta. El equipo deberá ser <strong>estanco y protegido frente a polvo</strong>, con robustez suficiente para operar en entorno industrial. No aplica normativa ATEX.</li>
+ 	<li>I<strong>nterferencias electromagnéticas</strong> derivadas del puente grúa.</li>
+ 	<li><strong>Iluminación en planta</strong>: entorno a 200 lúmenes. El sistema debe ser claramente visible en este contexto.</li>
+ 	<li><strong>Necesidad de movilidad</strong>: idealmente un sistema capaz de desplazarse sobre carriles o carros sin interferir con el puente grúa. <strong>Posicionamiento</strong>: preferiblemente automático para evitar errores, aunque la empresa está abierta a estudiar alternativas. <strong>Desplazamiento</strong>: capacidad de movimiento longitudinal a lo largo de las mesas, y transversal para cubrir varias mesas en línea o paralelas. Alternativamente, un equipo por alineación.</li>
+ 	<li><strong>Integración software</strong>: con plataformas BIM <strong> (Teckla)</strong> y posibilidad de trabajar con IFC, DWG o DXF. Conexión automática vía <strong>cloud o API</strong> con los planos generados por el ERP de la empresa.</li>
+ 	<li>Que sea intuitivo, usable vía tablet, en castellano, y con capacidad de actualización y soporte técnico accesible.</li>
+ 	<li>Ideal que la proyección no requiera protección ocular especial para los operarios.</li>
+</ul>
+<strong>Fotografías de las mesas</strong>
+
+Adjuntamos ejemplos de mesas de panel de varias fábricas bajo este texto, en <em><strong>Más información.</strong></em>
+<h3>Qué estamos buscando</h3>
+<ul>
+ 	<li>Soluciones de proyección capaces de cubrir superficies de gran formato en entorno industrial.</li>
+ 	<li>Experiencia en integración de software de proyección con plataformas BIM/IFC.</li>
+ 	<li>Sistemas resistentes a polvo, vibraciones y condiciones de fábrica.</li>
+ 	<li>Opciones que contemplen la movilidad del sistema (rail, carro, pórtico móvil).</li>
+ 	<li>Casos de uso en entornos industriales donde se haya probado la fiabilidad de la proyección en producción real.</li>
+</ul>
+<h3>Próximos pasos</h3>
+Si vuestra entidad dispone de tecnologías, capacidades o experiencia aplicable, os agradeceríamos que lo indiquéis <strong>con detalle</strong> en este breve formulario antes del próximo <strong>8 de septiembre</strong>. Una vez analizadas las respuestas recibidas, los siguientes pasos podrán incluir:
+<ul>
+ 	<li>Un contacto directo entre vuestra organización y la empresa que ha lanzado el reto, si vemos una afinidad clara.</li>
+ 	<li>La invitación a participar en un Innovation Workshop junto a otras entidades complementarias, cuando el reto sea más complejo y requiera la colaboración de un consorcio multidisciplinar.</li>
+</ul>
+El servicio de retos tecnológicos es exclusivo para socios del ecosistema SECPHO. Si tu entidad todavía no es socia y quieres que te informemos sobre el valor que aportamos a nuestros socios puedes dejarnos tus datos <a href=""https://www.secpho.org/quieres-conocernos-mejor/"">aquí</a> y te contactaremos para explicarte cómo te podemos ayudar.",Construcción,Promsa,28/08/2025,08/09/2025,"ProCareLight, SnellOptics (socio actual QPO)",,No sabemos,
+68929,0006,Desarrollo de una fuente de luz LED verde,,Salud,,,,,,No sabemos,
+68930,0005,"Desarrollo de fuentes de Luz UV de dimensiones reducidas (125cm3), con intensidad de luz modulable y longitudes de ondas prioritarias 220nm y 254nm",,Salud,,,,,,No sabemos,
+68931,0004,"Desarrollo de fuente de luz de longitud de onda 593nm, anchura espectral ± 2nm, dimensiones similares a una pila AA",,Medioambiente,,,,,,No sabemos,
+68932,0003,Sensor de monitorización del movimiento del rotor en motores eléctricos,,Fabricación industrial,,,,,,No sabemos,
+68933,0002,Desarrollo de un mini-telescopio para observación de la Tierra vía satélite.,,Espacio,,,,,,No sabemos,
+68934,0001,Desarrollo de un sistema hibrido de energía y calefacción solar,,Sector energético,,,,,,No sabemos,
+68917,0018,Medida del desgaste de pantógrafo ferroviario,,Ferroviario,,,,,,No sabemos,
+68918,0017,Monitorización de la calidad del perfil de caucho extruido en tiempo real,,Automoción,,,,,,No sabemos,
+68919,0016,Medición del volumen de producto remanente en un contenedor de acero inoxidable,,Materias primas,,,,,,No sabemos,
+68920,0015,Tecnologías fotónicas aplicadas al ámbito hospitalario,,Salud,,,,,,No sabemos,
+68921,0014,Desarrollo de un detector pasivo de infrarrojos para seguridad,,Seguridad,,,,,,No sabemos,
+68922,0013,Investigación para la detección de lindano en agua,,Medioambiente,,,,,,No sabemos,
+68923,0012,Desarrollo de un Láser para reconstrucción 3D de objetos en movimiento,,Fabricación industrial,,,,,,No sabemos,
+68924,0011,Medición de la rugosidad de muestra de vidrio,,Fabricación industrial,,,,,,No sabemos,
+68925,0010,Desarrollo de un láser para fabricación de stents,,Salud,LVD Biotech,,,,,No sabemos,
+68926,0009,"Consulta sobre filtros polarizados lineales de 300x200mm, para leds de 850nm",,Defensa,,,,,,No sabemos,
+68927,0008,Simulador de vuelo compatible con sistemas de visión nocturna,,Defensa,,,,,,No sabemos,
+68928,0007,Desarrollo de una solución compacta para alineación de ruedas en concesionarios,,Automoción,Micrauto,,,CD6 - UPC,,No sabemos,
+68897,0038,Medida de piezas metálicas de grandes dimensiones,,Aeronáutica,ArcelorMittal,,,,,No sabemos,
+68898,0037,Medición precisa en 3D de chapas y piezas metálicas,,Aeronáutica,,,,,,No sabemos,
+68899,0036,Desarrollo de una fuente de luz azul para estudio de la piel,,Salud,,,,,,No sabemos,
+68900,0035,Sistema de iluminación para visión multiespectral en maquinaria de clasificación de residuos,,Medioambiente,,,,,,No sabemos,
+68901,0034,Sistemas de monitorización de procesos forestales y medioambientales,,Agroalimentación,,,,,,No sabemos,
+68902,0033,Sistema de proyección láser para control y gestión de accesos,,Seguridad,,,,,,No sabemos,
+68903,0032,Identificación y eliminación de malas hierbas y plagas mediante tecnologías fotónicas,,Agroalimentación,,,,,,No sabemos,
+68904,0031,Corte de carbono vitreo mediante láser,,Naval,,,,,,No sabemos,
+68905,0030,Desarrollo de un sistema de análisis de imagen para aplicaciones en estética corporal,,Cosmética y Estética,,,,,,No sabemos,
+68906,0029,Medidas de espesor y viscosidad en el proceso alimentario,,Agroalimentación,,,,,,No sabemos,
+68907,0028,Corte láser de precisión para desarrollo de un dispositivo médico basado en óptica integrada,,Salud,,,,,,No sabemos,
+68908,0027,Sensores ópticos para detección y clasificación de residuos,,Medioambiente,,,,,,No sabemos,
+68909,0026,Control de calidad y control de proceso por medio de pirómetros y/o cámaras térmicas,,Fabricación industrial,,,,,,No sabemos,
+68910,0025,Demanda de un nuevo microscopio óptico digital,,Salud,,,,,,No sabemos,
+68911,0024,Caracterización de un nuevo hormigón refractario,,Construcción,Promsa,,,,,No sabemos,
+68912,0023,Desarrollo de una célula de proceso de rebabado automático en piezas de caucho,,Automoción,,,,,,No sabemos,
+68913,0022,Capacidad de fabricar objetivos para cámaras fotográficas,,Fabricación industrial,,,,,,No sabemos,
+68914,0021,Integración de un sensor para Banco de Medición de Potencias Ópticas,,Fabricación industrial,,,,,,No sabemos,
+68915,0020,Inspección de defectos en Madera,,"Fabricación industrial, Materias primas, Medioambiente",,,,,,No sabemos,
+68916,0019,Detección del perfil de piezas de vidrio irregulares,,Fabricación industrial,,,,,,No sabemos,
+68880,0055,Sistema de monitorización de la perfusión intestinal en cirugías colorrectales,,Salud,,,,,,No sabemos,
+68881,0054,Asegurar la calidad de la leche materna,,Agroalimentación,,,,,,No sabemos,
+68882,0053,Diseño y desarrollo de la óptica para un nuevo sistema de depilación láser,,Cosmética y Estética,,,,,,No sabemos,
+68883,0052,Monitorización de silos para empresa forestal,,Agroalimentación,,,,,,No sabemos,
+68884,0051,Láser de diodo para el tratamiento de superficies metálicas,,Fabricación industrial,,,,,,No sabemos,
+68885,0050,Medidas con espectroradiómetro para calibrar unas placas en drones,,Fabricación industrial,,,,,,No sabemos,
+68886,0049,Desarrollo y fabricación de una fuente de luz LED para microscopía multiespectral,,Salud,,,,,,No sabemos,
+68887,0048,Soldadura de pieza TPE a film de polietileno,,Fabricación industrial,,,,,,No sabemos,
+68888,0047,Inteligencia Artificial aplicada a detección de objetos en almacén,,Logística,,,,,,No sabemos,
+68889,0046,Desarrollo de una red neuronal para un equipo de visión artificial de monitorización de calidad de cereal,,Agroalimentación,,,,,,No sabemos,
+68890,0045,Monitorización del proceso de producción de trigo | Visita de técnicos de I+D+i de la Cámara de Comercio de Rosario (Argentina),,Agroalimentación,Bolsa de Comercio de Rosario,,,"IRIS Technology Solutions S.L., AINIA, Leitat, CD6 - UPC, Radiantis",,Sí,"IRIS Technology Solutions S.L., AINIA"
+68891,0044,Introducir sistemas de clasificación y detección de cuerpos extraños en el procesado de frutos secos,,Agroalimentación,,,,,,No sabemos,
+68892,0043,Capacidades para el desarrollo de una mesa holográfica 3D,,Turismo,,,,,,No sabemos,
+68893,0042,Desarrollo de un sistema de luz miniaturizado para un dispositivo médico ingerible,,Salud,,,,,,No sabemos,
+68894,0041,Alineación de los rodillos de las zonas de contención en el proceso de fundición de acero,,Fabricación industrial,Celsa,,,,,No sabemos,
+68895,0040,Identificación de la formación de madejas de acero en la línea de producción,,Fabricación industrial,Celsa,,,,,No sabemos,
+68896,0039,Identificación de fibras textiles para la clasificación de prendas recicladas,,Medioambiente,MODACC - Agrupació Catalana del Tèxtil i la Moda,,,"Phase Photonics, Radiantis",,Sí,Phase Photonics
+68877,0058,Garantizar la seguridad de trabajadores en cámaras frigoríficas mediante monitorización de temperatura,,Telecomunicaciones,,,,,,No sabemos,
+68878,0057,Visión artificial para el cuarteo automatizado de ganado vacuno,,Agroalimentación,,,,,,No sabemos,
+68879,0056,Láser 3D para diagnóstico de  úlceras,,Salud,,,,,,No sabemos,
+68857,0081,Sistema de detección de defectos de sellado en línea de producción de embutidos,,Agroalimentación,,02/10/2020,02/10/2020,,,No sabemos,
+68858,0080,Nuevas aplicaciones del láser en materiales reciclables,,Medioambiente,,22/09/2020,22/09/2020,,,No sabemos,
+68859,0079,Monitorización de la eficacia de productos de estética capilar,,Cosmética y Estética,,15/07/2020,15/07/2020,,,No sabemos,
+68860,0078,Monitorización de formación de cascarilla en horno de precalentamiento del sector siderúrgico,,Materias primas,,13/07/2020,13/07/2020,,,No sabemos,
+68861,0077,Desarrollo de espejos cónicos para visión artificial con tolerància geométrica de 1 micra,,Fabricación industrial,,08/07/2020,08/07/2020,,,No sabemos,
+68862,0076,Monitorización de la contaminación bacteriana residual en superficies de quirófano,,Salud,Laboratorios HARTMANN,07/07/2020,07/07/2020,,,No sabemos,
+68863,0075,Desarrollo de un pequeño contenedor climatizado autónomo,,Medioambiente,CAT UAV,11/06/2020,11/06/2020,,,No sabemos,
+68864,0074,Micro-perforación múltiple en cilindros de acero inoxidable,,Fabricación industrial,,08/06/2020,08/06/2020,,,No sabemos,
+68865,0073,Actualización sistema de detección de defectos en línea de producción,,Fabricación industrial,,21/05/2020,21/05/2020,"Indeep Vision, Lortek",Conexión individual vía correo,No sabemos,
+68866,0072,Desarrollo de un láser de 50W para el ITER,,Sector energético,,19/05/2020,19/05/2020,,,No sabemos,
+68867,0071,Monitorización en línea del grado de madurez de productos cárnicos,,Agroalimentación,,15/05/2020,15/05/2020,,,No sabemos,
+68868,0070,Integración de fuentes de luz IPL para esterilización en el ámbito quirúrgico,,Salud,,28/04/2020,28/04/2020,,,No sabemos,
+68869,0069,Desarrollo de sensores para fluidos y caminos de rodillos en la industria alimentaria,,Agroalimentación,Zabala Innovation,23/04/2020,23/04/2020,IRIS Technology Solutions S.L.,Conexión individual vía correo,No sabemos,
+68870,0068,Integración de sistemas de esterilización UV-C en plataformas robóticas para desinfección de espacios públicos,,Medioambiente,Pal Robotics,21/04/2020,21/04/2020,"HAMAMATSU Photonics France, MTS Tech",Conexión individual vía correo,Sí,MTS Tech
+68871,0064,Medición del flujo vascular y su oxigeno en las oclusiones de las arterias retinianas,,Salud,,,,,,No sabemos,
+68872,0063,Desarrollo de un sistema para la verificación y calibración automatizada de luminarias LED para el sector automoción,,Automoción,,,,,,No sabemos,
+68873,0062,Dispositivo para la visualización de venas en prematuros,,Salud,Hospital Clinic - IDIBAPS,,,,,No sabemos,
+68874,0061,Monitorización de la limpieza de superficies en quirófano,,Medioambiente,,,,,,No sabemos,
+68875,0060,Sensores para impresión 3D de microestructuras óseas,,Salud,,,,,,No sabemos,
+68876,0059,Monitorización de la seguridad en los diferentes orificios de camiones cisterna,,Agroalimentación,Bolsa de Comercio de Rosario,,,,,No sabemos,
+68837,0103,Detección de emisiones difusas a la atmósfera en planta siderúrgica,,Medioambiente,ArcelorMittal,24/01/2022,24/01/2022,"Beamagine, I3A - Instituto de Investigación en Ingeniería de Aragón, Photon Lines, Eurecat, Alteria Automation, CEIT, CD6 - UPC",Conexión individual vía correo,No sabemos,
+68838,0102,Acciona lanza retos en el ámbito de transporte y construcción,,Construcción,,20/01/2022,20/01/2022,,,No sabemos,
+68839,0101,Acciona lanza retos en los ámbitos de energías renovables y tratamiento del agua,,Medioambiente,,20/01/2022,20/01/2022,,,No sabemos,
+68840,0100,Fabricación de conjuntos de fibra óptica bifurcadas a medida para dispositivos médicos,,Salud,,19/01/2022,19/01/2022,,,No sabemos,
+68841,0099,Monitorización de sección y defectos superficiales en producto acabado del sector siderúrgico,,Materias primas,,14/12/2021,14/12/2021,,,No sabemos,
+68842,0098,Desarrollo de un software de análisis de imágenes 3D para empresa del sector cosmético,,Cosmética y Estética,,10/12/2021,10/12/2021,"IRIS Technology Solutions S.L., Lubrizol (borrar)",Conexión individual vía correo,No sabemos,
+68843,0097,Escaneado e impresión 3D de prótesis oculares,,Salud,,20/09/2021,20/09/2021,,,No sabemos,
+68844,0096,Guiado haz OPO a cámara de vacío,,Salud,Radiantis,15/09/2021,15/09/2021,,,No sabemos,
+68845,0095,Conexión de software de estaciones meteorólogicas al sistema de navegación AIS,,Medioambiente,Troposferica 2020,27/04/2021,27/04/2021,,,No sabemos,
+68846,0094,Dispositivo IOT para medir el viento en entorno siderúrgico,,Medioambiente,,05/03/2021,05/03/2021,,,No sabemos,
+68847,0093,Creación de un almacén automatizado para una concept store,,Turismo,,03/03/2021,03/03/2021,,,No sabemos,
+68848,0092,Reconocimiento de imagen para identificar títulos de libros,,Patrimonio Cultural,,25/02/2021,25/02/2021,,,No sabemos,
+68849,0089,Retirada de resina epoxy de placa electrónica sin dañar un componente clave,,Fabricación industrial,,12/11/2020,12/11/2020,,,No sabemos,
+68850,0088,Dispositivo fotónico para identificar la correcta aplicación de hidrogel,,Salud,,05/11/2020,05/11/2020,,,No sabemos,
+68851,0087,Programa autónomo de optimización de procesos en la fabricación y distribución de aglomerado asfaltico,,Construcción,,15/10/2020,15/10/2020,,,No sabemos,
+68852,0086,Optimización del proceso de cultivo in vitro de plántulas mediante tecnología para el corte de tallos,,Agroalimentación,,08/10/2020,08/10/2020,,,No sabemos,
+68853,0083,Rediseño de placa de hardware de cálculo basado en microprocesadores de silicio,,Telecomunicaciones,,06/10/2020,06/10/2020,,,No sabemos,
+68854,0085,"Sistema de detección, en línia, de turbidez en líquidos",,Agroalimentación,,07/10/2020,07/10/2020,,,No sabemos,
+68855,0084,"Sistema de inspección, en línea, de vidrio transparente",,Agroalimentación,,07/10/2020,07/10/2020,,,No sabemos,
+68856,0082,Sistema de detección cualitativa de gases en envases para el sector alimentario,,Agroalimentación,,05/10/2020,05/10/2020,,,No sabemos,
+68828,0112,Sistema para el análisis de sección y velocidad de avance de perfiles de acero,,Materias primas,Celsa,25/03/2022,25/03/2022,"bcb, Nuavis, Ommatidia Lidar, Fivecomm",Conexión individual vía correo,No sabemos,
+68835,0105,Detección del cumplimiento de plazos de aplicación de fitosanitarios en aceituna entera,,Agroalimentación,INOLEO - AEI Del Sector Proveedor de Bienes y Servicios del Sector Oleícola,24/02/2022,24/02/2022,"Aotech, Pixelabs, Eurecat, UAB - OPTICS GROUP, Nulab, Pyroistech",Workshop online,Sí,Aotech
+68836,0104,Sistema de detección de polen y ácaros en el ambiente,,Medioambiente,,21/02/2022,21/02/2022,"Moldmec, Alteria Automation, Grupo Álava, ICFO, GPAINNOVA, I3A - Instituto de Investigación en Ingeniería de Aragón",Conexión individual vía correo,No sabemos,
+68829,0111,Trazabilidad de las palanquillas generadas en el proceso de acería,,Materias primas,Celsa,24/03/2022,24/03/2022,"Infinitia Research, Nuavis, Lortek, bcb, Fujitsu",Conexión individual vía correo,No sabemos,
+68830,0110,Diseño de reflector para balizas,,Seguridad,,24/03/2022,24/03/2022,"COMSA Industrial, AsorCAD Engineering, Tekniker",Conexión individual vía correo,No sabemos,
+68831,0109,Cuantificación de camarón vannamei en esteros,,Agroalimentación,GPAINNOVA,16/03/2022,16/03/2022,"Eurecat, Leitat",Conexión individual vía correo,No sabemos,
+68832,0108,Detección de Posidonia en el fondo marino,,Medioambiente,GPAINNOVA,15/03/2022,15/03/2022,"Eurecat, Leitat, CAT UAV, Beamagine, Phase Photonics",Conexión individual vía correo,No sabemos,
+68833,0107,Instrumentación para la identificación de microplásticos en la superfície marina,,Medioambiente,GPAINNOVA,14/03/2022,14/03/2022,"Micrauto, Eurecat, Atten2, Leitat",Conexión individual vía correo,No sabemos,
+68834,0106,robotización de la apertura de válvulas en condiciones hostiles en plantas de refinería,,Sector energético,Repsol S.A.,28/02/2022,28/02/2022,"Leitat, Visiona, Nuavis, Alteria Automation, Nabla Vision, CEIT, Robotnik, Eurecat",Workshop online,No,
+68817,0122,Sistemas de comunicaciones para sensores en línea a través de LoRaWAN,,Telecomunicaciones,Celsa,17/10/2022,17/10/2022,"Draco Systems, Alteria Automation, Fujitsu, CEIT, Eurecat, Zepren Solutions",Conexión individual vía correo,No sabemos,
+68818,0121,Monitorización de la roca calcárea para prevenir la fragmentación del soporte rocoso,,Medioambiente,,25/08/2022,25/08/2022,"CVC, AsorCAD Engineering, Tecnalia, Eurecat",Conexión individual vía correo,No sabemos,
+68819,0120,Desarrollo de un sistema de acoplamiento de haz pulsado a fibra,,Salud,Bioherent,07/07/2022,07/07/2022,"Alter Technology, ICFO, CD6 - UPC",Conexión individual vía correo,No sabemos,
+68820,0119,Desarrollo de modelos 3D texturizados de infraestructuras subacuáticas,,Medioambiente,GPAINNOVA,28/06/2022,28/06/2022,"IOVI Intelligent Vision, Subsea Mechatronics, CD6 - UPC, Beamagine",Conexión individual vía correo,No sabemos,
+68821,0118,Dispositivo para la visualización de nervios en quirófano,,Salud,Hospital Germans Trias i Pujol,17/06/2022,17/06/2022,"Radiantis, IN2UB, Stimulo, Eurecat",Workshop online,No,
+68822,0117,Calibración y Normalización de cámaras hiperespectrales en condiciones exteriores,,Materias primas,ArcelorMittal,16/05/2022,16/05/2022,"CVC, Eurecat, IRIS Technology Solutions S.L.",Conexión individual vía correo,No sabemos,
+68823,0116,Retos del PCAMI para digitalización almacén logistico,,,PCAMI,20/05/2022,20/05/2022,"Dronomy, IOVI Intelligent Vision, Stimulo, Alter Technology, Air Drone Logistics, CEIT, Fujitsu, Tecnalia, Kivnon, IRIS Technology Solutions S.L., Robotnik",Workshop presencial,Sí,"Dronomy, IOVI Intelligent Vision, Stimulo, Alter Technology, Air Drone Logistics"
+68824,X116,Medición de atenuación atmosférica en planta termosolar,,Sector energético,,02/05/2022,02/05/2022,,,No sabemos,
+68825,0115,Registro automatizado inteligente de pacientes desplazados,,Salud,,05/04/2022,05/04/2022,,,No sabemos,
+68826,0114,Plataforma digital inteligente de las emergencias del 061,,Salud,,04/04/2022,04/04/2022,,,No sabemos,
+68827,0113,Desarrollar un objetivo de telescopio para longitudes de onda en SWIR,,Espacio,,28/03/2022,28/03/2022,,,No sabemos,
+68811,0128,Desarrollar una single board computer para embarcarse en drones,,Seguridad,Unmanned Life,07/03/2023,07/03/2023,"AsorCAD Engineering, Beamagine, HAMAMATSU Photonics France, Draco Systems, SnellOptics (socio actual QPO), IN2UB, Atten2",Conexión individual vía correo,No sabemos,
+68812,0127,Desarrollar un sensor de vibración para monitorizar maquinaria,,Fabricación industrial,,07/03/2023,07/03/2023,"UPV - EHU, Draco Systems, Eurecat, Alteria Automation, CEIT, IRIS Technology Solutions S.L., Atten2, Alter Technology, Tekniker, A4R Advanced Algorithms 4 Radar",Conexión individual vía correo,No sabemos,
+68813,0126,Desarrollar un sistema de comunicaciones mediante Web RTC,,Telecomunicaciones,Koonstel,07/02/2023,07/02/2023,"t2c, Future Space",Conexión individual vía correo,No sabemos,
+68814,0125,Desarrollar un sistema de Optical tracking y Realidad Mixta para la America’s Cup,,Patrimonio Cultural,America's Cup,17/01/2023,17/01/2023,,,No sabemos,
+68815,0124,Visión artificial para la maximización de extracción de información de imágenes,,Logística,Airvant Mediciones Ambientales SL,05/12/2022,05/12/2022,,,No sabemos,
+68816,0123,Conectividad de enjambres de drones mediante 5G para tareas de inspección indoor,,Seguridad,Airvant Mediciones Ambientales SL,05/12/2022,05/12/2022,"Fujitsu, Dronomy, Alter Technology, Fivecomm",Conexión individual vía correo,No sabemos,
+68791,0168,Tecnologías para la reducción de la dureza del agua sin consumibles,,Medioambiente,BSH,15/04/2024,15/04/2024,,,No sabemos,
+68792,0167,Desarrollar una single board computer para drones,,Seguridad,Unmanned Life,09/04/2024,09/04/2024,"t2c, Subsea Mechatronics, Draco Systems, rbz, Leitat, singular things",No continúa,No,
+68793,0166,Partners en electrónica para fabricación de PCBs y ensamblaje de componentes smd,,Salud,LVD Biotech,20/03/2024,20/03/2024,"singular things, Alter Technology, Tekniker, Alteria Automation, Draco Systems, rbz",Conexión individual vía correo,No sabemos,
+68794,0165,Desarrollo de un sistema láser para la decapación de óxidos en hilo de acero,,Fabricación industrial,DRUIDS Process Technology S.L.,13/02/2024,13/02/2024,"Eurecat, EXOM engineering, Laser Line Scanning, AIMEN Centro Tecnológico, Vidorreta (actual Ysium Medical), Lenz Instruments, Monocrom",Workshop online,No sabemos,
+68795,0164,Desarrollo y construcción mediante robots de infraestructura orbital para Data Centers en espacio,,Espacio,Thales Alenia Space España,16/01/2024,16/01/2024,"VLC Photonics, SISTAM, Unmanned Life, ProCareLight, Beamagine, Ommatidia Lidar, Tecnalia, Alter Technology",Workshop online,No sabemos,
+68796,0163,Corte de espejos y beam splitters,,Fabricación industrial,2EyesVision,08/01/2024,08/01/2024,"Macsa ID, Kolokium Blockchain Technologies, CEIT, IACTec - Instituto de Astrofísica de Canarias, Tekniker, IMB-CNM",Conexión individual vía correo,No sabemos,
+68797,0162,Dispositivo para escaneo 3D in situ de accidentes de tráfico,,Seguridad,Minsait,11/12/2023,11/12/2023,"Nabla Vision, Robotnik, Stimulo, CAT UAV, Beamagine, Draco Systems, Tekniker, AsorCAD Engineering, singular things",Workshop online,Sí,Beamagine
+68798,0161,Operativa vial y gestión de infraestructuras mediante drones,,Seguridad,Abertis,05/12/2023,05/12/2023,Unmanned Life,Call,No sabemos,
+68799,0160,"Microfluídica para el procesado de biopsias líquidas (orina, sangre, saliva, etc.)",,Salud,,23/11/2023,23/11/2023,"Mapsi Photonics, Eurecat, Leitat, Draco Systems, CEIT",Conexión individual vía correo,No sabemos,
+68800,0159,Desarrollar gemelos digitales para infraestructuras portuarias y autopistas,,Seguridad,Babel Group,14/11/2023,14/11/2023,"TRL+, Future Space, Tecnalia, Beawre, Fujitsu, AsorCAD Engineering, Eurecat, SENER, ARCbcn-WATTEGA, Robotnik, Fivecomm, Nabla Vision, Beamagine, Alteria Automation",Workshop online,No sabemos,
+68801,0154,Caracterización de las emisiones canalizadas y difusas de salida del horno de arco eléctrico de una planta siderúrgica,,Materias primas,ArcelorMittal,09/10/2023,09/10/2023,"bcb, CEIT, CEMDATIC/UPM - Centro de Materiales y Dispositivos Avanzados para las TIC - Grupo de Fotonica Aplicada, HAMAMATSU Photonics France, ICFO, rbz, Tecnalia, Visiona",Workshop presencial,No sabemos,
+68802,0153,Depositar fotocátodos sobre sustrato de vidrio de 25mm,,"Defensa, Espacio, Salud, Seguridad, Telecomunicaciones",Tecnalia,13/09/2023,13/09/2023,"Tecnalia, IMB-CNM, HAMAMATSU Photonics France",Conexión individual vía correo,No sabemos,
+68803,0152,Medir el desgaste interno de las cámaras de máquinas mezcladoras de caucho,,Fabricación industrial,,13/09/2023,13/09/2023,Eurecat,Conexión individual vía correo,No sabemos,
+68804,0148,COVAP,,Agroalimentación,COVAP,04/09/2023,04/09/2023,"Aotech, BIOBEE semiconductors, Nulab, Pyroistech, AINIA, Tecnalia, Tekniker, IOVI Intelligent Vision, Alteria Automation",Workshop presencial,No sabemos,
+68805,0143,Optomecánica e Inteligencia Artificial para el control de grandes telescopios,,Espacio,IACTec - Instituto de Astrofísica de Canarias,24/07/2023,24/07/2023,"ASE Optics Europe, bcb, IMB-CNM, HAMAMATSU Photonics France, SISTAM, Imasenic, Stimulo, Quside, Thales Alenia Space (época potencial), ProCareLight, INTA, Recursos Laser, ICFO",Workshop presencial,Sí,"ASE Optics Europe, IMB-CNM"
+68806,0140,Inteligencia Artificial aplicada a Imagen médica y radiómetros de microondas,,Salud,IACTec - Instituto de Astrofísica de Canarias,19/07/2023,19/07/2023,"ASE Optics Europe, bcb, IMB-CNM, HAMAMATSU Photonics France, SISTAM, Imasenic, Stimulo, Quside, Thales Alenia Space (época potencial), ProCareLight, INTA, Recursos Laser, ICFO",Workshop presencial,Sí,"ASE Optics Europe, IMB-CNM"
+68807,0133,"Fotónica Integrada y Criptografía Cuántica para Micrósatélites, Teledetección y Comunicaciones Ópticas en Espacio",,Espacio,IACTec - Instituto de Astrofísica de Canarias,14/07/2023,14/07/2023,"ASE Optics Europe, bcb, IMB-CNM, HAMAMATSU Photonics France, SISTAM, Imasenic, Stimulo, Quside, Thales Alenia Space (época potencial), ProCareLight, INTA, Recursos Laser, ICFO",Workshop presencial,Sí,"ASE Optics Europe, IMB-CNM"
+68808,0132,Diseño de lente micro-fresnel,,Salud,Horizons Optical,27/06/2023,27/06/2023,,,No sabemos,
+68809,0131,Prototipar sistemas de microfluídica para sistemas de IVD o health,,Salud,,25/05/2023,25/05/2023,"Bioherent, Eurecat, Tekniker, Leitat, CEIT, Tecnalia",Conexión individual vía correo,No sabemos,
+68810,0129,ADNe marino en tiempo real y Visión submarina mejorada,,Medioambiente,GPAINNOVA,17/04/2023,17/04/2023,,Workshop presencial,No sabemos,
+68771,0188,MCU basado en RISC-V adaptado para espacio,,Espacio,SATLANTIS,20/12/2024,20/12/2024,"Alter Technology, Recursos Laser, Imasenic, TEKHNĒ, IN2UB, Qurv Technologies, CEMDATIC - UPM, CEIT, New Infrared Technologies, HAMAMATSU Photonics France, Eurecat",Conexión individual vía correo,No sabemos,
+68772,0187,Detector InGaAs,XX,Medioambiente,SATLANTIS,20/12/2024,20/12/2024,"Alter Technology, Recursos Laser, Imasenic, TEKHNĒ, IN2UB, Qurv Technologies, CEMDATIC - UPM, CEIT, New Infrared Technologies, HAMAMATSU Photonics France, Eurecat",Conexión individual vía correo,No sabemos,
+68773,0186,CMOS para espacio con unas características similares o mejores que el CMV12k,,Espacio,SATLANTIS,20/12/2024,20/12/2024,"Alter Technology, Recursos Laser, Imasenic, TEKHNĒ, IN2UB, Qurv Technologies, CEMDATIC - UPM, CEIT, New Infrared Technologies, HAMAMATSU Photonics France, Eurecat",Conexión individual vía correo,No sabemos,
+68774,0185,IA para análisis de imágenes de microscopía electrónica,,Salud,Nanomol Technologies,12/11/2024,12/11/2024,"CVBLab, Artikode Intelligence, Alter Technology, Quantum Mads, t2c, Tecnalia, Tekniker, AINIA, Leitat",Conexión individual vía correo,No sabemos,
+68775,0184,Sistema de detección avanzada para la industria cárnica,,Agroalimentación,IRTA (época potencial),22/10/2024,22/10/2024,"Aotech, IOVI Intelligent Vision, Vidorreta (actual Ysium Medical), Fujitsu, Sensia Solutions, Nulab, LÚCID, New Infrared Technologies, Zepren Solutions, rbz, Lenz Instruments, ColorSensing, ASINCAR, Leitat",Conexión individual vía correo,Sí,Lenz Instruments
+68776,0183,Desarrollo láser para grabado de vidrio,,Construcción,Luxglass-technology SL,18/10/2024,18/10/2024,"SnellOptics (socio actual QPO), Coherent Inc., Zepren Solutions, ProCareLight, Macsa ID, HAMAMATSU Photonics France, Recursos Laser, CEIT, AIMEN Centro Tecnológico, Tekniker",En standby,No sabemos,
+68777,0182,Detección automática de objetos extraños en balas de fibra,,Materias primas,DuPont,03/10/2024,03/10/2024,"Rosepetal, rbz, HAMAMATSU Photonics France, Greenlight Solutions, SISTAM, Diip Artificial Intelligence, Centro de Tecnologia Nanofotónica de Valencia, Tekniker",Workshop online,No sabemos,
+68778,0181,Detección automática de la tragada de chapa en procesos de embutición,,Fabricación industrial,Gestamp,01/10/2024,01/10/2024,"Rosepetal, Ommatidia Lidar, Diip Artificial Intelligence",Conexión individual vía correo,No sabemos,
+68779,0180,Sistema para optimizar el proceso de limpieza de los molinos de aceite,,Agroalimentación,IRTA (época potencial),10/09/2024,10/09/2024,"Aotech, Dronomy, Atten2, Greenlight Solutions, CD6 - UPC, Tekniker, Leitat",Conexión individual vía correo,No sabemos,
+68780,0179,Espectrómetro Raman customizado,,"Agroalimentación, Industria química, Salud, Sector farmacéutico",iLoF - Intelligent Lab on Fiber,01/08/2024,01/08/2024,"Greenlight Solutions, rbz, HAMAMATSU Photonics France, Lenz Instruments, Zepren Solutions, AIMEN Centro Tecnológico",Conexión individual vía correo,No sabemos,
+68781,0178,BASF busca expertos en IA para agricultura,,Agroalimentación,BASF,25/07/2024,25/07/2024,"Dronomy, Tecnalia, Draco Systems, Greenlight Solutions, rbz, HAMAMATSU Photonics France, Lenz Instruments, Zepren Solutions, AIMEN Centro Tecnológico",Conexión individual vía correo,No sabemos,
+68782,0177,Sistema inalámbrico de interacción con sensor para dispositivo médico,,Salud,B. Braun Medical International SL,29/05/2024,29/05/2024,"rbz, Fivecomm, singular things, Zepren Solutions, Leitat, Tecnalia, Eurecat, Vidorreta (actual Ysium Medical), Stimulo",Conexión individual vía correo,No sabemos,
+68783,0176,Estado del fruto debajo de la cubierta vegetal,,Agroalimentación,Associació AEI Innovi,24/05/2024,24/05/2024,"UAB, CD6 - UPC, Leitat, NEATSIGHT, AINIA, ICFO, IMB-CNM, Monocrom, CAT UAV, IN2UB",Workshop presencial,No sabemos,
+68784,0175,Cuantificación de bacterias y levaduras,,Agroalimentación,Associació AEI Innovi,24/05/2024,24/05/2024,"UAB, CD6 - UPC, Leitat, NEATSIGHT, AINIA, ICFO, IMB-CNM, Monocrom, CAT UAV, IN2UB",Workshop presencial,No sabemos,
+68785,0174,Inspección de tapones de tiraje,,Agroalimentación,Associació AEI Innovi,24/05/2024,24/05/2024,"UAB, CD6 - UPC, Leitat, NEATSIGHT, AINIA, ICFO, IMB-CNM, Monocrom, CAT UAV, IN2UB",Workshop presencial,No sabemos,
+68786,0173,Inspector de volvas y las madres del vino,,Agroalimentación,Associació AEI Innovi,24/05/2024,24/05/2024,"UAB, CD6 - UPC, Leitat, NEATSIGHT, AINIA, ICFO, IMB-CNM, Monocrom, CAT UAV, IN2UB",Workshop presencial,No sabemos,
+68787,0172,Automatización de la regulación de cuchillas en centrifugadoras industriales,,Fabricación industrial,"Riera Nadeu, SA",17/05/2024,17/05/2024,"Tekniker, Lenz Instruments",Conexión individual vía correo,No sabemos,
+68788,0171,Medición del grado de vulcanizado y viscosidad en línea para el sector del caucho,,Fabricación industrial,Consorcio Nacional de Industriales del Caucho,26/04/2024,26/04/2024,"Aotech, AINIA, Lenz Instruments",Conexión individual vía correo,No sabemos,
+68789,0170,Soluciones tecnológicas para aumentar la eficacia del lavado,,Fabricación industrial,BSH,15/04/2024,15/04/2024,,,No sabemos,
+68790,0169,"Tecnologías para la limpieza/purificación  de electrodos serigrafiados o impresos /SPE, screen-printed electrodes)",,Fabricación industrial,BSH,15/04/2024,15/04/2024,"Leitat, HAMAMATSU Photonics France",Conexión individual vía correo,No sabemos,
+68769,0190,Sensorización de temperatura en horno de arco eléctrico,"Desde uno de nuestros socios industriales, nos han solicitado apoyo para identificar tecnologías y/o capacidades que permitan sensorizar la temperatura en la capa exterior de un horno de arco eléctrico. Podéis ver en esta imagen el esquema de un horno de arco eléctrico para que sepáis de qué se trata. El objetivo es monitorizar variaciones de temperatura del orden de 50-500ºC sin determinar aun la precisión necesaria de la medición. Estas variaciones están causadas principalmente por el desgaste del revestimiento refractario (que provoca un aumento de temperatura) o algunas fugas de agua en los paneles laterales refrigerados (que provocarían descensos de temperatura).",Materias primas,ArcelorMittal,03/03/2025,03/03/2025,"UPV - EHU, AIMEN Centro Tecnológico, Mapsi Photonics, CEIT, CalSens, bcb, APLITER, Zepren Solutions",Workshop online,Sí,
+68767,0192,Control de calidad en productos laminados de la industria siderúrgica,"Una importante empresa siderúrgica ha contactado con secpho en busca de una solución tecnológica capaz de medir las flechas, es decir, la curvatura o desviación que sufre el material laminado durante el proceso de producción. En concreto, están interesados en revisar la calidad de los productos planos laminados en caliente; no obstante, la solución se ubicaría en la zona fría, es decir, en la zona del proceso posterior al enderezado y corte, antes de su apilado.",Fabricación industrial,Celsa,11/03/2025,11/03/2025,"IOVI Intelligent Vision, bcb, Beamagine, AMS Technologies, Macsa ID, Tekniker, Tecnalia",Workshop online,No sabemos,
+68768,0191,Sistema de detección de contenido de carbono orgánico en agricultura,"Desde el iHub La Vega Innova, organismo dependiente del Ministerio de Agricultura, Pesca y Alimentación, buscan desarrollar un modelo que permita la estimación del contenido de carbono orgánico en los suelos agrícolas (COS) y la comprobación de los algoritmos que estiman dicho contenido. El proyecto consiste en la estimación del contenido del COS en los 30 primeros centímetros de su horizonte. Desean realizar una comparativa entre diversos sistemas de teledetección activos y pasivos, así como combinarlos con otros modelos de simulación capaces de reproducir la evolución del contenido de carbono orgánico del suelo y los resultados de laboratorio de COS de parcelas de seguimiento de las que dispondrá el Ministerio de Agricultura, Pesca y Alimentación.",Medioambiente,La Vega Innova,10/03/2025,10/03/2025,,Call,No sabemos,
+68770,0189,Desarrollo de electrónica a medida para medical device,"Nos ha contactado una empresa con un fuerte enfoque en innovación tecnológica en el ámbito de los dispositivos médicos ya que están en la búsqueda de un partner especializado en ingeniería electrónica para el proceso de fabricación de un medical device electrónico (fabricación de las PCBs, control de recepción del material, controles in-process, ensamblaje, etiquetado, packaging y liberación). El hardware y firmware del dispositivo ya está desarrollado y está en fase de verificación y validación para lograr el marcaje CE y más adelante el FDA Authorization. Precisan que el partner disponga de un sistema de gestión de calidad certificado (preferiblemente ISO 13485) y establecer con él un Quality Agreement.",Salud,The Blue Box,16/01/2025,16/01/2025,"Alter Technology, Leitat, Draco Systems",Conexión individual vía correo,No sabemos,

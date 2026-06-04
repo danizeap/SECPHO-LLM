@@ -1,0 +1,7 @@
+secpho_env/
+.env
+data/raw/
+data/app_state/
+data/generated_artifacts/
+__pycache__/
+*.pyc
