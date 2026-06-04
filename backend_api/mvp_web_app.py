@@ -31,6 +31,7 @@ APP_STATE_DIR = BASE_DIR / "data" / "app_state"
 MISSING_TOOL_REQUESTS_PATH = APP_STATE_DIR / "missing_tool_requests.jsonl"
 GENERATED_TOOLS_REGISTRY_PATH = APP_STATE_DIR / "generated_tools_registry.json"
 TOOL_BUILD_EVENTS_PATH = APP_STATE_DIR / "tool_build_events.jsonl"
+FEEDBACK_INBOX_PATH = APP_STATE_DIR / "feedback_inbox.md"
 GENERATED_ARTIFACTS_DIR = BASE_DIR / "data" / "generated_artifacts"
 OPENAI_RESPONSES_URL = "https://api.openai.com/v1/responses"
 OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-5-mini")
@@ -371,6 +372,52 @@ def append_tool_build_event(event: dict) -> None:
     APP_STATE_DIR.mkdir(parents=True, exist_ok=True)
     with TOOL_BUILD_EVENTS_PATH.open("a", encoding="utf-8") as f:
         f.write(json.dumps(event, ensure_ascii=False) + "\n")
+
+
+def save_feedback(text: str, meta: dict | None = None) -> dict:
+    APP_STATE_DIR.mkdir(parents=True, exist_ok=True)
+
+    clean_text = clean(text, "").strip()
+    if not clean_text:
+        return {"ok": False, "error": "Feedback cannot be empty."}
+    if len(clean_text) > 6000:
+        clean_text = clean_text[:6000].rstrip() + "\n\n[truncated at 6000 characters]"
+
+    meta = meta or {}
+    feedback_id = f"fb_{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S%f')}"
+    created_at = utc_now_iso()
+    selected_member_id = clean(meta.get("selected_member_id"), "")
+    source = clean(meta.get("source"), "chat")
+    user_agent = clean(meta.get("user_agent"), "")
+
+    if not FEEDBACK_INBOX_PATH.exists():
+        FEEDBACK_INBOX_PATH.write_text(
+            "# SECPHO Feedback Inbox\n\n"
+            "Captured from the live chat app. Review newest appended entries and turn useful items into product work.\n\n",
+            encoding="utf-8",
+        )
+
+    entry = [
+        f"## {created_at} - {feedback_id}",
+        "",
+        f"- Source: {source}",
+    ]
+    if selected_member_id:
+        entry.append(f"- Selected member id: {selected_member_id}")
+    if user_agent:
+        entry.append(f"- Browser: {user_agent[:180]}")
+    entry.extend(["", "### Feedback", "", clean_text, ""])
+
+    with FEEDBACK_INBOX_PATH.open("a", encoding="utf-8") as f:
+        f.write("\n".join(entry) + "\n")
+
+    return {"ok": True, "id": feedback_id, "created_at": created_at}
+
+
+def load_feedback_inbox() -> str:
+    if not FEEDBACK_INBOX_PATH.exists():
+        return "# SECPHO Feedback Inbox\n\nNo feedback captured yet.\n"
+    return FEEDBACK_INBOX_PATH.read_text(encoding="utf-8")
 
 
 def codex_review_and_build_tool(record: dict) -> dict:
@@ -2150,7 +2197,25 @@ CHAT_HTML = """
       backdrop-filter: blur(12px);
     }
     .topbar h1 { margin: 0; font-size: 16px; font-weight: 650; }
+    .topbar-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-width: 0;
+    }
     .status { color: var(--muted); font-size: 13px; }
+    .ghost-button {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: rgba(32,33,36,.72);
+      color: var(--ink);
+      cursor: pointer;
+      font: inherit;
+      font-size: 13px;
+      min-height: 36px;
+      padding: 8px 11px;
+    }
+    .ghost-button:hover { border-color: rgba(0,195,199,.55); }
     .chat {
       flex: 1;
       overflow: auto;
@@ -2307,11 +2372,79 @@ CHAT_HTML = """
       font-size: 12px;
       text-align: center;
     }
+    .feedback-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,.62);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 18px;
+      z-index: 20;
+    }
+    .feedback-backdrop.open { display: flex; }
+    .feedback-panel {
+      width: min(620px, 100%);
+      background: #1b1c20;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      box-shadow: 0 22px 80px var(--shadow);
+      padding: 18px;
+    }
+    .feedback-panel h2 {
+      margin: 0 0 8px;
+      font-size: 18px;
+      font-weight: 680;
+    }
+    .feedback-panel p {
+      margin: 0 0 14px;
+      color: var(--muted);
+      line-height: 1.45;
+      font-size: 13px;
+    }
+    .feedback-panel textarea {
+      width: 100%;
+      min-height: 150px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #111113;
+      padding: 12px;
+    }
+    .feedback-actions {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      margin-top: 12px;
+      flex-wrap: wrap;
+    }
+    .feedback-actions div {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .primary-button {
+      border: 0;
+      border-radius: 8px;
+      background: var(--brand);
+      color: #061112;
+      cursor: pointer;
+      font: inherit;
+      font-weight: 750;
+      min-height: 38px;
+      padding: 8px 12px;
+    }
+    .feedback-note {
+      color: var(--muted);
+      min-height: 18px;
+      margin-top: 10px;
+      font-size: 12px;
+    }
     @media (max-width: 860px) {
       .shell { grid-template-columns: 1fr; }
       aside { display: none; }
       .composer-wrap { left: 0; }
       .prompt-grid { grid-template-columns: 1fr; }
+      .status { display: none; }
     }
   </style>
 </head>
@@ -2342,11 +2475,19 @@ CHAT_HTML = """
         Unsupported requests become stored proposals for Codex review.<br>
         <a href="/api/tool-requests" target="_blank" style="color:var(--brand)">View proposals</a>
       </div>
+      <div class="side-block">
+        <strong>Feedback inbox</strong><br>
+        Chat users can leave notes for product review.<br>
+        <a href="/api/feedback-inbox" target="_blank" style="color:var(--brand)">View feedback</a>
+      </div>
     </aside>
     <main>
       <div class="topbar">
         <h1>SECPHO Intelligence Chat</h1>
-        <div class="status" id="status">Math decides. LLM explains.</div>
+        <div class="topbar-actions">
+          <div class="status" id="status">Math decides. LLM explains.</div>
+          <button class="ghost-button" onclick="openFeedback()">Feedback</button>
+        </div>
       </div>
       <div class="chat" id="chat">
         <div class="messages" id="messages">
@@ -2372,8 +2513,25 @@ CHAT_HTML = """
       </div>
     </main>
   </div>
+  <div class="feedback-backdrop" id="feedbackModal" role="dialog" aria-modal="true" aria-labelledby="feedbackTitle">
+    <div class="feedback-panel">
+      <h2 id="feedbackTitle">Send feedback</h2>
+      <p>Write what feels broken, missing, confusing, or useful. Voice dictation works in supported browsers.</p>
+      <textarea id="feedbackText" placeholder="Example: I asked for a company report and expected sources, but the answer was too generic."></textarea>
+      <div class="feedback-actions">
+        <button class="ghost-button" onclick="toggleVoiceFeedback()" id="voiceButton">Voice</button>
+        <div>
+          <button class="ghost-button" onclick="closeFeedback()">Cancel</button>
+          <button class="primary-button" onclick="submitFeedback()">Save feedback</button>
+        </div>
+      </div>
+      <div class="feedback-note" id="feedbackNote"></div>
+    </div>
+  </div>
   <script>
     let selectedMemberId = null;
+    let feedbackRecognition = null;
+    let feedbackListening = false;
 
     function esc(s) {
       return String(s || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;', "'":'&#39;'}[c]));
@@ -2382,6 +2540,97 @@ CHAT_HTML = """
     async function api(path) {
       const res = await fetch(path);
       return await res.json();
+    }
+
+    function openFeedback() {
+      const modal = document.getElementById('feedbackModal');
+      modal.classList.add('open');
+      document.getElementById('feedbackNote').textContent = '';
+      setTimeout(() => document.getElementById('feedbackText').focus(), 30);
+    }
+
+    function closeFeedback() {
+      if (feedbackRecognition && feedbackListening) {
+        feedbackRecognition.stop();
+      }
+      feedbackListening = false;
+      document.getElementById('voiceButton').textContent = 'Voice';
+      document.getElementById('feedbackModal').classList.remove('open');
+    }
+
+    function toggleVoiceFeedback() {
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      const note = document.getElementById('feedbackNote');
+      const button = document.getElementById('voiceButton');
+      if (!SpeechRecognition) {
+        note.textContent = 'Voice dictation is not available in this browser. Typing still works.';
+        return;
+      }
+      if (!feedbackRecognition) {
+        feedbackRecognition = new SpeechRecognition();
+        feedbackRecognition.continuous = true;
+        feedbackRecognition.interimResults = true;
+        feedbackRecognition.lang = 'en-US';
+        feedbackRecognition.onresult = (event) => {
+          let finalText = '';
+          let interimText = '';
+          for (let i = event.resultIndex; i < event.results.length; i++) {
+            const transcript = event.results[i][0].transcript;
+            if (event.results[i].isFinal) finalText += transcript + ' ';
+            else interimText += transcript;
+          }
+          const input = document.getElementById('feedbackText');
+          if (finalText) input.value = (input.value + ' ' + finalText).trim();
+          note.textContent = interimText ? 'Listening: ' + interimText : 'Listening...';
+        };
+        feedbackRecognition.onend = () => {
+          feedbackListening = false;
+          button.textContent = 'Voice';
+          if (note.textContent === 'Listening...') note.textContent = '';
+        };
+        feedbackRecognition.onerror = () => {
+          feedbackListening = false;
+          button.textContent = 'Voice';
+          note.textContent = 'Voice dictation stopped. You can keep typing.';
+        };
+      }
+      if (feedbackListening) {
+        feedbackRecognition.stop();
+        return;
+      }
+      feedbackRecognition.start();
+      feedbackListening = true;
+      button.textContent = 'Stop voice';
+      note.textContent = 'Listening...';
+    }
+
+    async function submitFeedback() {
+      const textBox = document.getElementById('feedbackText');
+      const note = document.getElementById('feedbackNote');
+      const feedback = textBox.value.trim();
+      if (!feedback) {
+        note.textContent = 'Add a note first.';
+        return;
+      }
+      note.textContent = 'Saving...';
+      const res = await fetch('/api/feedback', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+          feedback,
+          selected_member_id: selectedMemberId,
+          source: 'chat_feedback_box',
+          user_agent: navigator.userAgent
+        })
+      });
+      const data = await res.json();
+      if (!res.ok || !data.ok) {
+        note.textContent = data.error || 'Could not save feedback.';
+        return;
+      }
+      textBox.value = '';
+      note.textContent = 'Saved. We will review this in the feedback inbox.';
+      setTimeout(closeFeedback, 650);
     }
 
     function addMessage(role, html, mode) {
@@ -2442,6 +2691,12 @@ CHAT_HTML = """
       e.target.style.height = 'auto';
       e.target.style.height = Math.min(e.target.scrollHeight, 150) + 'px';
     });
+    document.getElementById('feedbackModal').addEventListener('click', (e) => {
+      if (e.target.id === 'feedbackModal') closeFeedback();
+    });
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') closeFeedback();
+    });
   </script>
 </body>
 </html>
@@ -2449,9 +2704,9 @@ CHAT_HTML = """
 
 
 class Handler(BaseHTTPRequestHandler):
-    def send_json(self, payload: dict) -> None:
+    def send_json(self, payload: dict, status: int = 200) -> None:
         body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
-        self.send_response(200)
+        self.send_response(status)
         self.send_header("Content-Type", "application/json; charset=utf-8")
         self.send_header("Content-Length", str(len(body)))
         self.end_headers()
@@ -2598,6 +2853,47 @@ class Handler(BaseHTTPRequestHandler):
                     "registry": load_generated_tools_registry(),
                 }
             )
+            return
+
+        if parsed.path == "/api/feedback-inbox":
+            body = load_feedback_inbox().encode("utf-8")
+            self.send_response(200)
+            self.send_header("Content-Type", "text/markdown; charset=utf-8")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+            return
+
+        self.send_response(404)
+        self.end_headers()
+
+    def do_POST(self) -> None:
+        parsed = urlparse(self.path)
+
+        if parsed.path == "/api/feedback":
+            try:
+                length = int(self.headers.get("Content-Length", "0"))
+            except ValueError:
+                length = 0
+            if length > 20000:
+                self.send_json({"ok": False, "error": "Feedback payload is too large."}, status=413)
+                return
+            raw = self.rfile.read(length).decode("utf-8") if length else "{}"
+            try:
+                payload = json.loads(raw)
+            except json.JSONDecodeError:
+                self.send_json({"ok": False, "error": "Invalid JSON payload."}, status=400)
+                return
+
+            result = save_feedback(
+                payload.get("feedback", ""),
+                {
+                    "selected_member_id": payload.get("selected_member_id"),
+                    "source": payload.get("source", "chat_feedback_box"),
+                    "user_agent": payload.get("user_agent", self.headers.get("User-Agent", "")),
+                },
+            )
+            self.send_json(result, status=200 if result.get("ok") else 400)
             return
 
         self.send_response(404)
