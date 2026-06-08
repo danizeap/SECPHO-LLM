@@ -17,11 +17,22 @@ DEMO_PATH = OUTPUT_DIR / "people_matcher_demo_examples_v1_1_events.csv"
 
 
 TOP_K = 10
+PERSONAL_STOP_TERMS = {
+    "no toco ninguno",
+    "no practico ningun deporte",
+    "no practico ningún deporte",
+    "ninguno",
+    "ninguna",
+    "none",
+    "n/a",
+}
 WEIGHTS = {
-    "profile_similarity": 0.50,
-    "structured_overlap": 0.25,
+    "profile_similarity": 0.44,
+    "structured_overlap": 0.24,
     "needs_overlap": 0.10,
-    "event_interest_overlap": 0.15,
+    "event_interest_overlap": 0.14,
+    "location_overlap": 0.06,
+    "personal_affinity": 0.02,
 }
 
 
@@ -44,6 +55,10 @@ def split_terms(value) -> set:
     }
 
 
+def split_personal_terms(value) -> set:
+    return {term for term in split_terms(value) if term not in PERSONAL_STOP_TERMS}
+
+
 def jaccard(set_a: set, set_b: set) -> float:
     union = set_a | set_b
     if not union:
@@ -55,6 +70,26 @@ def shared_terms(set_a: set, set_b: set) -> str:
     return " | ".join(sorted(set_a & set_b))
 
 
+def same_clean_value(left, right) -> bool:
+    return bool(clean_text(left)) and clean_text(left).lower() == clean_text(right).lower()
+
+
+def location_overlap_score(target: pd.Series, candidate: pd.Series) -> float:
+    if same_clean_value(target.get("municipality"), candidate.get("municipality")):
+        return 1.0
+    if same_clean_value(target.get("province"), candidate.get("province")):
+        return 0.6
+    return 0.0
+
+
+def shared_location(target: pd.Series, candidate: pd.Series) -> str:
+    if same_clean_value(target.get("municipality"), candidate.get("municipality")):
+        return f"same municipality: {clean_text(target.get('municipality'))}"
+    if same_clean_value(target.get("province"), candidate.get("province")):
+        return f"same province: {clean_text(target.get('province'))}"
+    return ""
+
+
 def build_term_sets(df: pd.DataFrame) -> pd.DataFrame:
     df = df.copy()
     df["technology_parent_set"] = df["technology_parents"].apply(split_terms)
@@ -64,6 +99,10 @@ def build_term_sets(df: pd.DataFrame) -> pd.DataFrame:
     df["ambitos_set"] = df["ambitos"].apply(split_terms)
     df["needs_general_set"] = df["needs_general"].apply(split_terms)
     df["needs_specific_set"] = df["needs_specific"].apply(split_terms)
+    df["hobbies_set"] = df.get("hobbies", pd.Series("", index=df.index)).apply(split_personal_terms)
+    df["sports_set"] = df.get("sports", pd.Series("", index=df.index)).apply(split_personal_terms)
+    df["instruments_set"] = df.get("instruments", pd.Series("", index=df.index)).apply(split_personal_terms)
+    df["languages_set"] = df.get("languages", pd.Series("", index=df.index)).apply(split_terms)
     return df
 
 
@@ -183,6 +222,16 @@ def main() -> None:
                 target["needs_general_set"] | target["needs_specific_set"],
                 candidate["needs_general_set"] | candidate["needs_specific_set"],
             )
+            location_overlap = location_overlap_score(target, candidate)
+            hobbies_overlap = jaccard(target["hobbies_set"], candidate["hobbies_set"])
+            sports_overlap = jaccard(target["sports_set"], candidate["sports_set"])
+            instruments_overlap = jaccard(target["instruments_set"], candidate["instruments_set"])
+            languages_overlap = jaccard(target["languages_set"], candidate["languages_set"])
+            personal_affinity_score = (
+                0.60 * hobbies_overlap
+                + 0.25 * sports_overlap
+                + 0.15 * instruments_overlap
+            )
 
             structured_overlap = (
                 0.30 * tech_parent_overlap
@@ -204,6 +253,8 @@ def main() -> None:
                 + WEIGHTS["structured_overlap"] * structured_overlap
                 + WEIGHTS["needs_overlap"] * needs_overlap
                 + WEIGHTS["event_interest_overlap"] * event_interest_overlap_score
+                + WEIGHTS["location_overlap"] * location_overlap
+                + WEIGHTS["personal_affinity"] * personal_affinity_score
             )
 
             confidence_score = (
@@ -245,9 +296,17 @@ def main() -> None:
                     "structured_overlap": round(structured_overlap, 4),
                     "needs_overlap": round(needs_overlap, 4),
                     "event_interest_overlap_score": round(event_interest_overlap_score, 4),
+                    "location_overlap_score": round(location_overlap, 4),
+                    "personal_affinity_score": round(personal_affinity_score, 4),
                     "person_event_overlap": round(person_event_overlap, 4),
                     "socio_event_overlap": round(socio_event_overlap, 4),
                     "confidence_score": round(confidence_score, 4),
+                    "target_municipality": target.get("municipality", ""),
+                    "target_province": target.get("province", ""),
+                    "target_country": target.get("country", ""),
+                    "candidate_municipality": candidate.get("municipality", ""),
+                    "candidate_province": candidate.get("province", ""),
+                    "candidate_country": candidate.get("country", ""),
                     "target_readiness_label": target.get("readiness_label", ""),
                     "candidate_readiness_label": candidate.get("readiness_label", ""),
                     "shared_technologies": shared_terms(
@@ -263,6 +322,11 @@ def main() -> None:
                         target["needs_general_set"] | target["needs_specific_set"],
                         candidate["needs_general_set"] | candidate["needs_specific_set"],
                     ),
+                    "shared_location": shared_location(target, candidate),
+                    "shared_hobbies": shared_terms(target["hobbies_set"], candidate["hobbies_set"]),
+                    "shared_sports": shared_terms(target["sports_set"], candidate["sports_set"]),
+                    "shared_instruments": shared_terms(target["instruments_set"], candidate["instruments_set"]),
+                    "shared_languages": shared_terms(target["languages_set"], candidate["languages_set"]),
                     "shared_registered_events": shared_person_events or shared_socio_events,
                     "shared_person_registered_events": shared_person_events,
                     "shared_socio_registered_events": shared_socio_events,

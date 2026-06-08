@@ -1034,6 +1034,14 @@ def get_person(member_id: int) -> dict:
         "sectors": clean(person.get("sector_parents"), ""),
         "ambitos": clean(person.get("ambitos"), ""),
         "needs": clean(person.get("needs_general"), ""),
+        "municipality": clean(person.get("municipality"), ""),
+        "province": clean(person.get("province"), ""),
+        "country": clean(person.get("country"), ""),
+        "hobbies": clean(person.get("hobbies"), ""),
+        "sports": clean(person.get("sports"), ""),
+        "instruments": clean(person.get("instruments"), ""),
+        "languages": clean(person.get("languages"), ""),
+        "university": clean(person.get("university"), ""),
         "profile_text": clean(person.get("profile_text"), ""),
         "readiness_score": clean(person.get("readiness_score"), "0"),
         "readiness_label": clean(person.get("readiness_label"), ""),
@@ -1061,11 +1069,18 @@ def get_recommendations(member_id: int, limit: int = 5) -> list[dict]:
             "structured_overlap": float(row["structured_overlap"]),
             "needs_overlap": float(row["needs_overlap"]),
             "event_interest_overlap_score": float(row["event_interest_overlap_score"]),
+            "location_overlap_score": float(row.get("location_overlap_score", 0) or 0),
+            "personal_affinity_score": float(row.get("personal_affinity_score", 0) or 0),
             "confidence_score": float(row["confidence_score"]),
             "shared_technologies": clean(row.get("shared_technologies"), ""),
             "shared_sectors": clean(row.get("shared_sectors"), ""),
             "shared_ambitos": clean(row.get("shared_ambitos"), ""),
             "shared_needs": clean(row.get("shared_needs"), ""),
+            "shared_location": clean(row.get("shared_location"), ""),
+            "shared_hobbies": clean(row.get("shared_hobbies"), ""),
+            "shared_sports": clean(row.get("shared_sports"), ""),
+            "shared_instruments": clean(row.get("shared_instruments"), ""),
+            "shared_languages": clean(row.get("shared_languages"), ""),
             "shared_registered_events": clean(row.get("shared_registered_events"), ""),
             "event_interest_evidence_level": clean(row.get("event_interest_evidence_level"), ""),
             "event_interest_note": clean(row.get("event_interest_note"), ""),
@@ -1087,10 +1102,12 @@ def llm_payload_for_person(member_id: int) -> dict:
         "person": person,
         "recommendations_ranked_by_model": recs,
         "scoring_formula": {
-            "profile_similarity": 0.50,
-            "structured_overlap": 0.25,
+            "profile_similarity": 0.44,
+            "structured_overlap": 0.24,
             "needs_overlap": 0.10,
-            "event_interest_overlap_score": 0.15,
+            "event_interest_overlap_score": 0.14,
+            "location_overlap_score": 0.06,
+            "personal_affinity_score": 0.02,
         },
     }
 
@@ -1107,6 +1124,7 @@ def report_for_person(member_id: int) -> str:
         f"**Socio:** {person['socio']}",
         f"**Role:** {person['role'] or 'N/D'}",
         f"**Email:** {person['email'] or 'N/D'}",
+        f"**Location:** {', '.join([p for p in [person['municipality'], person['province'], person['country']] if p]) or 'N/D'}",
         f"**Readiness:** {person['readiness_label']} ({person['readiness_score']}/100)",
         "",
         "## Profile Snapshot",
@@ -1115,6 +1133,9 @@ def report_for_person(member_id: int) -> str:
         f"- Sectors: {person['sectors'] or 'N/D'}",
         f"- Ambitos: {person['ambitos'] or 'N/D'}",
         f"- Needs: {person['needs'] or 'N/D'}",
+        f"- Hobbies: {person['hobbies'] or 'N/D'}",
+        f"- Sports: {person['sports'] or 'N/D'}",
+        f"- Languages: {person['languages'] or 'N/D'}",
         "",
         "## Event Interest",
         "",
@@ -1138,6 +1159,14 @@ def report_for_person(member_id: int) -> str:
             evidence.append(f"shared sectors: {rec['shared_sectors']}")
         if rec["shared_needs"]:
             evidence.append(f"shared needs: {rec['shared_needs']}")
+        if rec["shared_location"]:
+            evidence.append(f"location: {rec['shared_location']}")
+        if rec["shared_hobbies"]:
+            evidence.append(f"shared hobbies: {rec['shared_hobbies']}")
+        if rec["shared_sports"]:
+            evidence.append(f"shared sports: {rec['shared_sports']}")
+        if rec["shared_languages"]:
+            evidence.append(f"shared languages: {rec['shared_languages']}")
         if rec["shared_registered_events"]:
             evidence.append(f"shared event interest: {rec['shared_registered_events']}")
 
@@ -1163,6 +1192,8 @@ def report_for_person(member_id: int) -> str:
             "## How To Read This",
             "",
             "The ranking is produced by the deterministic People Matcher V1.1 model. "
+            "It combines profile similarity, structured overlap, needs overlap, event-interest evidence, "
+            "location proximity, and light personal-affinity context. "
             "The LLM or report writer should explain these results, not invent or reorder them.",
         ]
     )
@@ -1224,8 +1255,9 @@ def answer_question(question: str) -> str:
 
     if "weight" in q or "score" in q or "scoring" in q:
         return (
-            "People Matcher V1.1 score = 0.50 profile similarity + 0.25 structured overlap "
-            "+ 0.10 needs overlap + 0.15 event_interest_overlap_score. "
+            "People Matcher V1.1 score = 0.44 profile similarity + 0.24 structured overlap "
+            "+ 0.10 needs overlap + 0.14 event_interest_overlap_score "
+            "+ 0.06 location_overlap_score + 0.02 personal_affinity_score. "
             "Readiness is shown as confidence, not as a ranking override."
         )
 
@@ -1323,6 +1355,10 @@ def render_recommendations(member_id: int) -> str:
             evidence.append(f"tech: {rec['shared_technologies']}")
         if rec["shared_sectors"]:
             evidence.append(f"sectors: {rec['shared_sectors']}")
+        if rec["shared_location"]:
+            evidence.append(f"location: {rec['shared_location']}")
+        if rec["shared_hobbies"]:
+            evidence.append(f"hobbies: {rec['shared_hobbies']}")
         if rec["shared_registered_events"]:
             evidence.append(f"event interest: {rec['shared_registered_events']}")
         evidence_text = "; ".join(evidence) if evidence else "profile/context similarity"

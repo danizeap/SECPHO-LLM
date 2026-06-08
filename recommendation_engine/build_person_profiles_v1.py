@@ -99,6 +99,18 @@ def main() -> None:
         + person_profiles["value_chain"].fillna("")
         + ". "
         + person_profiles["activity_summary"].fillna("")
+        + ". Location: "
+        + person_profiles.get("municipality", pd.Series("", index=person_profiles.index)).fillna("")
+        + ". "
+        + person_profiles.get("province", pd.Series("", index=person_profiles.index)).fillna("")
+        + ". Personal context: "
+        + person_profiles.get("hobbies", pd.Series("", index=person_profiles.index)).fillna("")
+        + ". "
+        + person_profiles.get("sports", pd.Series("", index=person_profiles.index)).fillna("")
+        + ". "
+        + person_profiles.get("instruments", pd.Series("", index=person_profiles.index)).fillna("")
+        + ". "
+        + person_profiles.get("languages", pd.Series("", index=person_profiles.index)).fillna("")
     )
 
     person_profiles.to_csv(OUTPUT_PATH, index=False, encoding="utf-8-sig")
