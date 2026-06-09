@@ -1,11 +1,16 @@
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
+import base64
+import hashlib
+import hmac
 import mimetypes
 import html
 import json
 import os
 import re
+import secrets
+import time
 from datetime import datetime, timezone
 
 import pandas as pd
@@ -35,6 +40,21 @@ FEEDBACK_INBOX_PATH = APP_STATE_DIR / "feedback_inbox.md"
 GENERATED_ARTIFACTS_DIR = BASE_DIR / "data" / "generated_artifacts"
 OPENAI_RESPONSES_URL = "https://api.openai.com/v1/responses"
 OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-5-mini")
+SESSION_COOKIE_NAME = "secpho_session"
+SESSION_TTL_SECONDS = int(os.getenv("SECPHO_SESSION_TTL_SECONDS", "28800"))
+APP_PASSWORD = os.getenv("SECPHO_APP_PASSWORD") or os.getenv("APP_ACCESS_PASSWORD")
+ADMIN_PASSWORD = os.getenv("SECPHO_ADMIN_PASSWORD")
+SESSION_SECRET = os.getenv("SECPHO_SESSION_SECRET") or os.getenv("SESSION_SECRET") or secrets.token_urlsafe(32)
+AUTH_REQUIRED = bool(APP_PASSWORD or ADMIN_PASSWORD)
+RATE_LIMIT_EVENTS: dict[str, list[float]] = {}
+
+
+RATE_LIMITS = {
+    "login": (8, 300),
+    "llm": (30, 60),
+    "api": (120, 60),
+    "feedback": (10, 300),
+}
 
 
 LLM_INSTRUCTIONS = """
@@ -92,6 +112,85 @@ def utc_now_iso() -> str:
 
 def openai_available() -> bool:
     return bool(os.getenv("OPENAI_API_KEY"))
+
+
+def b64url_encode(data: bytes) -> str:
+    return base64.urlsafe_b64encode(data).decode("ascii").rstrip("=")
+
+
+def b64url_decode(text: str) -> bytes:
+    padding = "=" * (-len(text) % 4)
+    return base64.urlsafe_b64decode(text + padding)
+
+
+def sign_value(value: str) -> str:
+    return hmac.new(SESSION_SECRET.encode("utf-8"), value.encode("utf-8"), hashlib.sha256).hexdigest()
+
+
+def make_session_cookie(role: str) -> str:
+    now = int(time.time())
+    payload = {
+        "role": role,
+        "iat": now,
+        "exp": now + SESSION_TTL_SECONDS,
+        "nonce": secrets.token_urlsafe(12),
+    }
+    encoded = b64url_encode(json.dumps(payload, separators=(",", ":")).encode("utf-8"))
+    return f"{encoded}.{sign_value(encoded)}"
+
+
+def parse_cookie_header(header: str) -> dict:
+    cookies = {}
+    for part in header.split(";"):
+        if "=" not in part:
+            continue
+        key, value = part.split("=", 1)
+        cookies[key.strip()] = value.strip()
+    return cookies
+
+
+def parse_session_cookie(cookie_value: str) -> dict | None:
+    if not cookie_value or "." not in cookie_value:
+        return None
+    encoded, signature = cookie_value.rsplit(".", 1)
+    if not hmac.compare_digest(signature, sign_value(encoded)):
+        return None
+    try:
+        payload = json.loads(b64url_decode(encoded).decode("utf-8"))
+    except Exception:
+        return None
+    if int(payload.get("exp", 0)) < int(time.time()):
+        return None
+    if payload.get("role") not in {"user", "admin"}:
+        return None
+    return payload
+
+
+def check_password(password: str) -> str | None:
+    if ADMIN_PASSWORD and hmac.compare_digest(password, ADMIN_PASSWORD):
+        return "admin"
+    if APP_PASSWORD and hmac.compare_digest(password, APP_PASSWORD):
+        return "user"
+    if not APP_PASSWORD and ADMIN_PASSWORD and hmac.compare_digest(password, ADMIN_PASSWORD):
+        return "admin"
+    return None
+
+
+def rate_limit_key(ip: str, bucket: str) -> str:
+    return f"{bucket}:{ip}"
+
+
+def is_rate_limited(ip: str, bucket: str) -> bool:
+    max_events, window = RATE_LIMITS.get(bucket, RATE_LIMITS["api"])
+    now = time.time()
+    key = rate_limit_key(ip, bucket)
+    events = [ts for ts in RATE_LIMIT_EVENTS.get(key, []) if now - ts < window]
+    if len(events) >= max_events:
+        RATE_LIMIT_EVENTS[key] = events
+        return True
+    events.append(now)
+    RATE_LIMIT_EVENTS[key] = events
+    return False
 
 
 def extract_response_text(payload: dict) -> str:
@@ -1823,6 +1922,95 @@ def markdown_to_chat_html(text: str) -> str:
     return f"<p>{escaped}</p>"
 
 
+LOGIN_HTML = """
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SECPHO Intelligence Login</title>
+  <style>
+    :root {
+      --bg: #111113;
+      --panel: #1b1c20;
+      --ink: #f4f4f5;
+      --muted: #a6a7ab;
+      --line: #303136;
+      --brand: #00c3c7;
+      --hot: #ff3158;
+    }
+    * { box-sizing: border-box; }
+    body {
+      min-height: 100vh;
+      margin: 0;
+      display: grid;
+      place-items: center;
+      background:
+        radial-gradient(circle at 18% 12%, rgba(0,195,199,.14), transparent 30%),
+        radial-gradient(circle at 84% 18%, rgba(255,49,88,.12), transparent 28%),
+        var(--bg);
+      color: var(--ink);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+    }
+    main {
+      width: min(420px, calc(100vw - 32px));
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: rgba(27,28,32,.94);
+      padding: 24px;
+      box-shadow: 0 20px 70px rgba(0,0,0,.34);
+    }
+    img { width: 132px; display: block; margin-bottom: 24px; }
+    h1 { font-size: 22px; margin: 0 0 8px; }
+    p { color: var(--muted); line-height: 1.45; margin: 0 0 18px; }
+    label { display: block; color: var(--muted); font-size: 13px; margin-bottom: 7px; }
+    input {
+      width: 100%;
+      min-height: 44px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #111113;
+      color: var(--ink);
+      font: inherit;
+      padding: 10px 12px;
+    }
+    button {
+      width: 100%;
+      margin-top: 14px;
+      min-height: 44px;
+      border: 0;
+      border-radius: 8px;
+      background: var(--brand);
+      color: #061112;
+      cursor: pointer;
+      font: inherit;
+      font-weight: 760;
+    }
+    .error {
+      min-height: 20px;
+      color: #ff8aa0;
+      font-size: 13px;
+      margin-top: 12px;
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <img src="/static/secpho_logo_negative.png" alt="secpho">
+    <h1>SECPHO Intelligence</h1>
+    <p>This workspace is protected. Sign in to continue.</p>
+    <form method="post" action="/login">
+      <label for="password">Access password</label>
+      <input id="password" name="password" type="password" autocomplete="current-password" autofocus>
+      <button type="submit">Sign in</button>
+      <div class="error">{{ERROR}}</div>
+    </form>
+  </main>
+</body>
+</html>
+"""
+
+
 INDEX_HTML = """
 <!doctype html>
 <html>
@@ -2021,6 +2209,10 @@ INDEX_HTML = """
 
     async function api(path) {
       const res = await fetch(path);
+      if (res.status === 401) {
+        window.location.href = '/login';
+        return {};
+      }
       return await res.json();
     }
 
@@ -2492,6 +2684,7 @@ CHAT_HTML = """
         <span class="badge" id="llmBadge">LLM</span>
       </div>
       <button class="new-chat" onclick="newChat()">+ New conversation</button>
+      <a class="new-chat" href="/logout" style="text-decoration:none">Sign out</a>
       <div class="side-block">
         <strong>Model rule</strong><br>
         The script does the matchmaking. The LLM explains and decorates the deterministic results.
@@ -2575,6 +2768,13 @@ CHAT_HTML = """
 
     async function api(path) {
       const res = await fetch(path);
+      if (res.status === 401) {
+        window.location.href = '/login';
+        return {};
+      }
+      if (res.status === 403) {
+        return {error: 'forbidden'};
+      }
       return await res.json();
     }
 
@@ -2659,6 +2859,10 @@ CHAT_HTML = """
           user_agent: navigator.userAgent
         })
       });
+      if (res.status === 401) {
+        window.location.href = '/login';
+        return;
+      }
       const data = await res.json();
       if (!res.ok || !data.ok) {
         note.textContent = data.error || 'Could not save feedback.';
@@ -2740,31 +2944,91 @@ CHAT_HTML = """
 
 
 class Handler(BaseHTTPRequestHandler):
+    def client_ip(self) -> str:
+        forwarded = self.headers.get("X-Forwarded-For", "")
+        if forwarded:
+            return forwarded.split(",", 1)[0].strip()
+        return self.client_address[0] if self.client_address else "unknown"
+
+    def session(self) -> dict | None:
+        if not AUTH_REQUIRED:
+            return {"role": "admin", "auth_disabled": True}
+        cookies = parse_cookie_header(self.headers.get("Cookie", ""))
+        return parse_session_cookie(cookies.get(SESSION_COOKIE_NAME, ""))
+
+    def is_authenticated(self) -> bool:
+        return self.session() is not None
+
+    def is_admin(self) -> bool:
+        session = self.session()
+        return bool(session and session.get("role") == "admin")
+
+    def secure_cookie_suffix(self) -> str:
+        forwarded_proto = self.headers.get("X-Forwarded-Proto", "")
+        is_https = forwarded_proto.lower() == "https"
+        secure = "; Secure" if is_https or os.getenv("RENDER") else ""
+        return f"; HttpOnly; SameSite=Lax{secure}"
+
+    def send_security_headers(self) -> None:
+        self.send_header("X-Frame-Options", "DENY")
+        self.send_header("X-Content-Type-Options", "nosniff")
+        self.send_header("Referrer-Policy", "same-origin")
+        self.send_header("Permissions-Policy", "camera=(), geolocation=(), payment=(), usb=()")
+        self.send_header(
+            "Content-Security-Policy",
+            "default-src 'self'; "
+            "img-src 'self' data:; "
+            "style-src 'self' 'unsafe-inline'; "
+            "script-src 'self' 'unsafe-inline'; "
+            "connect-src 'self'; "
+            "base-uri 'self'; "
+            "form-action 'self'; "
+            "frame-ancestors 'none'",
+        )
+        self.send_header("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
+
     def send_json(self, payload: dict, status: int = 200) -> None:
         body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
         self.send_response(status)
         self.send_header("Content-Type", "application/json; charset=utf-8")
+        self.send_security_headers()
         self.send_header("Content-Length", str(len(body)))
         self.end_headers()
         self.wfile.write(body)
 
-    def send_html(self, body: str) -> None:
+    def send_html(self, body: str, status: int = 200) -> None:
         encoded = body.encode("utf-8")
-        self.send_response(200)
+        self.send_response(status)
         self.send_header("Content-Type", "text/html; charset=utf-8")
+        self.send_security_headers()
         self.send_header("Content-Length", str(len(encoded)))
         self.end_headers()
         self.wfile.write(encoded)
 
+    def send_redirect(self, location: str) -> None:
+        self.send_response(303)
+        self.send_security_headers()
+        self.send_header("Location", location)
+        self.send_header("Content-Length", "0")
+        self.end_headers()
+
+    def send_forbidden(self) -> None:
+        self.send_json({"error": "forbidden"}, status=403)
+
+    def send_unauthorized(self) -> None:
+        self.send_json({"error": "authentication_required"}, status=401)
+
     def send_file(self, path: Path) -> None:
         if not path.exists() or not path.is_file():
             self.send_response(404)
+            self.send_security_headers()
             self.end_headers()
             return
         data = path.read_bytes()
         content_type = mimetypes.guess_type(str(path))[0] or "application/octet-stream"
         self.send_response(200)
         self.send_header("Content-Type", content_type)
+        self.send_security_headers()
         self.send_header("Content-Length", str(len(data)))
         self.end_headers()
         self.wfile.write(data)
@@ -2773,7 +3037,26 @@ class Handler(BaseHTTPRequestHandler):
         parsed = urlparse(self.path)
         params = parse_qs(parsed.query)
 
+        if parsed.path == "/login":
+            if self.is_authenticated():
+                self.send_redirect("/")
+                return
+            self.send_html(LOGIN_HTML.replace("{{ERROR}}", ""))
+            return
+
+        if parsed.path == "/logout":
+            self.send_response(303)
+            self.send_security_headers()
+            self.send_header("Set-Cookie", f"{SESSION_COOKIE_NAME}=; Path=/; Max-Age=0{self.secure_cookie_suffix()}")
+            self.send_header("Location", "/login")
+            self.send_header("Content-Length", "0")
+            self.end_headers()
+            return
+
         if parsed.path == "/":
+            if not self.is_authenticated():
+                self.send_redirect("/login")
+                return
             self.send_html(CHAT_HTML)
             return
 
@@ -2782,6 +3065,7 @@ class Handler(BaseHTTPRequestHandler):
                 {
                     "status": "ok",
                     "llm_available": openai_available(),
+                    "auth_required": AUTH_REQUIRED,
                     "people": len(DATA["people"]),
                     "matches": len(DATA["matches"]),
                 }
@@ -2789,6 +3073,9 @@ class Handler(BaseHTTPRequestHandler):
             return
 
         if parsed.path == "/classic":
+            if not self.is_authenticated():
+                self.send_redirect("/login")
+                return
             self.send_html(INDEX_HTML)
             return
 
@@ -2798,9 +3085,21 @@ class Handler(BaseHTTPRequestHandler):
             return
 
         if parsed.path.startswith("/artifacts/"):
+            if not self.is_authenticated():
+                self.send_unauthorized()
+                return
             name = Path(parsed.path.replace("/artifacts/", "", 1)).name
             self.send_file(GENERATED_ARTIFACTS_DIR / name)
             return
+
+        if parsed.path.startswith("/api/"):
+            if not self.is_authenticated():
+                self.send_unauthorized()
+                return
+            bucket = "llm" if parsed.path in {"/api/chat-flow", "/api/llm-chat", "/api/llm-report"} else "api"
+            if is_rate_limited(self.client_ip(), bucket):
+                self.send_json({"error": "rate_limited"}, status=429)
+                return
 
         if parsed.path == "/api/search":
             q = params.get("q", [""])[0]
@@ -2869,6 +3168,9 @@ class Handler(BaseHTTPRequestHandler):
             return
 
         if parsed.path == "/api/tool-requests":
+            if not self.is_admin():
+                self.send_forbidden()
+                return
             limit_raw = params.get("limit", ["50"])[0]
             try:
                 limit = int(limit_raw)
@@ -2878,6 +3180,9 @@ class Handler(BaseHTTPRequestHandler):
             return
 
         if parsed.path == "/api/tool-build-events":
+            if not self.is_admin():
+                self.send_forbidden()
+                return
             limit_raw = params.get("limit", ["50"])[0]
             try:
                 limit = int(limit_raw)
@@ -2892,9 +3197,13 @@ class Handler(BaseHTTPRequestHandler):
             return
 
         if parsed.path == "/api/feedback-inbox":
+            if not self.is_admin():
+                self.send_forbidden()
+                return
             body = load_feedback_inbox().encode("utf-8")
             self.send_response(200)
             self.send_header("Content-Type", "text/markdown; charset=utf-8")
+            self.send_security_headers()
             self.send_header("Content-Length", str(len(body)))
             self.end_headers()
             self.wfile.write(body)
@@ -2906,7 +3215,42 @@ class Handler(BaseHTTPRequestHandler):
     def do_POST(self) -> None:
         parsed = urlparse(self.path)
 
+        if parsed.path == "/login":
+            if is_rate_limited(self.client_ip(), "login"):
+                self.send_html(LOGIN_HTML.replace("{{ERROR}}", "Too many attempts. Try again later."), status=429)
+                return
+            try:
+                length = int(self.headers.get("Content-Length", "0"))
+            except ValueError:
+                length = 0
+            raw = self.rfile.read(min(length, 4096)).decode("utf-8") if length else ""
+            params = parse_qs(raw)
+            password = params.get("password", [""])[0]
+            role = check_password(password)
+            if not role:
+                self.send_html(LOGIN_HTML.replace("{{ERROR}}", "Invalid password."), status=401)
+                return
+            self.send_response(303)
+            self.send_security_headers()
+            cookie = make_session_cookie(role)
+            self.send_header(
+                "Set-Cookie",
+                f"{SESSION_COOKIE_NAME}={cookie}; Path=/; Max-Age={SESSION_TTL_SECONDS}{self.secure_cookie_suffix()}",
+            )
+            self.send_header("Location", "/")
+            self.send_header("Content-Length", "0")
+            self.end_headers()
+            return
+
+        if parsed.path.startswith("/api/"):
+            if not self.is_authenticated():
+                self.send_unauthorized()
+                return
+
         if parsed.path == "/api/feedback":
+            if is_rate_limited(self.client_ip(), "feedback"):
+                self.send_json({"ok": False, "error": "rate_limited"}, status=429)
+                return
             try:
                 length = int(self.headers.get("Content-Length", "0"))
             except ValueError:

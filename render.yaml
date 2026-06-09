@@ -16,3 +16,9 @@ services:
         sync: false
       - key: SECPHO_API_AUTH_TOKEN
         sync: false
+      - key: SECPHO_APP_PASSWORD
+        sync: false
+      - key: SECPHO_ADMIN_PASSWORD
+        sync: false
+      - key: SECPHO_SESSION_SECRET
+        sync: false
