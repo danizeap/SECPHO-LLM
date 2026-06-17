@@ -1,0 +1,414 @@
+# LaunchGuardian Framework (LGF) gate-applicability matrix.
+# Project-specific record for the SECPHO Intelligence System security review.
+# Documents an assessment that has already been reasoned out (verdicts are fixed).
+project: "SECPHO Intelligence System"
+change: "intelligence-upgrade (closed password-gated internal SECPHO-staff pilot; unmerged branch atop commit 9d74ede)"
+date: "2026-06-17"
+owner: "Daniel / SECPHO"
+reviewer: "LaunchGuardian (Claude)"
+
+source_of_truth:
+  - "sdd-plus/specs/launchguardian-framework.md"
+  - "sdd-plus/standards/security-shipping-standards.md"
+  - "sdd-plus/security/gate-applicability.template.yml"
+  - "sdd-plus/specs/MASTER_LAUNCHGUARDIAN_CONTEXT.md, if present"
+
+status_values:
+  applies:
+    - true
+    - false
+    - "unknown"
+  confidence:
+    - "high"
+    - "medium"
+    - "low"
+  evidence_type:
+    - "repo_evidence"
+    - "config_evidence"
+    - "human_statement"
+    - "unresolved_question"
+
+high_risk_skip_rule:
+  rule: "For any high-risk gate, applies: false is invalid unless human_confirmation_required, confirmed_by, confirmed_at, reason, and evidence are filled."
+  required_when_high_risk_gate_is_skipped:
+    human_confirmation_required: true
+    confirmed_by: "required"
+    confirmed_at: "required"
+    reason: "required"
+    evidence: "required"
+
+always_on_gates:
+  - "Gate 0 — Scope & Permission"
+  - "Gate 1 — Product, Asset & Data Inventory"
+  - "Gate 3 — Code Security"
+  - "Gate 4 — Secrets & Config Hygiene"
+  - "Gate 10 — Dependency, SBOM & Supply Chain"
+  - "Gate 17 — Observability, Logs & Incident Readiness"
+  - "Gate 20 — Launch Decision"
+
+conditional_trigger_rules:
+  frontend_detected:
+    applies_to:
+      - "Gate 5 — Frontend Exposure"
+  api_routes_detected:
+    applies_to:
+      - "Gate 6 — API Auth & Object Authorization"
+  user_input_crosses_trust_boundary:
+    applies_to:
+      - "Gate 7 — Injection & Input Safety"
+  auth_sessions_cookies_detected:
+    applies_to:
+      - "Gate 8 — Auth, Sessions & CSRF"
+  upload_import_export_or_url_fetch_detected:
+    applies_to:
+      - "Gate 9 — File Upload, SSRF, Imports & Exports"
+  public_deployment_or_infrastructure_detected:
+    applies_to:
+      - "Gate 11 — Infrastructure, DNS, TLS & Web Hardening"
+      - "Gate 12 — Resilience, DDoS, Abuse & Cost Defense"
+  webhooks_jobs_or_integrations_detected:
+    applies_to:
+      - "Gate 13 — Webhooks, Background Jobs & Integrations"
+  personal_or_sensitive_data_detected:
+    applies_to:
+      - "Gate 14 — Privacy, Legal & Data Lifecycle"
+  llm_vector_db_or_agent_tools_detected:
+    applies_to:
+      - "Gate 15 — AI/RAG/Agent Security"
+  tenant_org_client_team_model_detected:
+    applies_to:
+      - "Gate 16 — Multi-Tenant & Internal Permission Isolation"
+  persistent_data_or_rotation_needs_detected:
+    applies_to:
+      - "Gate 18 — Backup, Recovery, Deletion & Rotation"
+  business_rules_credits_payments_plans_invites_detected:
+    applies_to:
+      - "Gate 19 — Business Logic Abuse"
+  production_launch_or_live_users_detected:
+    applies_to:
+      - "Gate 21 — Continuous Monitoring"
+
+gates:
+  - gate_id: 0
+    gate_name: "Gate 0 — Scope & Permission"
+    applies: true
+    confidence: "high"
+    status: "PASS"
+    evidence:
+      - type: "human_statement"
+        detail: "Owner (Daniel / SECPHO, WeCollabify) authorized this LGF review of the owned local repo. Intended users are authenticated SECPHO staff (single internal trust group); the public and unauthenticated users are out of scope."
+        reference: "Owner statement; repo root C:/Users/Daniel Paez/Desktop/secpho_intelligence_system"
+    reason: "Always-on gate; review scope is explicitly owner-approved for an owned local repo."
+    human_confirmation_required: true
+    confirmed_by: "Daniel / SECPHO"
+    confirmed_at: "2026-06-17"
+    unresolved_questions: []
+  - gate_id: 1
+    gate_name: "Gate 1 — Product, Asset & Data Inventory"
+    applies: true
+    confidence: "high"
+    status: "PASS"
+    evidence:
+      - type: "repo_evidence"
+        detail: "Single-file stdlib http.server app (backend_api/mvp_web_app.py) plus precomputed CSVs in data/processed and recommendation_engine/outputs. Data classes inventoried: member PII (names, emails, role, company, location, technologies, optional personal context), socio/company data, 7968 newsletter subscriber emails (suscriptores_normalized.csv), captured feedback (feedback_inbox.md), and secrets (env-only). Integrations: OpenAI Responses API (outbound) and Render hosting."
+        reference: "backend_api/mvp_web_app.py; data/processed; recommendation_engine/outputs; render.yaml"
+    reason: "Always-on gate; this review produces the asset/data inventory."
+    human_confirmation_required: false
+    confirmed_by: ""
+    confirmed_at: ""
+    unresolved_questions: []
+  - gate_id: 2
+    gate_name: "Gate 2 — Threat Modeling"
+    applies: true
+    confidence: "high"
+    status: "PASS"
+    evidence:
+      - type: "repo_evidence"
+        detail: "Threat model produced. High-impact features driving it: password-gated auth and signed sessions, member + subscriber PII processed and sent to OpenAI, public Render deployment, and a bounded LLM agent with a self-extending tool-learning loop."
+        reference: "backend_api/mvp_web_app.py (verify_session, run_agent, create_socio_metric_chart)"
+    reason: "High-impact features (auth, PII, public deploy, LLM agent) require threat modeling."
+    human_confirmation_required: false
+    confirmed_by: ""
+    confirmed_at: ""
+    unresolved_questions: []
+  - gate_id: 3
+    gate_name: "Gate 3 — Code Security"
+    applies: true
+    confidence: "high"
+    status: "PASS WITH FOLLOW-UP"
+    evidence:
+      - type: "repo_evidence"
+        detail: "Manual review plus per-feature adversarial verifier reviews completed this session. Semgrep was NOT run (not installable on this Windows host). Follow-up: run Semgrep in Linux CI."
+        reference: "backend_api/mvp_web_app.py; this session's verifier reviews"
+    reason: "Always-on gate; deployable app code requires code-security review."
+    human_confirmation_required: false
+    confirmed_by: ""
+    confirmed_at: ""
+    unresolved_questions:
+      - "Run Semgrep in Linux CI (not installable on the Windows review host)."
+  - gate_id: 4
+    gate_name: "Gate 4 — Secrets & Config Hygiene"
+    applies: true
+    confidence: "high"
+    status: "PASS"
+    evidence:
+      - type: "config_evidence"
+        detail: "Secrets (OPENAI_API_KEY, SECPHO_API_AUTH_TOKEN, SECPHO_APP_PASSWORD, SECPHO_ADMIN_PASSWORD, SECPHO_SESSION_SECRET) are env-only and marked sync:false in render.yaml (set in the Render dashboard). .gitignore excludes .env/.env.*, data/app_state, and data/generated_artifacts. Manually verified no secret in committed files. Gitleaks not run (CI follow-up)."
+        reference: "render.yaml lines 17-26; .gitignore; backend_api/mvp_web_app.py"
+    reason: "Always-on gate; the project depends on environment-provided credentials and secrets."
+    human_confirmation_required: false
+    confirmed_by: ""
+    confirmed_at: ""
+    unresolved_questions:
+      - "Run Gitleaks in Linux CI."
+  - gate_id: 5
+    gate_name: "Gate 5 — Frontend Exposure"
+    applies: true
+    confidence: "high"
+    status: "PASS WITH FOLLOW-UP"
+    evidence:
+      - type: "repo_evidence"
+        detail: "send_security_headers sets X-Frame-Options DENY, X-Content-Type-Options nosniff, Referrer-Policy, Permissions-Policy, HSTS, and a CSP on every response. RESIDUAL: the CSP allows 'unsafe-inline' for script-src and style-src because the UI inlines all JS/CSS (defense-in-depth weakness). The scanner's 2 'blocking' Gate 5 findings are FALSE POSITIVES inside secpho_env (the venv), not our frontend."
+        reference: "backend_api/mvp_web_app.py:4538-4554 (send_security_headers)"
+    reason: "Frontend detected; a browser-delivered single-page UI is served with inlined assets."
+    human_confirmation_required: false
+    confirmed_by: ""
+    confirmed_at: ""
+    unresolved_questions:
+      - "Remove CSP 'unsafe-inline' by externalizing inlined JS/CSS before broad launch (defense-in-depth)."
+  - gate_id: 6
+    gate_name: "Gate 6 — API Auth & Object Authorization"
+    applies: true
+    confidence: "high"
+    status: "PASS"
+    evidence:
+      - type: "repo_evidence"
+        detail: "All /api/* routes require an authenticated session. Admin endpoints (/api/tool-requests, /api/tool-build-events, /api/feedback-inbox, /admin) are fail-closed and double-gated via is_admin, which requires ADMIN_ENABLED and session role 'admin'. Object-level authz: any authenticated staff user can read any member/socio — ACCEPTED for a single internal trust group. The 27 scanner 'no auth guard' findings are FALSE POSITIVES in secpho_env (pandas.api/joblib); the stdlib router is not recognized by the scanner."
+        reference: "backend_api/mvp_web_app.py:4528-4530 (is_admin), do_GET/do_POST routing 4602-4955"
+    reason: "API routes detected; the app exposes authenticated /api/* and /admin endpoints."
+    human_confirmation_required: false
+    confirmed_by: ""
+    confirmed_at: ""
+    unresolved_questions: []
+  - gate_id: 7
+    gate_name: "Gate 7 — Injection & Input Safety"
+    applies: true
+    confidence: "high"
+    status: "PASS WITH FOLLOW-UP"
+    evidence:
+      - type: "repo_evidence"
+        detail: "No SQL/DB (CSV-only). Numeric ids are parsed via to_int with a 400 on failure (no 500/traceback). LLM/markdown output is html.escape'd BEFORE limited token substitution in markdown_to_chat_html. Request bodies are size-capped. RESIDUAL XSS surface: 'unsafe-inline' CSP combined with the regex markdown renderer, mitigated by escape-first ordering."
+        reference: "backend_api/mvp_web_app.py:176 (to_int), 2972 (markdown_to_chat_html)"
+    reason: "User input crosses trust boundaries (chat questions, search queries, ids, feedback text reaching markdown/HTML and the LLM)."
+    human_confirmation_required: false
+    confirmed_by: ""
+    confirmed_at: ""
+    unresolved_questions:
+      - "Resolve the residual XSS surface by removing 'unsafe-inline' (tracked under Gate 5)."
+  - gate_id: 8
+    gate_name: "Gate 8 — Auth, Sessions & CSRF"
+    applies: true
+    confidence: "high"
+    status: "PASS WITH FOLLOW-UP"
+    evidence:
+      - type: "repo_evidence"
+        detail: "HMAC-SHA256 signed stateless cookies (HttpOnly; SameSite=Lax; Secure added behind the proxy via X-Forwarded-Proto/RENDER). Constant-time password comparison (hmac.compare_digest), session TTL, and per-IP rate limits (login 8/5min, llm 30/min, api 120/min, feedback 10/5min). GAP: no CSRF token on POST /login, /api/feedback, /api/agent — relies on SameSite=Lax only."
+        reference: "backend_api/mvp_web_app.py:274/288-292 (compare_digest), 4533-4536 (cookie flags), 80-84 (RATE_LIMITS)"
+    reason: "Auth/session/cookie behavior detected; the app uses password login and signed session cookies."
+    human_confirmation_required: false
+    confirmed_by: ""
+    confirmed_at: ""
+    unresolved_questions:
+      - "Add CSRF tokens on POST /login, /api/feedback, /api/agent before broad launch."
+  - gate_id: 9
+    gate_name: "Gate 9 — File Upload, SSRF, Imports & Exports"
+    applies: false
+    confidence: "medium"
+    status: "N/A"
+    evidence:
+      - type: "repo_evidence"
+        detail: "The deployed web app has NO file upload and fetches only a FIXED outbound URL (OpenAI Responses API, https://api.openai.com/v1/responses) with no user-controlled URL. Static/artifact serving applies a Path(...).name basename defense. The event-registration import is an OFFLINE pipeline script, not part of the deployed web app. Low risk; not a high-risk-isolation gate."
+        reference: "backend_api/mvp_web_app.py:47 (OPENAI_RESPONSES_URL), 4675/4683 (Path(...).name basename for /static/ and /artifacts/)"
+    reason: "No upload, no user-controlled URL fetch, and no in-app import/export in the deployed web app; only a single fixed outbound integration exists. Not high-risk, so no human confirmation required."
+    human_confirmation_required: false
+    confirmed_by: ""
+    confirmed_at: ""
+    unresolved_questions: []
+  - gate_id: 10
+    gate_name: "Gate 10 — Dependency, SBOM & Supply Chain"
+    applies: true
+    confidence: "high"
+    status: "PASS WITH FOLLOW-UP"
+    evidence:
+      - type: "repo_evidence"
+        detail: "requirements.txt is fully pinned (pandas==3.0.2, numpy==2.4.4, scipy==1.17.1, scikit-learn==1.8.0, requests==2.32.5, plus python-dotenv, lxml, xlrd, html5lib, beautifulsoup4). Trivy/pip-audit NOT run (not installable on this host). Follow-up: dependency vulnerability scan in CI."
+        reference: "requirements.txt"
+    reason: "Always-on gate; the project relies on pinned third-party dependencies."
+    human_confirmation_required: false
+    confirmed_by: ""
+    confirmed_at: ""
+    unresolved_questions:
+      - "Run a dependency vulnerability scan (Trivy/pip-audit) in Linux CI."
+  - gate_id: 11
+    gate_name: "Gate 11 — Infrastructure, DNS, TLS & Web Hardening"
+    applies: true
+    confidence: "high"
+    status: "PASS WITH FOLLOW-UP"
+    evidence:
+      - type: "config_evidence"
+        detail: "TLS is terminated by Render; the app binds plain HTTP behind Render's proxy. The Secure cookie flag depends on X-Forwarded-Proto=https or the RENDER env var; HSTS header is set. Render web service 'secpho-intelligence-chat' (plan free)."
+        reference: "render.yaml lines 1-7; backend_api/mvp_web_app.py:4533-4536, 4554 (HSTS)"
+    reason: "Public deployment/infrastructure detected (Render web service with TLS termination)."
+    human_confirmation_required: false
+    confirmed_by: ""
+    confirmed_at: ""
+    unresolved_questions:
+      - "Confirm Render forces HTTPS (HTTP-to-HTTPS redirect) for the service."
+  - gate_id: 12
+    gate_name: "Gate 12 — Resilience, DDoS, Abuse & Cost Defense"
+    applies: true
+    confidence: "high"
+    status: "PASS WITH FOLLOW-UP"
+    evidence:
+      - type: "repo_evidence"
+        detail: "Per-IP in-memory rate limits (per-process; Render free = single instance, acceptable now). AI COST exposure: the agent makes multiple LLM calls per question, mitigated by the 'llm' rate bucket (30/min). Follow-up: shared/persistent rate limiter and OpenAI cost alerts at scale."
+        reference: "backend_api/mvp_web_app.py:80-84 (RATE_LIMITS), 4693 (llm bucket selection)"
+    reason: "Public exposure plus rate-limit-sensitive AI endpoints create abuse and cost-exposure paths."
+    human_confirmation_required: false
+    confirmed_by: ""
+    confirmed_at: ""
+    unresolved_questions:
+      - "Add a shared/persistent rate limiter and OpenAI cost alerts before scaling beyond a single instance."
+  - gate_id: 13
+    gate_name: "Gate 13 — Webhooks, Background Jobs & Integrations"
+    applies: true
+    confidence: "medium"
+    status: "PASS WITH FOLLOW-UP"
+    evidence:
+      - type: "repo_evidence"
+        detail: "The only integration is OpenAI (outbound). The self-extending 'tool-learning loop' auto-builds ONLY the whitelisted create_socio_metric_chart tool (SVG output) and queues riskier proposals for human review — reasonable containment. The codex_review_notes is a placeholder, not a real review."
+        reference: "backend_api/mvp_web_app.py:669/773/2215-2222 (create_socio_metric_chart allowlist and build path)"
+    reason: "An outbound integration (OpenAI) and an auto-build tool-loop are present, even though there are no inbound webhooks."
+    human_confirmation_required: false
+    confirmed_by: ""
+    confirmed_at: ""
+    unresolved_questions:
+      - "Keep the tool-build allowlist tight; replace the codex_review_notes placeholder with a real human review step."
+  - gate_id: 14
+    gate_name: "Gate 14 — Privacy, Legal & Data Lifecycle"
+    applies: true
+    confidence: "high"
+    status: "BLOCKING (broad/external launch); CONDITIONAL ACCEPT (closed internal pilot)"
+    evidence:
+      - type: "repo_evidence"
+        detail: "Member + subscriber PII is processed and sent to OpenAI for phrasing, with NO privacy notice, retention policy, or data-subject-request path; EU/Spain GDPR applies. For a CLOSED internal staff pilot over SECPHO's own data this is legitimate-interest internal use with lower exposure — acceptable WITH owner awareness. REQUIRED before broad use: documented privacy stance, retention policy, DSR path, and a data-processing note for the OpenAI sub-processor."
+        reference: "backend_api/mvp_web_app.py (OpenAI call path; member/subscriber CSVs); data/processed; recommendation_engine/outputs"
+    reason: "Personal/sensitive data detected (member PII and 7968 subscriber emails), processed and shared with a sub-processor."
+    human_confirmation_required: false
+    confirmed_by: ""
+    confirmed_at: ""
+    unresolved_questions:
+      - "Before broad use: publish a privacy stance, define retention, add a DSR path, and document OpenAI as a sub-processor."
+  - gate_id: 15
+    gate_name: "Gate 15 — AI/RAG/Agent Security"
+    applies: true
+    confidence: "high"
+    status: "PASS WITH FOLLOW-UP"
+    evidence:
+      - type: "repo_evidence"
+        detail: "Strong grounding: scores are deterministic (the LLM cannot invent or reorder results); bulk people lists DROP emails via _agent_compact_person (a compensating control against prompt-injection exfiltration); the agent loop is bounded (run_agent max_steps=6) and exception-safe, falling back to a deterministic router. RESIDUAL: prompt injection from user messages or from DATA text (reto/profile free-text) is not formally tested."
+        reference: "backend_api/mvp_web_app.py:2741 (_agent_compact_person), 2918-2943 (run_agent max_steps)"
+    reason: "LLM/agent tooling detected; the app runs a bounded LLM agent with a tool loop over member data."
+    human_confirmation_required: false
+    confirmed_by: ""
+    confirmed_at: ""
+    unresolved_questions:
+      - "Run a prompt-injection test pass covering both user messages and data-borne free-text."
+  - gate_id: 16
+    gate_name: "Gate 16 — Multi-Tenant & Internal Permission Isolation"
+    applies: false
+    confidence: "high"
+    status: "N/A"
+    evidence:
+      - type: "repo_evidence"
+        detail: "Single tenant (SECPHO only); there is no org/team/workspace model and no cross-tenant data. The only boundary is user vs admin role, which is covered by Gate 6 (object authorization / is_admin) and Gate 8 (auth/sessions). Documented; this is not a tenant-isolation system."
+        reference: "backend_api/mvp_web_app.py:4528-4530 (is_admin role boundary)"
+    reason: "No tenant/org/client/team model exists; the single user-vs-admin boundary is handled by Gates 6 and 8. No cross-tenant isolation surface, so no human confirmation required."
+    human_confirmation_required: false
+    confirmed_by: ""
+    confirmed_at: ""
+    unresolved_questions: []
+  - gate_id: 17
+    gate_name: "Gate 17 — Observability, Logs & Incident Readiness"
+    applies: true
+    confidence: "high"
+    status: "BLOCKING"
+    evidence:
+      - type: "repo_evidence"
+        detail: "Handler.log_message is overridden to a no-op, so there are NO access logs. There is no error logging and no monitoring/alerting, leaving no visibility if the app breaks or is abused. REQUIRED before any real use: at least error and key-event logging, plus a named incident owner."
+        reference: "backend_api/mvp_web_app.py:4956 (log_message override to no-op)"
+    reason: "Always-on gate; deployable projects need logs, incident ownership, and readiness evidence."
+    human_confirmation_required: false
+    confirmed_by: ""
+    confirmed_at: ""
+    unresolved_questions:
+      - "Add error + key-event logging and designate an incident owner before any real use."
+  - gate_id: 18
+    gate_name: "Gate 18 — Backup, Recovery, Deletion & Rotation"
+    applies: true
+    confidence: "high"
+    status: "BLOCKING"
+    evidence:
+      - type: "repo_evidence"
+        detail: "data/app_state (feedback_inbox.md, tool-loop state, the persisted .session_secret) lives on Render's EPHEMERAL disk and is wiped on every redeploy. Captured feedback (the point of the loop) is lost, and sessions break across redeploys unless SECPHO_SESSION_SECRET is set as an env var. REQUIRED: set SECPHO_SESSION_SECRET; provide durable storage for feedback (or strict export-before-redeploy); define a secret rotation plan."
+        reference: "backend_api/mvp_web_app.py:45 (FEEDBACK_INBOX_PATH), 58 (.session_secret); render.yaml line 25 (SECPHO_SESSION_SECRET sync:false)"
+    reason: "Persistent data and rotatable secrets are present (feedback store, session secret) but rely on ephemeral disk."
+    human_confirmation_required: false
+    confirmed_by: ""
+    confirmed_at: ""
+    unresolved_questions:
+      - "Set SECPHO_SESSION_SECRET on Render; add durable storage (or export-before-redeploy) for feedback; define a secret rotation plan."
+  - gate_id: 19
+    gate_name: "Gate 19 — Business Logic Abuse"
+    applies: false
+    confidence: "medium"
+    status: "N/A"
+    evidence:
+      - type: "repo_evidence"
+        detail: "No payments, plans, credits, quotas, invites, or entitlements exist. Recommendation logic is deterministic, and the tool-build loop is allowlisted (covered by Gate 13). No business-rule abuse surface."
+        reference: "backend_api/mvp_web_app.py (no payment/plan/credit logic); create_socio_metric_chart allowlist at 669/773"
+    reason: "No plans, payments, credits, invites, quotas, or entitlements are present; the only auto-build path is allowlisted and covered by Gate 13. Not high-risk, so no human confirmation required."
+    human_confirmation_required: false
+    confirmed_by: ""
+    confirmed_at: ""
+    unresolved_questions: []
+  - gate_id: 20
+    gate_name: "Gate 20 — Launch Decision"
+    applies: true
+    confidence: "high"
+    status: "BLOCKED (broad/public); CONDITIONAL GO (closed staff demo)"
+    evidence:
+      - type: "human_statement"
+        detail: "RECOMMENDATION: BLOCKED for broad/public launch (Gates 14/17/18 open). CONDITIONAL GO for a closed, password-gated SECPHO-staff demo IF: (a) SECPHO_APP_PASSWORD + SECPHO_ADMIN_PASSWORD + SECPHO_SESSION_SECRET are set on Render; (b) the owner accepts ephemeral feedback and exports before redeploy (or adds durable storage); (c) it is treated as a closed pilot, not a public service; (d) basic error logging is added (recommended). The decision is the OWNER's; final approval pending owner sign-off."
+        reference: "Findings tally: Critical 0; High/blocking 3 (Gate 14 broad-launch privacy, Gate 17 observability, Gate 18 ephemeral data loss); ~6 medium follow-ups."
+    reason: "Always-on gate; every LGF review requires an explicit owner launch decision."
+    human_confirmation_required: true
+    confirmed_by: ""
+    confirmed_at: ""
+    unresolved_questions:
+      - "Owner sign-off pending on the CONDITIONAL GO conditions (a)-(d)."
+  - gate_id: 21
+    gate_name: "Gate 21 — Continuous Monitoring"
+    applies: true
+    confidence: "medium"
+    status: "PASS WITH FOLLOW-UP"
+    evidence:
+      - type: "repo_evidence"
+        detail: "No monitoring exists yet (tied to the Gate 17 observability gap). Follow-up once live: uptime, error, and OpenAI-cost monitoring."
+        reference: "backend_api/mvp_web_app.py:4956 (no-op log_message; no metrics/alerting)"
+    reason: "A production launch (closed pilot with live staff users) is intended, so post-launch monitoring applies."
+    human_confirmation_required: false
+    confirmed_by: ""
+    confirmed_at: ""
+    unresolved_questions:
+      - "Add uptime, error, and OpenAI-cost monitoring once live (depends on Gate 17)."

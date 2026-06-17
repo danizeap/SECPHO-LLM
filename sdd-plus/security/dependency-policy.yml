@@ -1,0 +1,101 @@
+# LaunchGuardian Framework — Dependency, SBOM & Supply Chain policy
+# Project record for an assessment already reasoned out (2026-06-17). Documentation, not new findings.
+project: "SECPHO Intelligence System"
+date: "2026-06-17"
+owner: "Daniel / SECPHO"
+
+# Reviewer: LaunchGuardian (Claude)
+# Gate 10 — PASS WITH FOLLOW-UP. requirements.txt is fully pinned; Trivy/pip-audit
+# not installable on the Windows review host, so the automated vuln scan is a CI follow-up.
+
+related_gates:
+  - "Gate 10 — Dependency, SBOM & Supply Chain"
+
+policy:
+  package_managers:
+    - "pip (requirements.txt, runtime deps for backend_api/mvp_web_app.py)"
+  lockfiles_required: true
+  allowed_registries:
+    - "PyPI (https://pypi.org)"
+  prohibited_dependencies:
+    - name_or_pattern: "unpinned (== version required for every entry)"
+      reason: "Floating versions break supply-chain reproducibility; requirements.txt is fully pinned today and must stay pinned."
+    - name_or_pattern: "packages with install/build scripts not vetted by the owner"
+      reason: "Arbitrary code execution at install time; requires explicit review before adoption."
+  license_constraints:
+    allowed:
+      - "BSD-3-Clause"   # pandas, numpy, scipy, scikit-learn
+      - "BSD"            # python-dotenv, html5lib
+      - "MIT"            # beautifulsoup4, xlrd
+      - "Apache-2.0"     # requests
+    review_required:
+      - "LGPL / MPL and other weak-copyleft (e.g. lxml is BSD-licensed but bundles libxml2/libxslt under MIT)"
+    prohibited:
+      - "GPL / AGPL strong-copyleft (incompatible with closed internal pilot distribution intent)"
+
+# Runtime dependencies as pinned in requirements.txt (the deployed app's only third-party code).
+dependencies:
+  runtime:
+    - name: "pandas"
+      version: "3.0.2"
+    - name: "numpy"
+      version: "2.4.4"
+    - name: "scipy"
+      version: "1.17.1"
+    - name: "scikit-learn"
+      version: "1.8.0"
+    - name: "python-dotenv"
+      version: "1.2.2"
+    - name: "lxml"
+      version: "6.1.1"
+    - name: "xlrd"
+      version: "2.0.2"
+    - name: "html5lib"
+      version: "1.1"
+    - name: "beautifulsoup4"
+      version: "4.14.3"
+    - name: "requests"
+      version: "2.32.5"
+  notes:
+    - "The deployed web app (backend_api/mvp_web_app.py) is Python-stdlib http.server; it uses requests only for the fixed outbound OpenAI call. pandas/numpy/scipy/scikit-learn/lxml/xlrd/html5lib/beautifulsoup4 serve the offline data pipeline and CSV/recommendation tooling."
+    - "Python runtime pinned to 3.11.9 via render.yaml (PYTHON_VERSION); build is 'pip install -r requirements.txt'."
+
+review_rules:
+  new_runtime_dependency:
+    requires_review: true
+    reviewer: "Daniel / SECPHO (owner)"
+  new_build_or_dev_dependency:
+    requires_review: true
+    reviewer: "Daniel / SECPHO (owner)"
+  dependency_with_install_scripts:
+    requires_review: true
+    reviewer: "Daniel / SECPHO (owner)"
+  unmaintained_or_deprecated_dependency:
+    requires_review: true
+    reviewer: "Daniel / SECPHO (owner)"
+
+vulnerability_thresholds:
+  critical: "block_launch"
+  high: "block_or_human_acceptance_required"
+  medium: "mitigate_or_track"
+  low: "track"
+
+update_cadence:
+  security_updates: "Apply on disclosure of a Critical/High advisory affecting a pinned package; re-pin and redeploy."
+  routine_updates: "Review pins quarterly or when adding a feature that needs a newer version."
+
+evidence:
+  audit_commands:
+    - "pip-audit -r requirements.txt   # NOT YET RUN — pip-audit not installed on the Windows review host; run in Linux CI"
+    - "trivy fs --scanners vuln .       # NOT YET RUN — Trivy not installed on the review host; run in Linux CI"
+  lockfiles:
+    - "requirements.txt (fully pinned, == on all 10 runtime deps)"
+  status:
+    gate_10: "PASS WITH FOLLOW-UP"
+    scan_run: false
+    reason: "Dependencies are pinned and reproducible; no automated vulnerability scan has been run yet (Trivy/pip-audit not installable on this Windows host)."
+  follow_ups:
+    - "Run dependency vulnerability scan (pip-audit and/or Trivy) in Linux CI before broad launch."
+    - "Add Gitleaks/Semgrep to the same CI pass (Gate 4/Gate 3 follow-ups), since the scanner stack is unavailable on the Windows review host."
+  exceptions:
+    - "Automated SBOM/vuln scan deferred to CI for the closed, password-gated SECPHO-staff pilot; pinned requirements.txt accepted as interim supply-chain control with owner awareness."

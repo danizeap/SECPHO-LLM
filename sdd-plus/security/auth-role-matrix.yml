@@ -1,0 +1,120 @@
+# LaunchGuardian Framework — Auth & Role Matrix (project record)
+# Faithful documentation of the 2026-06-17 LaunchGuardian assessment.
+# Source of truth for routes/functions: backend_api/mvp_web_app.py.
+project: "SECPHO Intelligence System"
+change: "intelligence-upgrade (closed internal SECPHO-staff pilot; branch unmerged at review time)"
+date: "2026-06-17"
+owner: "Daniel / SECPHO"
+reviewer: "LaunchGuardian (Claude)"
+
+related_gates:
+  - "Gate 6 — API Auth & Object Authorization"
+  - "Gate 8 — Auth, Sessions & CSRF"
+  - "Gate 16 — Multi-Tenant & Internal Permission Isolation"
+
+authentication:
+  required: "yes"
+  provider: "Password gate, in-app. AUTH_REQUIRED is true when SECPHO_APP_PASSWORD or SECPHO_ADMIN_PASSWORD is set (mvp_web_app.py L74). check_password() compares submitted password against ADMIN_PASSWORD then APP_PASSWORD with hmac.compare_digest (constant-time)."
+  session_management: "Stateless signed cookie 'secpho_session' (HMAC-SHA256 over a base64url JSON payload via sign_value/make_session_cookie). Cookie flags: HttpOnly; SameSite=Lax; Secure added behind proxy (X-Forwarded-Proto=https or RENDER env). TTL SESSION_TTL_SECONDS (default 28800s / 8h). parse_session_cookie verifies signature, exp, and that role is in {user, admin}. Signing key SESSION_SECRET from SECPHO_SESSION_SECRET env, else a locally generated/persisted secret (ephemeral on Render — see Gate 18)."
+  mfa_required_for_admins: "no"
+  password_or_secret_handling: "Passwords are env-only (SECPHO_APP_PASSWORD, SECPHO_ADMIN_PASSWORD); never stored hashed (single shared secret per role). Constant-time compare (hmac.compare_digest). No password in committed files (manually verified). render.yaml marks secrets sync:false."
+
+roles:
+  - name: "anonymous"
+    description: "Unauthenticated visitor. May reach only /login, /logout, /health, and /static/* (static assets). All other routes redirect to /login (HTML) or return 401 authentication_required (API/artifacts)."
+    assigned_by: "default (no valid session cookie)"
+    review_frequency: "n/a"
+  - name: "user"
+    description: "Authenticated SECPHO staff (SECPHO_APP_PASSWORD holder, or ADMIN_PASSWORD when no APP_PASSWORD is set). Full access to the chat UI, search, recommendations, reports, and all /api/* except the admin-only endpoints. Single internal trust group — any user may read any member/socio."
+    assigned_by: "SECPHO_APP_PASSWORD at /login (role='user')"
+    review_frequency: "per pilot; rotate the shared password as staff changes"
+  - name: "admin"
+    description: "SECPHO_ADMIN_PASSWORD holder. Everything 'user' can do, plus the admin console (/admin) and the admin-only APIs (feedback inbox + tool-learning loop). Fail-closed: is_admin() requires ADMIN_ENABLED (which is true only when SECPHO_ADMIN_PASSWORD is set) AND session role == 'admin'."
+    assigned_by: "SECPHO_ADMIN_PASSWORD at /login (role='admin')"
+    review_frequency: "per pilot; keep the admin password separate from the staff password"
+
+permissions:
+  - action: "GET /login, GET /logout"
+    anonymous: true
+    user: true
+    admin: true
+    notes: "Login form / session teardown. /login redirects authenticated users to /."
+  - action: "GET /health"
+    anonymous: true
+    user: true
+    admin: true
+    notes: "Unauthenticated health JSON: status, llm_available, model, auth_required, admin_enabled, dataset counts. No PII."
+  - action: "GET /static/*"
+    anonymous: true
+    user: true
+    admin: true
+    notes: "Static assets. Served unauthenticated by design; path basename-only via Path(...).name (directory-traversal defense)."
+  - action: "GET / , /classic, /tuning  (app HTML)"
+    anonymous: false
+    user: true
+    admin: true
+    notes: "Require a valid session; anonymous is redirected to /login."
+  - action: "GET /artifacts/*"
+    anonymous: false
+    user: true
+    admin: true
+    notes: "Generated artifacts (e.g. tool-loop SVG charts). 401 if unauthenticated; basename-only path."
+  - action: "GET /api/* (search, rerank, person, llm-report, report-tuned, chat, llm-chat, chat-flow)"
+    anonymous: false
+    user: true
+    admin: true
+    notes: "All /api/* GETs gated by is_authenticated() (401 if not), then per-IP rate limited (llm bucket for chat-flow/llm-chat/llm-report/report-tuned, api bucket otherwise). Bulk people lists drop email as a privacy control."
+  - action: "POST /api/agent, POST /api/feedback"
+    anonymous: false
+    user: true
+    admin: true
+    notes: "do_POST gates any /api/* path with is_authenticated() (401 if not) before routing. Rate limited (llm bucket for /api/agent, feedback bucket for /api/feedback). No CSRF token — relies on SameSite=Lax (Gate 8 follow-up)."
+  - action: "POST /login"
+    anonymous: true
+    user: true
+    admin: true
+    notes: "Login submission. Rate limited (login bucket: 8 attempts / 5 min). No CSRF token (SameSite=Lax only)."
+  - action: "GET /admin (admin console HTML)"
+    anonymous: false
+    user: false
+    admin: true
+    notes: "Unauthenticated -> redirect /login; authenticated non-admin -> redirect /. Fail-closed via is_admin()."
+  - action: "GET /api/feedback-inbox"
+    anonymous: false
+    user: false
+    admin: true
+    notes: "Admin-only (403 forbidden otherwise). Returns captured feedback markdown (free-text + selected member id + truncated UA)."
+  - action: "GET /api/tool-requests"
+    anonymous: false
+    user: false
+    admin: true
+    notes: "Admin-only (403 otherwise). Tool-learning-loop request status view."
+  - action: "GET /api/tool-build-events"
+    anonymous: false
+    user: false
+    admin: true
+    notes: "Admin-only (403 otherwise). Tool-build events + generated-tools registry."
+
+authorization_checks:
+  server_side_enforced: "yes — every protected GET checks is_authenticated(); every /api/* POST is gated before routing; admin endpoints check is_admin(). The stdlib http.server router does the checks in-handler (do_GET/do_POST)."
+  client_side_only_controls:
+    - "Frontend redirects to /login on 401 and hides the admin link for non-admins — these are UX only; the server enforces the real boundary."
+  object_level_authorization: "Role-level only. No per-object ownership: any authenticated staff user can read any member/socio. ACCEPTED for a single internal trust group (Gate 6). Bulk people lists drop email (_agent_compact_person) as a privacy/exfiltration control."
+  tenant_or_account_isolation: "n/a — single tenant (SECPHO only). The only boundary is user vs admin role; no orgs/teams/cross-tenant data (Gate 16, applies=false)."
+
+privileged_access:
+  admin_surfaces:
+    - "/admin (admin console HTML)"
+    - "/api/feedback-inbox"
+    - "/api/tool-requests"
+    - "/api/tool-build-events"
+  break_glass_access: "None. There is no out-of-band/emergency access path. Admin access is solely the SECPHO_ADMIN_PASSWORD; if it is unset, ADMIN_ENABLED is false and all admin surfaces are unreachable (fail-closed)."
+  audit_logging: "None — BLOCKING (Gate 17). Handler.log_message is overridden to a no-op; there are no access logs, no admin-action audit trail, and no error/event logging. No visibility if the app breaks or is abused."
+
+open_questions:
+  - "Gate 8: add CSRF tokens on POST /login, /api/agent, /api/feedback before any broad launch (currently SameSite=Lax only)."
+  - "Gate 17 (BLOCKING): add at minimum error + key-event logging and an audit trail for admin actions; name an incident owner before real use."
+  - "Gate 18 (BLOCKING): set SECPHO_SESSION_SECRET on Render so sessions survive redeploys (the locally generated secret lives on Render's ephemeral disk and is wiped on redeploy, breaking all sessions)."
+  - "Gate 6: object-level read access is role-wide by design; re-evaluate if the trust group ever expands beyond single-tenant SECPHO staff."
+  - "Confirm Render forces HTTPS so the Secure cookie flag is always applied (Gate 11)."
+  - "Rate limiter is in-memory per-process (acceptable on Render free single instance); move to a shared/persistent limiter before scaling out (Gate 12)."

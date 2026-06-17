@@ -1,0 +1,121 @@
+# LaunchGuardian Framework — Scope Contract
+# Documentation of an existing security assessment (not a fresh review).
+project: "SECPHO Intelligence System"
+change: "intelligence-upgrade (closed internal pilot launch review)"
+date: "2026-06-17"
+owner: "Daniel / SECPHO (WeCollabify)"
+
+related_gates:
+  - "Gate 0 — Scope & Permission"
+  - "Gate 1 — Product, Asset & Data Inventory"
+  - "Gate 11 — Infrastructure, DNS, TLS & Web Hardening"
+
+scope:
+  summary: >-
+    Single-file Python stdlib http.server app (backend_api/mvp_web_app.py) plus
+    precomputed CSVs that lets SECPHO staff chat over SECPHO's own member,
+    company and subscriber data. Recommendation scoring is deterministic; an
+    LLM (OpenAI Responses API) only phrases answers over grounded data. Deploys
+    on Render via render.yaml. This contract records the launch review for a
+    closed, password-gated internal staff pilot — not a public or multi-tenant
+    service.
+  launch_type: "Closed internal pilot — password-gated, single trust group (SECPHO staff)"
+  environments:
+    - name: "Render web service 'secpho-intelligence-chat'"
+      purpose: >-
+        Production hosting for the closed staff pilot. Python 3.11.9 runtime;
+        startCommand 'python backend_api/mvp_web_app.py'. App binds plain HTTP
+        behind Render's proxy; Render terminates TLS. The service currently runs
+        the PRE-session code — tonight's work lives on the unmerged branch
+        'intelligence-upgrade'.
+      public_exposure: >-
+        Internet-reachable URL but gated behind login. All HTML and /api/*
+        routes require an authenticated signed-cookie session; no unauthenticated
+        access to data. Effective exposure = login page only.
+  in_scope:
+    - "backend_api/mvp_web_app.py — the deployed stdlib HTTP app, its routes, auth, session, and rate limiting"
+    - "Authentication and session handling (SECPHO_APP_PASSWORD, SECPHO_ADMIN_PASSWORD, HMAC-signed cookies)"
+    - "PII handling of SECPHO member, company, and subscriber data loaded from committed CSVs at startup"
+    - "Outbound LLM calls to OpenAI Responses API (question + grounded data snippets for phrasing)"
+    - "Admin surface: feedback inbox + tool-learning loop (/admin, /api/tool-requests, /api/tool-build-events, /api/feedback-inbox)"
+    - "Render deployment config (render.yaml) and required environment variables"
+    - "Security headers, CSP, and web hardening on every response"
+  out_of_scope:
+    - "Offline data pipeline / audit scripts that call SECPHO WordPress REST endpoints — not part of the deployed web app"
+    - "Event-registration import — an offline pipeline, not a web-app feature (no file upload in the deployed app)"
+    - "Multi-tenant / cross-organization isolation — single tenant (SECPHO only), not applicable"
+    - "Payments, plans, credits, quotas, invites, entitlements — none exist"
+    - "Scanner stack (Semgrep / Gitleaks / Trivy / pip-audit) — not installable on this Windows host; deferred to Linux CI"
+  assumptions:
+    - "Deploy target is a closed pilot for SECPHO staff over SECPHO's own data, not a public SaaS"
+    - "All intended users belong to a single trust group; any authenticated user may read any member/company record (accepted)"
+    - "Render forces HTTPS and sets X-Forwarded-Proto so the Secure cookie flag engages"
+    - "Owner sets SECPHO_APP_PASSWORD, SECPHO_ADMIN_PASSWORD, and SECPHO_SESSION_SECRET in the Render dashboard before exposure"
+    - "Owner accepts that captured feedback on Render's ephemeral disk is lost on redeploy unless exported or moved to durable storage"
+  open_questions:
+    - "Is HTTPS strictly enforced at the Render edge (Gate 11 confirmation pending)?"
+    - "Will durable storage be added for data/app_state, or is export-before-redeploy accepted (Gate 18)?"
+    - "Privacy stance, retention policy, DSR path, and an OpenAI sub-processor data-processing note are undocumented — required before any broad/external launch (Gate 14)"
+    - "Error and key-event logging plus a named incident owner are absent — required before real use (Gate 17)"
+
+users_and_access:
+  intended_users:
+    - "Authenticated SECPHO staff (single trust group) — read access via chat and search over SECPHO member/company/subscriber data"
+  excluded_users:
+    - "The public and any unauthenticated user — fail-closed; no data without a valid session"
+    - "External organizations / other tenants — none; this is a single-tenant system"
+  admin_or_operator_roles:
+    - >-
+      SECPHO admin = holder of SECPHO_ADMIN_PASSWORD. Sees the feedback inbox and
+      tool-learning loop. Admin endpoints (/admin, /api/tool-requests,
+      /api/tool-build-events, /api/feedback-inbox) are double-gated: is_admin
+      requires both an authenticated admin session and ADMIN_ENABLED
+      (ADMIN_ENABLED is false unless SECPHO_ADMIN_PASSWORD is set), so they are
+      fail-closed by default.
+
+external_boundaries:
+  domains:
+    - "Render-assigned host for service 'secpho-intelligence-chat' (TLS terminated by Render)"
+  third_party_services:
+    - name: "OpenAI Responses API"
+      purpose: >-
+        Outbound only, fixed URL https://api.openai.com/v1/responses (no
+        user-controlled URL). Used solely to phrase answers over deterministically
+        grounded data. Authenticated via OPENAI_API_KEY.
+      data_shared: >-
+        User chat question plus grounded data snippets, which can include member
+        names and profile fields. Bulk people lists drop email via
+        _agent_compact_person as a privacy control against exfiltration.
+    - name: "SECPHO WordPress REST endpoints"
+      purpose: >-
+        Source data for the OFFLINE pipeline/audit only — NOT called by the
+        deployed web app. Authenticated via SECPHO_API_AUTH_TOKEN.
+      data_shared: "None at runtime by the web app; consumed offline to build the committed CSVs."
+    - name: "Render (hosting / platform)"
+      purpose: "Web service hosting and TLS termination; provides the public URL and environment variables."
+      data_shared: "All in-transit traffic to/from the app passes through Render's proxy; secrets stored as dashboard env vars (sync:false)."
+  inbound_integrations:
+    - "None — no inbound webhooks, no file upload, no public API; all entry points require an authenticated session"
+  outbound_integrations:
+    - "OpenAI Responses API (fixed URL, HTTPS) — the only runtime outbound integration"
+
+launch_constraints:
+  must_have:
+    - "SECPHO_APP_PASSWORD set on Render (auth is DISABLED if unset — never expose without it)"
+    - "SECPHO_ADMIN_PASSWORD set on Render (admin surface stays fail-closed via ADMIN_ENABLED until set)"
+    - "SECPHO_SESSION_SECRET set on Render (otherwise sessions break across redeploys on the ephemeral disk)"
+    - "OPENAI_API_KEY and SECPHO_API_AUTH_TOKEN provided as env vars only (sync:false), never committed"
+    - "Render confirmed to force HTTPS and forward X-Forwarded-Proto so the Secure cookie flag engages (Gate 11)"
+    - "Treated and communicated as a closed, password-gated SECPHO-staff pilot — not a public service"
+  must_not_do:
+    - "Do NOT expose member, subscriber, or company PII publicly or to unauthenticated users"
+    - "Do NOT open the app for broad/external use while Gate 14 (privacy/retention/DSR), Gate 17 (logging/incident), and Gate 18 (durable storage/rotation) remain open"
+    - "Do NOT commit secrets, .env files, or data/app_state contents to the repo"
+    - "Do NOT redeploy without exporting captured feedback first (Render disk is ephemeral) unless durable storage is added"
+    - "Do NOT widen the tool-learning allowlist beyond create_socio_metric_chart without human review"
+  rollback_or_disable_path: >-
+    Do NOT merge the 'intelligence-upgrade' branch / revert the deployed service
+    to commit 9d74ede to return to the pre-session state; or unset the SECPHO_*
+    and OPENAI_API_KEY environment variables to disable auth-gated access and the
+    LLM path. The live Render service currently runs the pre-session code, so
+    declining the merge is itself the rollback.

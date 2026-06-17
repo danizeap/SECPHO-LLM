@@ -1,0 +1,139 @@
+# LaunchGuardian Framework — Data Inventory
+# SECPHO Intelligence System. Closed, password-gated internal pilot for SECPHO staff.
+# This record documents an assessment already reasoned out; it does not change verdicts.
+project: "SECPHO Intelligence System"
+change: "intelligence-upgrade (closed internal SECPHO-staff pilot; unmerged branch over commit 9d74ede)"
+date: "2026-06-17"
+owner: "Daniel / SECPHO"
+reviewer: "LaunchGuardian (Claude)"
+
+related_gates:
+  - "Gate 1 — Product, Asset & Data Inventory"
+  - "Gate 14 — Privacy, Legal & Data Lifecycle"
+  - "Gate 18 — Backup, Recovery, Deletion & Rotation"
+
+data_classes:
+  - name: "Member personal data (PII)"
+    category: "Personal data (GDPR — EU/Spain)"
+    examples:
+      - "Full name"
+      - "Email"
+      - "Role / title"
+      - "Company"
+      - "Municipality / province / country"
+      - "Technologies / sectors"
+      - "Optional personal context: hobbies, sports, instruments, languages, university"
+    sensitivity: "personal"
+    source: "SECPHO WordPress /members endpoint, normalized to members_normalized.csv (data/processed) and recommendation_engine/outputs; committed to the repo"
+    storage_location: "CSV files in the repo; loaded into process memory at startup (no database)"
+    retention: "Indefinite — no retention policy defined"
+    deletion_path: "None defined"
+    encryption_or_protection: "TLS in transit (Render). Bulk people lists drop email via _agent_compact_person (returns only member_id, name, socio, role, technologies, sectors) as a privacy control against prompt-injection exfiltration; a single contact email is surfaced only on explicit request. Sent to OpenAI as grounded snippets for phrasing."
+    access_roles:
+      - "Any authenticated SECPHO staff user (read via chat / search)"
+      - "Admin (SECPHO_ADMIN_PASSWORD holder) — same read access plus feedback inbox and tool-learning loop"
+  - name: "Socio / company data"
+    category: "Business / contact data"
+    examples:
+      - "Company name"
+      - "Company type"
+      - "Province"
+      - "Readiness"
+      - "main_contact_name"
+      - "main_contact_email"
+    sensitivity: "business/contact"
+    source: "SECPHO WordPress /datosnegocio + /datoscontacto, normalized to CSVs in data/processed"
+    storage_location: "CSV files in the repo; loaded into process memory at startup"
+    retention: "Indefinite — no retention policy defined"
+    deletion_path: "None defined"
+    encryption_or_protection: "TLS in transit (Render); read-only in the app"
+    access_roles:
+      - "Any authenticated SECPHO staff user"
+  - name: "Subscriber data (newsletter contacts)"
+    category: "Personal data (GDPR — EU/Spain)"
+    examples:
+      - "Email (7968 newsletter contacts)"
+    sensitivity: "personal"
+    source: "SECPHO newsletter list, normalized to data/processed/suscriptores_normalized.csv (SUBSCRIBERS_PATH)"
+    storage_location: "CSV file in the repo; used for enrichment / counts only"
+    retention: "Indefinite — no retention policy defined"
+    deletion_path: "None defined"
+    encryption_or_protection: "TLS in transit (Render); used for counts/enrichment only — the largest single PII set"
+    access_roles:
+      - "Any authenticated SECPHO staff user (aggregate counts)"
+  - name: "Captured feedback"
+    category: "User-generated content + diagnostics"
+    examples:
+      - "Free-text feedback note"
+      - "Selected member id"
+      - "Truncated user-agent string"
+    sensitivity: "internal"
+    source: "App users (POST /api/feedback), appended to data/app_state/feedback_inbox.md (FEEDBACK_INBOX_PATH)"
+    storage_location: "Markdown file on Render's EPHEMERAL disk — LOST on every redeploy; gitignored (data/app_state/)"
+    retention: "Until next redeploy (not durable) — no policy"
+    deletion_path: "None defined; wiped on redeploy"
+    encryption_or_protection: "TLS in transit; gitignored so never committed. Gate 18 BLOCKING: no durable storage — export before redeploy."
+    access_roles:
+      - "Admin only (SECPHO_ADMIN_PASSWORD holder) via the feedback inbox; fail-closed, double-gated by ADMIN_ENABLED"
+  - name: "Secrets / credentials"
+    category: "Secrets"
+    examples:
+      - "OPENAI_API_KEY"
+      - "SECPHO_API_AUTH_TOKEN"
+      - "SECPHO_APP_PASSWORD"
+      - "SECPHO_ADMIN_PASSWORD"
+      - "SECPHO_SESSION_SECRET"
+    sensitivity: "secret"
+    source: "Environment variables only (set in the Render dashboard)"
+    storage_location: "Process environment; render.yaml marks each sync:false (never in the manifest). .env and data/app_state are gitignored."
+    retention: "Lifetime of the deployment; no rotation plan defined"
+    deletion_path: "Unset / rotate the env var in the Render dashboard"
+    encryption_or_protection: "Env-only; .gitignore excludes .env, .env.*, data/app_state, data/generated_artifacts. Manually verified: no secrets in committed files. SECPHO_SESSION_SECRET must be set or the persisted .session_secret lands on ephemeral disk and sessions break on redeploy (Gate 18)."
+    access_roles:
+      - "Owner / deployer (Render dashboard)"
+
+data_flows:
+  - name: "Browser ↔ App"
+    from: "SECPHO staff browser"
+    to: "App (backend_api/mvp_web_app.py on Render)"
+    purpose: "Authenticated chat / search over member and company data; signed-cookie session"
+    transport_protection: "HTTPS (TLS terminated by Render); HMAC-SHA256 signed stateless session cookie (HttpOnly, SameSite=Lax, Secure behind proxy)"
+    third_parties: []
+  - name: "App → OpenAI (phrasing)"
+    from: "App (backend_api/mvp_web_app.py)"
+    to: "OpenAI Responses API (fixed URL https://api.openai.com/v1/responses, OPENAI_RESPONSES_URL)"
+    purpose: "Phrase chat answers; receives the user question plus grounded data snippets (incl. member names/profiles). Scores are deterministic — the LLM cannot invent or reorder."
+    transport_protection: "HTTPS; OPENAI_API_KEY bearer auth"
+    third_parties:
+      - "OpenAI (sub-processor; receives member PII in grounded snippets — Gate 14 follow-up: data-processing note required for broad use)"
+  - name: "App → local CSVs"
+    from: "App (backend_api/mvp_web_app.py)"
+    to: "Local CSV files in data/processed and recommendation_engine/outputs"
+    purpose: "Read precomputed member / socio / subscriber / event data (no database)"
+    transport_protection: "Local filesystem read; no network"
+    third_parties: []
+  - name: "App → feedback file"
+    from: "App (POST /api/feedback)"
+    to: "data/app_state/feedback_inbox.md (Render ephemeral disk)"
+    purpose: "Append captured feedback for the tool-learning loop / admin inbox"
+    transport_protection: "Local filesystem append; ephemeral storage (lost on redeploy)"
+    third_parties: []
+  - name: "SECPHO WordPress → data pipeline (offline)"
+    from: "SECPHO WordPress REST endpoints (/members, /datosnegocio, /datoscontacto, etc.)"
+    to: "Offline data-pipeline / audit scripts (NOT the deployed web app)"
+    purpose: "Build the normalized CSVs consumed by the app"
+    transport_protection: "HTTPS; SECPHO_API_AUTH_TOKEN auth"
+    third_parties:
+      - "SECPHO WordPress (first-party source; offline only)"
+
+privacy:
+  personal_data_present: "true"
+  sensitive_data_present: "false"  # member/subscriber PII is personal but no special-category (GDPR Art. 9) data
+  production_data_present: "true"  # real SECPHO member, company, and subscriber records
+  user_notice_or_consent: "None. No privacy notice or consent flow. For a closed internal staff pilot over SECPHO's own member data this is treated as legitimate-interest internal use with owner awareness; Gate 14 is BLOCKING for any broad/external launch."
+  data_subject_request_path: "None defined. A documented DSR (access/erasure) path is required before broad use."
+  retention_policy: "None defined. Member/socio/subscriber data is retained indefinitely; captured feedback is non-durable (ephemeral disk). A documented retention policy is required before broad use."
+
+prohibited_data:
+  - type: "None stored beyond member/company/subscriber PII"
+    prevention_or_detection: "No payment-card, government-ID, health, biometric, or other special-category data is collected or stored. PII exposure to the LLM is minimized by _agent_compact_person dropping email from bulk people lists. No automated prohibited-data scanner is in place; the data set is fixed and reviewed manually."
