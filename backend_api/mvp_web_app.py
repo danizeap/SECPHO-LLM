@@ -7,9 +7,11 @@ import hmac
 import mimetypes
 import html
 import json
+import unicodedata
 import os
 import re
 import secrets
+import threading
 import time
 from datetime import datetime, timezone
 
@@ -31,6 +33,10 @@ SOCIO_EVENTS_PATH = OUTPUT_DIR / "socio_event_interest_v1.csv"
 SOCIOS_PATH = PROCESSED_DIR / "socios_normalized.csv"
 READINESS_PATH = PROCESSED_DIR / "official_socios_readiness.csv"
 EVENT_REG_PATH = PROCESSED_DIR / "event_registrations_matched.csv"
+EVENTS_PATH = PROCESSED_DIR / "events_normalized.csv"
+RETOS_PATH = PROCESSED_DIR / "retos_normalized.csv"
+SUBSCRIBERS_PATH = PROCESSED_DIR / "suscriptores_normalized.csv"
+MEMBERS_ALL_PATH = PROCESSED_DIR / "members_normalized.csv"
 STATIC_DIR = BASE_DIR / "backend_api" / "static"
 APP_STATE_DIR = BASE_DIR / "data" / "app_state"
 MISSING_TOOL_REQUESTS_PATH = APP_STATE_DIR / "missing_tool_requests.jsonl"
@@ -39,13 +45,35 @@ TOOL_BUILD_EVENTS_PATH = APP_STATE_DIR / "tool_build_events.jsonl"
 FEEDBACK_INBOX_PATH = APP_STATE_DIR / "feedback_inbox.md"
 GENERATED_ARTIFACTS_DIR = BASE_DIR / "data" / "generated_artifacts"
 OPENAI_RESPONSES_URL = "https://api.openai.com/v1/responses"
-OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-5-mini")
+OPENAI_MODEL = os.getenv("OPENAI_MODEL") or "gpt-5-mini"
+OPENAI_MODEL_FLAGSHIP = os.getenv("OPENAI_MODEL_FLAGSHIP") or "gpt-5.5"
 SESSION_COOKIE_NAME = "secpho_session"
 SESSION_TTL_SECONDS = int(os.getenv("SECPHO_SESSION_TTL_SECONDS", "28800"))
 APP_PASSWORD = os.getenv("SECPHO_APP_PASSWORD") or os.getenv("APP_ACCESS_PASSWORD")
 ADMIN_PASSWORD = os.getenv("SECPHO_ADMIN_PASSWORD")
-SESSION_SECRET = os.getenv("SECPHO_SESSION_SECRET") or os.getenv("SESSION_SECRET") or secrets.token_urlsafe(32)
+def _load_or_create_session_secret() -> str:
+    env_secret = os.getenv("SECPHO_SESSION_SECRET") or os.getenv("SESSION_SECRET")
+    if env_secret:
+        return env_secret
+    secret_file = APP_STATE_DIR / ".session_secret"
+    try:
+        if secret_file.exists():
+            existing = secret_file.read_text(encoding="utf-8").strip()
+            if existing:
+                return existing
+        APP_STATE_DIR.mkdir(parents=True, exist_ok=True)
+        generated = secrets.token_urlsafe(32)
+        secret_file.write_text(generated, encoding="utf-8")
+        return generated
+    except OSError:
+        return secrets.token_urlsafe(32)
+
+
+SESSION_SECRET = _load_or_create_session_secret()
+SESSION_SECRET_FROM_ENV = bool(os.getenv("SECPHO_SESSION_SECRET") or os.getenv("SESSION_SECRET"))
 AUTH_REQUIRED = bool(APP_PASSWORD or ADMIN_PASSWORD)
+ADMIN_ENABLED = bool(ADMIN_PASSWORD)
+STATE_LOCK = threading.Lock()
 RATE_LIMIT_EVENTS: dict[str, list[float]] = {}
 
 
@@ -55,6 +83,74 @@ RATE_LIMITS = {
     "api": (120, 60),
     "feedback": (10, 300),
 }
+
+
+# Single source of truth for the People Matcher V1.1 scoring formula.
+SCORING_WEIGHTS = {
+    "profile_similarity": 0.44,
+    "structured_overlap": 0.24,
+    "needs_overlap": 0.10,
+    "event_interest_overlap_score": 0.14,
+    "location_overlap_score": 0.06,
+    "personal_affinity_score": 0.02,
+}
+SCORING_FORMULA_TEXT = (
+    "People Matcher V1.1 final_score = 0.44 profile similarity "
+    "+ 0.24 structured overlap (technologies/sectors/ambitos) "
+    "+ 0.14 event-interest overlap + 0.10 needs overlap "
+    "+ 0.06 location overlap + 0.02 personal affinity. "
+    "Readiness is shown as confidence, not as a ranking override."
+)
+
+# Signals exposed in the live scoring console (/tuning). Defaults are
+# SCORING_WEIGHTS x100. All underlying signals are normalized to [0, 1].
+TUNING_SIGNALS = [
+    {"key": "profile_similarity", "label": "Profile similarity", "color": "#00c3c7", "default": 44},
+    {"key": "structured_overlap", "label": "Tech / sector overlap", "color": "#ff3158", "default": 24},
+    {"key": "event_interest_overlap_score", "label": "Event interest", "color": "#f5a623", "default": 14},
+    {"key": "needs_overlap", "label": "Needs overlap", "color": "#7c5cff", "default": 10},
+    {"key": "location_overlap_score", "label": "Location", "color": "#2ecc71", "default": 6},
+    {"key": "personal_affinity_score", "label": "Personal affinity", "color": "#e84393", "default": 2},
+]
+
+
+def current_model() -> str:
+    if current_model_tier() == "flagship":
+        return os.getenv("OPENAI_MODEL_FLAGSHIP") or OPENAI_MODEL_FLAGSHIP or "gpt-5.5"
+    return os.getenv("OPENAI_MODEL") or OPENAI_MODEL or "gpt-5-mini"
+
+
+_REQUEST_CTX = threading.local()
+
+
+def set_request_lang(value: str) -> None:
+    _REQUEST_CTX.lang = "en" if str(value or "").strip().lower().startswith("en") else "es"
+
+
+def current_lang() -> str:
+    return getattr(_REQUEST_CTX, "lang", "es")
+
+
+def set_request_model(value: str) -> None:
+    _REQUEST_CTX.model_tier = "flagship" if str(value or "").strip().lower().startswith("flag") else "mini"
+
+
+def current_model_tier() -> str:
+    return getattr(_REQUEST_CTX, "model_tier", "mini")
+
+
+def language_directive() -> str:
+    if current_lang() == "en":
+        return "\n\nWrite your entire response to the user in English."
+    return "\n\nEscribe toda tu respuesta al usuario en español."
+
+
+def ensure_state_dirs() -> None:
+    for directory in (APP_STATE_DIR, GENERATED_ARTIFACTS_DIR):
+        try:
+            directory.mkdir(parents=True, exist_ok=True)
+        except OSError:
+            pass
 
 
 LLM_INSTRUCTIONS = """
@@ -77,6 +173,20 @@ Style:
 """
 
 
+def to_int(value, default=None):
+    try:
+        return int(str(value).strip())
+    except (TypeError, ValueError):
+        return default
+
+
+def to_float(value, default=0.0):
+    try:
+        return float(str(value).strip())
+    except (TypeError, ValueError):
+        return default
+
+
 def clean(value, fallback="N/D") -> str:
     if pd.isna(value):
         return fallback
@@ -92,17 +202,25 @@ def load_data() -> dict:
     if missing:
         raise FileNotFoundError("Missing required files: " + ", ".join(missing))
 
+    def optional(path):
+        return pd.read_csv(path) if path.exists() else pd.DataFrame()
+
     return {
         "matches": pd.read_csv(MATCHES_PATH),
         "people": pd.read_csv(PEOPLE_PATH),
         "person_events": pd.read_csv(PERSON_EVENTS_PATH),
         "socio_events": pd.read_csv(SOCIO_EVENTS_PATH),
-        "socios": pd.read_csv(SOCIOS_PATH) if SOCIOS_PATH.exists() else pd.DataFrame(),
-        "readiness": pd.read_csv(READINESS_PATH) if READINESS_PATH.exists() else pd.DataFrame(),
-        "event_regs": pd.read_csv(EVENT_REG_PATH) if EVENT_REG_PATH.exists() else pd.DataFrame(),
+        "socios": optional(SOCIOS_PATH),
+        "readiness": optional(READINESS_PATH),
+        "event_regs": optional(EVENT_REG_PATH),
+        "events": optional(EVENTS_PATH),
+        "retos": optional(RETOS_PATH),
+        "subscribers": optional(SUBSCRIBERS_PATH),
+        "members_all": optional(MEMBERS_ALL_PATH),
     }
 
 
+ensure_state_dirs()
 DATA = load_data()
 
 
@@ -210,9 +328,15 @@ def call_llm(prompt: str, max_output_tokens: int = 1400) -> tuple[str, str]:
     if not api_key:
         return "", "fallback_no_api_key"
 
+    # Flagship/reasoning models spend output tokens on reasoning; give answer-
+    # length calls extra headroom so the visible reply is not truncated. The
+    # small router call (max_output_tokens < 1000) is left as-is.
+    if current_model_tier() == "flagship" and max_output_tokens >= 1000:
+        max_output_tokens = max(max_output_tokens, 4000)
+
     body = {
-        "model": os.getenv("OPENAI_MODEL", OPENAI_MODEL),
-        "instructions": LLM_INSTRUCTIONS,
+        "model": current_model(),
+        "instructions": LLM_INSTRUCTIONS + language_directive(),
         "input": prompt,
         "max_output_tokens": max_output_tokens,
         "store": False,
@@ -257,9 +381,8 @@ def parse_json_object(text: str) -> dict:
 
 
 def llm_route_question(question: str, selected_member_id: int | None = None) -> dict:
-    fallback = {"action": "general_answer", "args": {"question": question}}
     if not openai_available():
-        return fallback
+        return heuristic_route_question(question, selected_member_id)
 
     selected = get_person(selected_member_id) if selected_member_id else None
     prompt = f"""
@@ -282,8 +405,16 @@ Available actions:
   args: query or member_id
 - generate_report: create a polished report for one person using deterministic recommendation evidence.
   args: query or member_id
-- general_answer: answer conceptual/count/scoring/scope questions from the known MVP context.
+- general_answer: answer conceptual/scoring/scope questions from the known MVP context.
   args: question
+- search_events: list or search SECPHO events/agenda by topic, technology, sector, province, or timeframe.
+  args: query, timeframe (upcoming|past)
+- list_retos: list or search retos/challenges (the supply-demand signal).
+  args: query, status (open|closed)
+- ecosystem_overview: high-level summary of the whole SECPHO dataset and what this assistant can answer.
+  args: (none)
+- aggregate_stats: deterministic counts/distributions of socios or members by a dimension.
+  args: dimension (province|company_type|member_type|public_private|technology|sector|readiness)
 - propose_tool: use when the user asks for a data operation, ranking, workflow, export, visualization, prediction, integration, or automation that none of the existing actions can answer reliably.
   args: tool_name, purpose, inputs, data_sources, output_shape, safety_constraints, risk_level
 
@@ -295,6 +426,10 @@ Routing rules:
 - "who works at X", "people at X", "quien trabaja en X" => search_people with company X.
 - "recommendations for X", "matches for X", "introductions for X" => recommend_contacts.
 - "report for X", "brief for X", "one pager for X", "informe para X" => generate_report.
+- "events", "agenda", "summit", "upcoming events", "proximos eventos" => search_events (timeframe upcoming if asked).
+- "retos", "challenges", "open challenges", "supply and demand" => list_retos (status open if asked).
+- "overview", "what data do you have", "what can you do", "ecosystem summary", "que datos tienes" => ecosystem_overview.
+- "how many socios/members by province/sector/technology", "breakdown", "distribution" => aggregate_stats with the right dimension.
 - If the user says "for this person" or similar and selected_person is present, use member_id.
 - If ambiguous between person and company, prefer search_people unless the user says socios/companies/empresas.
 - If the user asks for something requiring new calculations not covered by the available actions, return propose_tool.
@@ -311,7 +446,7 @@ User question:
     text, mode = call_llm(prompt, max_output_tokens=500)
     route = parse_json_object(text)
     if not isinstance(route, dict) or "action" not in route:
-        return {**fallback, "router_mode": mode, "router_failed": True}
+        return {**heuristic_route_question(question, selected_member_id), "router_mode": mode, "router_failed": True}
 
     route.setdefault("args", {})
     if not isinstance(route["args"], dict):
@@ -346,7 +481,7 @@ def save_missing_tool_request(question: str, proposal: dict, router: dict | None
         "router": router or {},
     }
 
-    with MISSING_TOOL_REQUESTS_PATH.open("a", encoding="utf-8") as f:
+    with STATE_LOCK, MISSING_TOOL_REQUESTS_PATH.open("a", encoding="utf-8") as f:
         f.write(json.dumps(record, ensure_ascii=False) + "\n")
 
     return record
@@ -375,10 +510,11 @@ def update_tool_request_status(request_id: str, status: str, notes: str = "") ->
         updated.append(record)
 
     if changed:
-        MISSING_TOOL_REQUESTS_PATH.write_text(
-            "\n".join(json.dumps(record, ensure_ascii=False) for record in updated) + "\n",
-            encoding="utf-8",
-        )
+        with STATE_LOCK:
+            MISSING_TOOL_REQUESTS_PATH.write_text(
+                "\n".join(json.dumps(record, ensure_ascii=False) for record in updated) + "\n",
+                encoding="utf-8",
+            )
 
 
 def load_missing_tool_requests(limit: int = 50) -> list[dict]:
@@ -461,15 +597,16 @@ def load_generated_tools_registry() -> dict:
 
 def save_generated_tools_registry(registry: dict) -> None:
     APP_STATE_DIR.mkdir(parents=True, exist_ok=True)
-    GENERATED_TOOLS_REGISTRY_PATH.write_text(
-        json.dumps(registry, ensure_ascii=False, indent=2),
-        encoding="utf-8",
-    )
+    with STATE_LOCK:
+        GENERATED_TOOLS_REGISTRY_PATH.write_text(
+            json.dumps(registry, ensure_ascii=False, indent=2),
+            encoding="utf-8",
+        )
 
 
 def append_tool_build_event(event: dict) -> None:
     APP_STATE_DIR.mkdir(parents=True, exist_ok=True)
-    with TOOL_BUILD_EVENTS_PATH.open("a", encoding="utf-8") as f:
+    with STATE_LOCK, TOOL_BUILD_EVENTS_PATH.open("a", encoding="utf-8") as f:
         f.write(json.dumps(event, ensure_ascii=False) + "\n")
 
 
@@ -507,7 +644,7 @@ def save_feedback(text: str, meta: dict | None = None) -> dict:
         entry.append(f"- Browser: {user_agent[:180]}")
     entry.extend(["", "### Feedback", "", clean_text, ""])
 
-    with FEEDBACK_INBOX_PATH.open("a", encoding="utf-8") as f:
+    with STATE_LOCK, FEEDBACK_INBOX_PATH.open("a", encoding="utf-8") as f:
         f.write("\n".join(entry) + "\n")
 
     return {"ok": True, "id": feedback_id, "created_at": created_at}
@@ -1188,6 +1325,68 @@ def get_recommendations(member_id: int, limit: int = 5) -> list[dict]:
     ]
 
 
+def rerank_for_person(member_id: int, weights: dict, limit: int = 10) -> dict:
+    """Deterministically re-rank a person's candidate pool under custom signal
+    weights. Pure math (no LLM): custom_score = sum(weight_i * signal_i)."""
+    matches = DATA["matches"]
+    pool = matches[matches["target_member_id"] == member_id].copy()
+    if pool.empty:
+        return {"found": False, "target": None, "candidates": []}
+
+    pool = pool.sort_values("final_score", ascending=False).reset_index(drop=True)
+    head = pool.iloc[0]
+    target = {
+        "member_id": member_id,
+        "name": clean(head.get("target_name")),
+        "socio": clean(head.get("target_socio"), ""),
+        "role": clean(head.get("target_role"), ""),
+    }
+    default_rank = {int(row["candidate_member_id"]): i + 1 for i, row in pool.iterrows()}
+
+    candidates = []
+    for _, row in pool.iterrows():
+        contributions = []
+        score = 0.0
+        for sig in TUNING_SIGNALS:
+            weight = float(weights.get(sig["key"], 0)) / 100.0
+            value = float(row.get(sig["key"], 0) or 0)
+            contribution = weight * value
+            score += contribution
+            contributions.append({
+                "key": sig["key"],
+                "label": sig["label"],
+                "color": sig["color"],
+                "weight": round(weight, 4),
+                "signal": round(value, 4),
+                "contribution": round(contribution, 5),
+            })
+        cid = int(row["candidate_member_id"])
+        candidates.append({
+            "candidate_member_id": cid,
+            "name": clean(row.get("candidate_name")),
+            "socio": clean(row.get("candidate_socio"), ""),
+            "role": clean(row.get("candidate_role"), ""),
+            "custom_score": round(score, 5),
+            "default_final_score": round(float(row.get("final_score", 0) or 0), 4),
+            "default_rank": default_rank[cid],
+            "contributions": contributions,
+            "evidence": {
+                "technologies": clean(row.get("shared_technologies"), ""),
+                "sectors": clean(row.get("shared_sectors"), ""),
+                "location": clean(row.get("shared_location"), ""),
+                "needs": clean(row.get("shared_needs"), ""),
+                "events": clean(row.get("shared_registered_events"), ""),
+            },
+        })
+
+    candidates.sort(key=lambda c: c["custom_score"], reverse=True)
+    for new_rank, cand in enumerate(candidates, start=1):
+        cand["new_rank"] = new_rank
+        cand["movement"] = cand["default_rank"] - new_rank
+
+    return {"found": True, "target": target, "candidates": candidates[:limit]}
+
+
 def llm_payload_for_person(member_id: int) -> dict:
     person = get_person(member_id)
     recs = get_recommendations(member_id, 5)
@@ -1200,14 +1399,7 @@ def llm_payload_for_person(member_id: int) -> dict:
         ),
         "person": person,
         "recommendations_ranked_by_model": recs,
-        "scoring_formula": {
-            "profile_similarity": 0.44,
-            "structured_overlap": 0.24,
-            "needs_overlap": 0.10,
-            "event_interest_overlap_score": 0.14,
-            "location_overlap_score": 0.06,
-            "personal_affinity_score": 0.02,
-        },
+        "scoring_formula": SCORING_WEIGHTS,
     }
 
 
@@ -1324,6 +1516,123 @@ def llm_report_for_person(member_id: int) -> dict:
     return {"mode": mode, "markdown": fallback}
 
 
+def weighting_text(weights: dict) -> str:
+    total = sum(max(0.0, float(weights.get(s["key"], 0))) for s in TUNING_SIGNALS) or 1.0
+    is_default = all(
+        int(round(float(weights.get(s["key"], 0)))) == s["default"] for s in TUNING_SIGNALS
+    )
+    if is_default:
+        return "Ranked with the model's default weighting (Profile 44%, Tech/sector 24%, Event 14%, Needs 10%, Location 6%, Affinity 2%)."
+    shares = sorted(
+        ({"label": s["label"], "share": max(0.0, float(weights.get(s["key"], 0))) / total} for s in TUNING_SIGNALS),
+        key=lambda x: x["share"],
+        reverse=True,
+    )
+    top = [s for s in shares if s["share"] > 0][:3]
+    parts = ", ".join(f"{s['label']} {round(s['share'] * 100)}%" for s in top)
+    return f"Ranked with a custom weighting chosen by the curator, emphasizing {parts} (the model default leads with Profile similarity 44%)."
+
+
+def report_for_person_weighted(member_id: int, weights: dict, limit: int = 5) -> str:
+    person = get_person(member_id)
+    data = rerank_for_person(member_id, weights, limit=limit)
+    if not person or not data.get("found"):
+        return "No person found."
+
+    lines = [
+        f"# SECPHO Matchmaker Brief: {person['name']}",
+        "",
+        f"**Socio:** {person['socio']}",
+        f"**Role:** {person['role'] or 'N/D'}",
+        f"**Location:** {', '.join([p for p in [person['municipality'], person['province'], person['country']] if p]) or 'N/D'}",
+        "",
+        "## Recommended Introductions (curated weighting)",
+        "",
+        f"_{weighting_text(weights)}_",
+        "",
+    ]
+    for cand in data["candidates"]:
+        ev = cand["evidence"]
+        evidence = []
+        if ev["technologies"]:
+            evidence.append(f"shared technologies: {ev['technologies']}")
+        if ev["sectors"]:
+            evidence.append(f"shared sectors: {ev['sectors']}")
+        if ev["needs"]:
+            evidence.append(f"shared needs: {ev['needs']}")
+        if ev["location"]:
+            evidence.append(f"location: {ev['location']}")
+        if ev["events"]:
+            evidence.append(f"shared event interest: {ev['events']}")
+        evidence_text = "; ".join(evidence) if evidence else "limited explicit overlap; review profile context."
+        move = ""
+        if cand["movement"] > 0:
+            move = f" (up {cand['movement']} vs the model's ranking)"
+        elif cand["movement"] < 0:
+            move = f" (down {abs(cand['movement'])} vs the model's ranking)"
+        lines.extend([
+            f"### {cand['new_rank']}. {cand['name']} - {cand['socio']}",
+            "",
+            f"**Custom score:** {cand['custom_score']:.3f} | model rank #{cand['default_rank']}{move}",
+            "",
+            f"Why this match: {evidence_text}",
+            "",
+        ])
+    lines.extend([
+        "## How To Read This",
+        "",
+        "The candidate pool and every signal are computed by the deterministic People Matcher V1.1. "
+        "A SECPHO curator chose how much each signal counts; the ranking above is that weighting applied to the math. "
+        "The write-up explains the result - it does not invent or reorder it.",
+    ])
+    return "\n".join(lines)
+
+
+def llm_payload_for_person_weighted(member_id: int, weights: dict) -> dict:
+    person = get_person(member_id)
+    data = rerank_for_person(member_id, weights, limit=5)
+    recommendations = []
+    for cand in data.get("candidates", []):
+        recommendations.append({
+            "rank": cand["new_rank"],
+            "name": cand["name"],
+            "socio": cand["socio"],
+            "role": cand["role"],
+            "custom_score": cand["custom_score"],
+            "model_rank": cand["default_rank"],
+            "moved_vs_model": cand["movement"],
+            **cand["evidence"],
+        })
+    return {
+        "principle": "Math decides. The LLM explains. A SECPHO curator chose the weighting.",
+        "weighting": weighting_text(weights),
+        "scope": "Phase 1 recommends only people linked to official SECPHO socios.",
+        "event_signal_warning": "Event overlap indicates shared SECPHO registration interest, not confirmed attendance.",
+        "person": person,
+        "recommendations_ranked_by_model": recommendations,
+    }
+
+
+def llm_report_for_person_weighted(member_id: int, weights: dict) -> dict:
+    payload = llm_payload_for_person_weighted(member_id, weights)
+    local_report = report_for_person_weighted(member_id, weights)
+    if not payload.get("recommendations_ranked_by_model"):
+        return {"mode": "no_data", "markdown": local_report}
+
+    prompt = (
+        "Create a polished SECPHO internal one-page matchmaker briefing from this JSON. "
+        "A human curator set a custom signal weighting (see 'weighting') - state it plainly near the top. "
+        "Keep the exact recommendation order. Mention the custom score and 1-2 evidence points for each "
+        "recommendation. Include a concise executive summary, introduction positioning, recommended next "
+        "action, and the event-signal caveat.\n\n"
+        f"JSON:\n{json.dumps(payload, ensure_ascii=False, indent=2)}"
+    )
+    text, mode = call_llm(prompt)
+    if text:
+        return {"mode": mode, "markdown": text}
+    return {"mode": mode, "markdown": "# LLM-Style Briefing Draft\n\n" + local_report}
+
+
 def answer_question(question: str) -> str:
     q = question.lower().strip()
     data = DATA
@@ -1353,12 +1662,7 @@ def answer_question(question: str) -> str:
         )
 
     if "weight" in q or "score" in q or "scoring" in q:
-        return (
-            "People Matcher V1.1 score = 0.44 profile similarity + 0.24 structured overlap "
-            "+ 0.10 needs overlap + 0.14 event_interest_overlap_score "
-            "+ 0.06 location_overlap_score + 0.02 personal_affinity_score. "
-            "Readiness is shown as confidence, not as a ranking override."
-        )
+        return SCORING_FORMULA_TEXT
 
     if "official" in q or "socio" in q:
         return (
@@ -1400,12 +1704,7 @@ def llm_answer_question(question: str, member_id: int | None = None) -> dict:
             "person_event_interest_profiles": len(DATA["person_events"]),
             "socio_event_interest_profiles": len(DATA["socio_events"]),
         },
-        "scoring_formula": {
-            "profile_similarity": 0.50,
-            "structured_overlap": 0.25,
-            "needs_overlap": 0.10,
-            "event_interest_overlap_score": 0.15,
-        },
+        "scoring_formula": SCORING_WEIGHTS,
         "rules": [
             "Only official-socio-linked people are recommendation targets in Phase 1.",
             "Do not recommend people from the same socio.",
@@ -1478,6 +1777,423 @@ def decorate_grounded_answer(task: str, payload: dict, fallback_text: str) -> tu
     )
     text, mode = call_llm(prompt, max_output_tokens=1800)
     return (text or fallback_text, mode)
+
+
+def split_terms_list(value) -> list[str]:
+    text = clean(value, "")
+    if not text or text == "N/D":
+        return []
+    parts = re.split(r"[|,;/]+", text)
+    return [p.strip() for p in parts if p.strip()]
+
+
+def strip_accents(text) -> str:
+    return "".join(
+        c for c in unicodedata.normalize("NFKD", str(text)) if not unicodedata.combining(c)
+    )
+
+
+# English -> Spanish (accent-stripped) synonyms so English queries match the Spanish data
+# (SECPHO is a photonics cluster: "photonics" must match "Fotonica").
+SYNONYM_MAP = {
+    "photonics": ["fotonica"], "photonic": ["fotonica"], "photon": ["fotonica"],
+    "quantum": ["cuantica", "cuantico", "cuanticas"], "laser": ["laser"], "lasers": ["laser"],
+    "ai": ["inteligencia artificial"], "artificial": ["inteligencia artificial"], "intelligence": ["inteligencia"],
+    "cybersecurity": ["ciberseguridad"], "cyber": ["ciberseguridad"], "security": ["seguridad", "ciberseguridad"],
+    "semiconductor": ["semiconductores", "microelectronica"], "semiconductors": ["semiconductores", "microelectronica"],
+    "microelectronics": ["microelectronica"], "robotics": ["robotica"], "robots": ["robotica"], "robot": ["robotica"],
+    "sensors": ["sensorica"], "sensor": ["sensorica"], "sensing": ["sensorica"],
+    "materials": ["materiales"], "material": ["materiales"], "additive": ["fabricacion aditiva"],
+    "manufacturing": ["fabricacion"], "drones": ["drones"], "drone": ["drones"], "health": ["salud"],
+    "energy": ["energetico", "energia"], "space": ["espacio"], "defense": ["defensa"], "defence": ["defensa"],
+    "automotive": ["automocion"], "aeronautics": ["aeronautica"], "aerospace": ["aeronautica", "espacio"],
+    "biotech": ["biotecnologia"], "biotechnology": ["biotecnologia"], "lighting": ["iluminacion"],
+    "blockchain": ["blockchain"], "iot": ["iot"], "environment": ["medioambiente"], "environmental": ["medioambiente"],
+}
+
+
+SEARCH_STOPWORDS = {
+    "about", "the", "for", "with", "and", "que", "los", "las", "una", "del", "what", "which",
+    "show", "list", "give", "tell", "near", "from", "events", "event", "retos", "reto", "find",
+    "search", "evento", "eventos", "challenge", "challenges", "any", "all", "are", "there", "have",
+}
+
+
+def expand_search_terms(query: str, min_len: int = 3) -> list[str]:
+    base = strip_accents(clean(query, "").lower())
+    tokens = [t for t in re.split(r"[^a-z0-9]+", base) if len(t) >= min_len and t not in SEARCH_STOPWORDS]
+    expanded = set(tokens)
+    for eng, spanish in SYNONYM_MAP.items():
+        if eng in base:
+            for term in spanish:
+                expanded.update(t for t in strip_accents(term).split() if len(t) >= min_len)
+    for tok in tokens:
+        for term in SYNONYM_MAP.get(tok, []):
+            expanded.update(t for t in strip_accents(term).split() if len(t) >= min_len)
+    return sorted(expanded)
+
+
+def text_contains_any(series, tokens) -> pd.Series:
+    norm = series.astype(str).map(lambda s: strip_accents(s).lower())
+    mask = pd.Series(False, index=series.index)
+    for tok in tokens:
+        mask = mask | norm.str.contains(tok, na=False, regex=False)
+    return mask
+
+
+def today_utc():
+    return pd.Timestamp(datetime.now(timezone.utc).date())
+
+
+def search_events(query: str = "", timeframe: str = "", limit: int = 8) -> dict:
+    events = DATA.get("events", pd.DataFrame())
+    if events is None or events.empty:
+        return {"events": [], "total": 0, "timeframe": timeframe or "all"}
+    df = events.copy()
+    df["_date"] = pd.to_datetime(df["event_date"], format="%d-%m-%Y", errors="coerce")
+    now = today_utc()
+
+    tokens = expand_search_terms(query)
+    if tokens:
+        searchable = ["title", "technologies", "sectors", "ambitos", "province", "city", "typology", "event_text"]
+        mask = pd.Series(False, index=df.index)
+        for col in searchable:
+            if col in df.columns:
+                mask = mask | text_contains_any(df[col], tokens)
+        df = df[mask]
+
+    tf = (timeframe or "").lower()
+    if tf in {"upcoming", "future", "next"}:
+        df = df[df["_date"].notna() & (df["_date"] >= now)].sort_values("_date", ascending=True)
+        timeframe_label = "upcoming"
+    elif tf in {"past", "previous"}:
+        df = df[df["_date"].notna() & (df["_date"] < now)].sort_values("_date", ascending=False)
+        timeframe_label = "past"
+    else:
+        df = df.assign(_is_upcoming=df["_date"].notna() & (df["_date"] >= now))
+        df = df.sort_values(["_is_upcoming", "_date"], ascending=[False, True])
+        timeframe_label = "all"
+
+    total = len(df)
+    rows = []
+    for _, row in df.head(limit).iterrows():
+        date_val = row["_date"]
+        rows.append({
+            "title": clean(row.get("title")),
+            "date": date_val.strftime("%Y-%m-%d") if pd.notna(date_val) else clean(row.get("event_date"), ""),
+            "province": clean(row.get("province"), ""),
+            "city": clean(row.get("city"), ""),
+            "technologies": clean(row.get("technologies"), ""),
+            "sectors": clean(row.get("sectors"), ""),
+            "typology": clean(row.get("typology"), ""),
+            "link": clean(row.get("link"), ""),
+            "num_registered": clean(row.get("num_registered"), ""),
+        })
+    return {"events": rows, "total": total, "timeframe": timeframe_label}
+
+
+def render_events(result: dict) -> str:
+    events = result.get("events", [])
+    if not events:
+        return "I could not find SECPHO events matching that."
+    header = {"upcoming": "Upcoming SECPHO events", "past": "Past SECPHO events"}.get(
+        result.get("timeframe", "all"), "SECPHO events"
+    )
+    lines = [f"{header} ({result.get('total', len(events))} found, showing {len(events)}):"]
+    for ev in events:
+        where = ", ".join([p for p in [ev["city"], ev["province"]] if p])
+        tech = f" - {ev['technologies']}" if ev["technologies"] else ""
+        loc = f" [{where}]" if where else ""
+        lines.append(f"- {ev['date'] or 'date N/D'} - {ev['title']}{loc}{tech}")
+    lines.append("Event data is SECPHO agenda metadata; registration counts are interest, not confirmed attendance.")
+    return "\n".join(lines)
+
+
+def list_retos(query: str = "", status: str = "", limit: int = 8) -> dict:
+    retos = DATA.get("retos", pd.DataFrame())
+    if retos is None or retos.empty:
+        return {"retos": [], "total": 0, "status": status or "all"}
+    df = retos.copy()
+    df["_close"] = pd.to_datetime(df["closing_date"], format="%d/%m/%Y", errors="coerce")
+    now = today_utc()
+
+    tokens = expand_search_terms(query)
+    if tokens:
+        searchable = ["title", "description_clean", "sectors", "issuing_entities", "applying_entities", "reto_text"]
+        mask = pd.Series(False, index=df.index)
+        for col in searchable:
+            if col in df.columns:
+                mask = mask | text_contains_any(df[col], tokens)
+        df = df[mask]
+
+    df = df.assign(_is_open=df["_close"].notna() & (df["_close"] >= now))
+    st = (status or "").lower()
+    if st in {"open", "active"}:
+        open_df = df[df["_is_open"]].sort_values("_close", ascending=True)
+        if not open_df.empty:
+            df = open_df
+            status_label = "open"
+        else:
+            df = df.sort_values("_close", ascending=False, na_position="last")
+            status_label = "none_open"
+    elif st in {"closed", "past"}:
+        df = df[~df["_is_open"] & df["_close"].notna()].sort_values("_close", ascending=False)
+        status_label = "closed"
+    else:
+        df = df.sort_values(["_is_open", "_close"], ascending=[False, False], na_position="last")
+        status_label = "all"
+
+    total = len(df)
+    rows = []
+    for _, row in df.head(limit).iterrows():
+        close_val = row["_close"]
+        rows.append({
+            "title": clean(row.get("title")),
+            "closing_date": close_val.strftime("%Y-%m-%d") if pd.notna(close_val) else clean(row.get("closing_date"), ""),
+            "is_open": bool(pd.notna(close_val) and close_val >= now),
+            "sectors": clean(row.get("sectors"), ""),
+            "issuing_entities": clean(row.get("issuing_entities"), ""),
+            "applying_entities": clean(row.get("applying_entities"), ""),
+            "connection_type": clean(row.get("connection_type"), ""),
+        })
+    return {"retos": rows, "total": total, "status": status_label}
+
+
+def render_retos(result: dict) -> str:
+    retos = result.get("retos", [])
+    if not retos:
+        return "I could not find retos (challenges) matching that."
+    header = {
+        "open": "Open SECPHO retos (challenges)",
+        "closed": "Closed SECPHO retos",
+        "none_open": "No retos are currently open - showing the most recent SECPHO retos",
+    }.get(result.get("status", "all"), "SECPHO retos (challenges)")
+    lines = [f"{header} ({result.get('total', len(retos))} found, showing {len(retos)}):"]
+    for r in retos:
+        flag = "OPEN" if r["is_open"] else "closed"
+        issuer = f" - issued by {r['issuing_entities']}" if r["issuing_entities"] else ""
+        sect = f" [{r['sectors']}]" if r["sectors"] else ""
+        lines.append(f"- ({flag}, closes {r['closing_date']}) {r['title']}{sect}{issuer}")
+    lines.append("Retos are the supply-demand signal: an entity emits a need; others apply with capabilities.")
+    return "\n".join(lines)
+
+
+def _top_terms(df, column, top_n=8) -> list[dict]:
+    if df is None or df.empty or column not in df.columns:
+        return []
+    counter: dict[str, int] = {}
+    for value in df[column].astype(str):
+        for term in split_terms_list(value):
+            key = term.strip()
+            if not key or key.lower() in {"n/d", "nan", "ninguno", "none", "na"}:
+                continue
+            counter[key] = counter.get(key, 0) + 1
+    ranked = sorted(counter.items(), key=lambda kv: (-kv[1], kv[0]))
+    return [{"label": k, "count": v} for k, v in ranked[:top_n]]
+
+
+def ecosystem_overview() -> dict:
+    socios = DATA.get("socios", pd.DataFrame())
+    readiness = DATA.get("readiness", pd.DataFrame())
+    members_all = DATA.get("members_all", pd.DataFrame())
+    people = DATA["people"]
+    events = DATA.get("events", pd.DataFrame())
+    retos = DATA.get("retos", pd.DataFrame())
+    subscribers = DATA.get("subscribers", pd.DataFrame())
+
+    now = today_utc()
+    upcoming_events = 0
+    if not events.empty and "event_date" in events.columns:
+        ev_dates = pd.to_datetime(events["event_date"], format="%d-%m-%Y", errors="coerce")
+        upcoming_events = int((ev_dates >= now).sum())
+    open_retos = 0
+    if not retos.empty and "closing_date" in retos.columns:
+        rt_dates = pd.to_datetime(retos["closing_date"], format="%d/%m/%Y", errors="coerce")
+        open_retos = int((rt_dates >= now).sum())
+
+    readiness_dist = {}
+    if not readiness.empty and "readiness_label" in readiness.columns:
+        readiness_dist = readiness["readiness_label"].value_counts().to_dict()
+
+    members_for_terms = members_all if not members_all.empty else people
+    return {
+        "counts": {
+            "official_socios": int(len(socios)) if not socios.empty else int(len(readiness)),
+            "recommendable_people": int(len(people)),
+            "all_members": int(len(members_all)) if not members_all.empty else int(len(people)),
+            "subscribers": int(len(subscribers)) if not subscribers.empty else 0,
+            "events": int(len(events)),
+            "upcoming_events": upcoming_events,
+            "retos": int(len(retos)),
+            "open_retos": open_retos,
+            "recommendation_rows": int(len(DATA["matches"])),
+        },
+        "readiness_distribution": {str(k): int(v) for k, v in readiness_dist.items()},
+        "top_technologies": _top_terms(members_for_terms, "technology_parents"),
+        "top_sectors": _top_terms(members_for_terms, "sector_parents"),
+        "top_socio_provinces": _top_terms(socios, "province") if not socios.empty else [],
+        "scope_note": "Phase 1 recommends only people linked to official socios; wider members/subscribers are enrichment.",
+    }
+
+
+def render_ecosystem_overview(stats: dict) -> str:
+    c = stats.get("counts", {})
+    lines = [
+        "SECPHO intelligence dataset overview:",
+        f"- {c.get('official_socios', 0)} official socios (companies) - the Phase 1 recommendation universe",
+        f"- {c.get('recommendable_people', 0)} recommendable people (of {c.get('all_members', 0)} total members)",
+        f"- {c.get('subscribers', 0)} newsletter subscribers (enrichment signal)",
+        f"- {c.get('events', 0)} events ({c.get('upcoming_events', 0)} upcoming)",
+        f"- {c.get('retos', 0)} retos/challenges ({c.get('open_retos', 0)} currently open)",
+        f"- {c.get('recommendation_rows', 0)} precomputed recommendation rows",
+    ]
+    tech = stats.get("top_technologies", [])
+    if tech:
+        lines.append("Most common technologies: " + ", ".join(f"{t['label']} ({t['count']})" for t in tech[:6]))
+    sect = stats.get("top_sectors", [])
+    if sect:
+        lines.append("Most common sectors: " + ", ".join(f"{s['label']} ({s['count']})" for s in sect[:6]))
+    prov = stats.get("top_socio_provinces", [])
+    if prov:
+        lines.append("Top socio provinces: " + ", ".join(f"{p['label']} ({p['count']})" for p in prov[:6]))
+    lines.append("Ask me about events, open retos, a company, a person, or recommendations for someone.")
+    return "\n".join(lines)
+
+
+DIMENSION_CONFIG = {
+    "province": {"source": "socios", "column": "province", "label": "official socios by province", "multi": False},
+    "company_type": {"source": "socios", "column": "company_type", "label": "official socios by company type", "multi": False},
+    "member_type": {"source": "readiness", "column": "member_type", "label": "official socios by member type", "multi": False},
+    "public_private": {"source": "socios", "column": "public_private", "label": "official socios by public/private", "multi": False},
+    "technology": {"source": "members_all", "column": "technology_parents", "label": "members by technology", "multi": True},
+    "sector": {"source": "members_all", "column": "sector_parents", "label": "members by sector", "multi": True},
+    "readiness": {"source": "readiness", "column": "readiness_label", "label": "official socios by readiness", "multi": False},
+}
+
+
+def infer_dimension(question: str) -> str:
+    lower = question.lower()
+    if any(t in lower for t in ["province", "region", "provincia", "location", "where"]):
+        return "province"
+    if "public" in lower or "private" in lower:
+        return "public_private"
+    if "company type" in lower or "type of company" in lower or "tipo de empresa" in lower:
+        return "company_type"
+    if "member type" in lower or "membership" in lower:
+        return "member_type"
+    if "readiness" in lower:
+        return "readiness"
+    if "sector" in lower:
+        return "sector"
+    if "tech" in lower:
+        return "technology"
+    return ""
+
+
+def aggregate_stats(dimension: str = "", question: str = "", limit: int = 10) -> dict:
+    dim = (dimension or "").lower().strip()
+    if dim not in DIMENSION_CONFIG:
+        dim = infer_dimension(question or dimension or "")
+    if dim not in DIMENSION_CONFIG:
+        return {}
+    cfg = DIMENSION_CONFIG[dim]
+    df = DATA.get(cfg["source"], pd.DataFrame())
+    if df is None or df.empty or cfg["column"] not in df.columns:
+        return {}
+    if cfg["multi"]:
+        distribution = _top_terms(df, cfg["column"], top_n=limit)
+    else:
+        counts = (
+            df[cfg["column"]].astype(str).str.strip().replace({"nan": "N/D", "": "N/D"}).value_counts().head(limit)
+        )
+        distribution = [{"label": str(k), "count": int(v)} for k, v in counts.items()]
+    return {"dimension": dim, "label": cfg["label"], "distribution": distribution}
+
+
+def render_aggregate_stats(result: dict) -> str:
+    dist = result.get("distribution", [])
+    if not dist:
+        return "I could not compute that breakdown from the available data."
+    lines = [f"Breakdown - {result.get('label', result.get('dimension', 'distribution'))}:"]
+    for item in dist:
+        lines.append(f"- {item['label']}: {item['count']}")
+    lines.append("Deterministic counts from the SECPHO data tables.")
+    return "\n".join(lines)
+
+
+def heuristic_route_question(question: str, selected_member_id: int | None = None) -> dict:
+    q = clean(question, "").strip()
+    lower = q.lower()
+
+    def route(action, **args):
+        return {"action": action, "args": {"question": q, **args}, "router_mode": "heuristic"}
+
+    if not lower:
+        return route("general_answer")
+
+    if looks_like_missing_tool_request(q):
+        return {"action": "propose_tool", "args": {"question": q, **heuristic_tool_proposal(q)}, "router_mode": "heuristic"}
+
+    if any(t in lower for t in [
+        "overview", "what data", "what can you", "what do you", "ecosystem", "summary", "resumen",
+        "tell me about secpho", "about the data", "capabilities", "qué datos", "que datos", "qué puedes", "que puedes",
+    ]):
+        return route("ecosystem_overview")
+
+    is_event = any(t in lower for t in ["event", "evento", "summit", "agenda", "conference", "webinar", "workshop", "jornada", "charla"])
+    is_reto = any(t in lower for t in ["reto", "retos", "challenge", "challenges", "demanda", "supply", "demand"])
+
+    if any(t in lower for t in [
+        "breakdown", "distribution", "how many", "count", "cuantos", "cuántos",
+        "by province", "by sector", "by technology", "per province", "most common", "por provincia", "por sector",
+    ]) and not is_event and not is_reto:
+        dim = infer_dimension(lower)
+        return route("aggregate_stats", dimension=dim) if dim else route("ecosystem_overview")
+
+    if is_event:
+        timeframe = ""
+        if any(t in lower for t in ["upcoming", "next", "future", "próximo", "proximo", "futuro"]):
+            timeframe = "upcoming"
+        elif any(t in lower for t in ["past", "previous", "pasado", "anterior"]):
+            timeframe = "past"
+        return route("search_events", timeframe=timeframe)
+
+    if is_reto:
+        status = ""
+        if any(t in lower for t in ["open", "active", "abierto", "vigente"]):
+            status = "open"
+        elif any(t in lower for t in ["closed", "cerrado"]):
+            status = "closed"
+        return route("list_retos", status=status)
+
+    if any(t in lower for t in ["report", "brief", "one pager", "one-pager", "informe", "briefing"]):
+        return route("generate_report", query=extract_person_query(q))
+    if any(t in lower for t in ["recommend", "match", "intro", "introduction", "recomienda", "recomendaciones", "matchmaking"]):
+        return route("recommend_contacts", query=extract_person_query(q))
+
+    if ("top" in lower or "ranking" in lower or "best" in lower or "mejores" in lower) and any(
+        t in lower for t in ["socio", "socios", "company", "companies", "empresa", "empresas"]
+    ):
+        metric = "readiness"
+        if any(t in lower for t in ["event", "registration", "attendance"]):
+            metric = "event"
+        elif any(t in lower for t in ["people", "member", "profiles"]):
+            metric = "people"
+        return route("rank_socios", metric=metric)
+
+    if any(t in lower for t in ["who works", "who is in", "people at", "people in", "works at", "works in", "quien trabaja", "quién trabaja", "empleados"]):
+        return route("search_people", company=extract_company_query(q))
+
+    if any(t in lower for t in ["score", "scoring", "weight", "logic", "official socio", "math decides", "attendance", "scope"]):
+        return route("general_answer")
+
+    if any(t in lower for t in ["socio", "company", "empresa", "compañía", "compania"]):
+        return route("get_socio_profile", query=q)
+
+    if find_people_rows(q, limit=1).shape[0] > 0:
+        return route("search_people", query=q)
+
+    return route("general_answer")
 
 
 def tool_answer(action: str, args: dict, selected_member_id: int | None = None) -> dict | None:
@@ -1685,6 +2401,7 @@ def tool_answer(action: str, args: dict, selected_member_id: int | None = None) 
         fallback = render_recommendations(int(member_id))
         payload = llm_payload_for_person(int(member_id))
         answer, mode = decorate_grounded_answer("Explain model-ranked recommendations", payload, fallback)
+        answer = answer + f"\n\n[tune:{int(member_id)}]"
         return {
             "answer": answer,
             "mode": mode,
@@ -1705,6 +2422,106 @@ def tool_answer(action: str, args: dict, selected_member_id: int | None = None) 
             "mode": report["mode"],
             "selected_member_id": int(member_id),
             "kind": "report",
+            "llm_available": openai_available(),
+        }
+
+    if action == "search_events":
+        result = search_events(
+            query=clean(args.get("query") or args.get("name"), ""),
+            timeframe=clean(args.get("timeframe"), ""),
+            limit=8,
+        )
+        fallback = render_events(result)
+        answer, mode = decorate_grounded_answer(
+            "Summarize the matching SECPHO events for the user",
+            {
+                "action": action,
+                "args": args,
+                "events": result["events"],
+                "total": result["total"],
+                "timeframe": result["timeframe"],
+                "caveat": "Registration counts are interest, not confirmed attendance.",
+            },
+            fallback,
+        )
+        return {
+            "answer": answer,
+            "mode": mode,
+            "selected_member_id": selected_member_id,
+            "kind": "events",
+            "events": result["events"],
+            "llm_available": openai_available(),
+        }
+
+    if action == "list_retos":
+        result = list_retos(
+            query=clean(args.get("query") or args.get("name"), ""),
+            status=clean(args.get("status"), ""),
+            limit=8,
+        )
+        fallback = render_retos(result)
+        answer, mode = decorate_grounded_answer(
+            "Summarize the matching SECPHO retos (challenges) for the user",
+            {
+                "action": action,
+                "args": args,
+                "retos": result["retos"],
+                "total": result["total"],
+                "status": result["status"],
+                "note": "Retos are the supply-demand signal: an entity emits a need; others apply with capabilities.",
+            },
+            fallback,
+        )
+        return {
+            "answer": answer,
+            "mode": mode,
+            "selected_member_id": selected_member_id,
+            "kind": "retos",
+            "retos": result["retos"],
+            "llm_available": openai_available(),
+        }
+
+    if action == "ecosystem_overview":
+        stats = ecosystem_overview()
+        fallback = render_ecosystem_overview(stats)
+        answer, mode = decorate_grounded_answer(
+            "Give the user a friendly overview of the SECPHO intelligence dataset and what they can ask",
+            {"action": action, "stats": stats},
+            fallback,
+        )
+        return {
+            "answer": answer,
+            "mode": mode,
+            "selected_member_id": selected_member_id,
+            "kind": "overview",
+            "stats": stats,
+            "llm_available": openai_available(),
+        }
+
+    if action == "aggregate_stats":
+        result = aggregate_stats(
+            dimension=clean(args.get("dimension"), ""),
+            question=clean(args.get("question"), ""),
+        )
+        if not result:
+            return None
+        fallback = render_aggregate_stats(result)
+        answer, mode = decorate_grounded_answer(
+            "Explain this deterministic distribution from SECPHO data",
+            {
+                "action": action,
+                "args": args,
+                "result": result,
+                "important_caveat": "These are deterministic counts, not an LLM estimate.",
+            },
+            fallback,
+        )
+        return {
+            "answer": answer,
+            "mode": mode,
+            "selected_member_id": selected_member_id,
+            "kind": "stats",
+            "stats": result,
             "llm_available": openai_available(),
         }
 
@@ -1791,6 +2608,7 @@ def chat_flow(question: str, selected_member_id: int | None = None) -> dict:
         fallback = render_recommendations(target_member_id)
         payload = llm_payload_for_person(target_member_id)
         answer, mode = decorate_grounded_answer("Explain model-ranked recommendations", payload, fallback)
+        answer = answer + f"\n\n[tune:{target_member_id}]"
         return {
             "answer": answer,
             "mode": mode,
@@ -1894,6 +2712,252 @@ def chat_flow(question: str, selected_member_id: int | None = None) -> dict:
     }
 
 
+AGENT_INSTRUCTIONS = """
+You are the SECPHO Intelligence assistant: a conversational analyst over SECPHO's real
+deep-tech cluster data (official socios/companies, their people, events, and retos/challenges).
+
+How to work:
+- Use the tools to look up REAL data before answering. You may call several tools, in sequence,
+  to answer one question. Reason over the rows the tools return.
+- Never invent or guess people, companies, counts, scores, events, or retos. If the tools return
+  nothing relevant, say so plainly and suggest what you can answer.
+- Default to ACTING: when a request is reasonable, call the tools with sensible defaults (e.g. rank
+  socios by readiness, search events with no timeframe) instead of asking the user to clarify. Only
+  ask a brief clarifying question if the request is genuinely ambiguous. Answer the question asked.
+
+Hard rules (the matchmaker math is the authority, you explain it):
+- Recommendation rankings and scores come ONLY from the recommend_contacts and rerank_contacts
+  tools. Never reorder, re-score, merge, or invent matches. Math decides; you explain.
+- Phase 1 covers people linked to official socios. Subscribers/contacts are context only.
+- "Event interest" means shared SECPHO registration interest, not confirmed attendance. Say so when relevant.
+- Do not list large numbers of personal emails. An email is only for a single, specifically requested contact.
+- Keep any [person:ID] token exactly as given in tool output, so the interface can attach actions.
+- After you present recommendations for a person, put the token [tune:THEIR_MEMBER_ID] on its own final line.
+
+Style: concise and useful for SECPHO staff. Short paragraphs or bullets. No invented precision.
+"""
+
+
+def _agent_compact_person(p: dict) -> dict:
+    return {
+        "member_id": p.get("member_id"),
+        "name": p.get("name"),
+        "socio": p.get("socio"),
+        "role": p.get("role", ""),
+        "technologies": p.get("technologies", ""),
+        "sectors": p.get("sectors", ""),
+    }
+
+
+def _agent_resolve_member_id(args: dict):
+    raw = args.get("member_id")
+    if raw not in (None, ""):
+        val = to_int(raw)
+        if val is not None:
+            return val
+    query = clean(args.get("query") or args.get("name"), "")
+    if query:
+        return exact_or_best_person(query)
+    return None
+
+
+def dispatch_tool(name: str, args: dict, ctx: dict) -> dict:
+    try:
+        if name == "search_people":
+            company = clean(args.get("company"), "")
+            if company:
+                rows = find_people_by_company(company, limit=15)
+            else:
+                rows = find_people_rows(clean(args.get("query"), ""), limit=15)
+            return {"people": [_agent_compact_person(p) for p in rows_to_people(rows)]}
+
+        if name == "get_person_profile":
+            mid = _agent_resolve_member_id(args)
+            if not mid:
+                return {"error": "person_not_found"}
+            ctx["selected"] = mid
+            return {"person": get_person(mid)}
+
+        if name == "search_socios":
+            return {"socios": search_socios(clean(args.get("query"), ""), limit=12)}
+
+        if name == "get_socio_profile":
+            return {"socio": get_socio_profile(clean(args.get("query") or args.get("name"), ""))}
+
+        if name == "rank_socios":
+            metric = clean(args.get("metric"), "readiness").lower()
+            if metric not in {"readiness", "event", "people"}:
+                metric = "readiness"
+            limit = to_int(args.get("limit")) or 5
+            return {"socios": top_socios(limit=max(1, min(limit, 20)), metric=metric)}
+
+        if name == "list_events":
+            return search_events(query=clean(args.get("query"), ""), timeframe=clean(args.get("timeframe"), ""), limit=10)
+
+        if name == "list_retos":
+            return list_retos(query=clean(args.get("query"), ""), status=clean(args.get("status"), ""), limit=10)
+
+        if name == "ecosystem_overview":
+            return ecosystem_overview()
+
+        if name == "aggregate_stats":
+            result = aggregate_stats(dimension=clean(args.get("dimension"), ""), question=clean(args.get("question"), ""))
+            return result or {"error": "unknown_dimension"}
+
+        if name == "recommend_contacts":
+            mid = _agent_resolve_member_id(args)
+            if not mid:
+                return {"error": "person_not_found"}
+            ctx["selected"] = mid
+            person = get_person(mid)
+            recs = get_recommendations(mid, 5)
+            for rec in recs:
+                rec["person_token"] = f"[person:{rec['candidate_member_id']}]"
+            return {
+                "target": {"member_id": mid, "name": person.get("name"), "socio": person.get("socio")},
+                "recommendations_ranked_by_model": recs,
+                "tune_token": f"[tune:{mid}]",
+                "note": "Deterministic model ranking. Do not reorder or invent. Math decides; you explain.",
+            }
+
+        if name == "rerank_contacts":
+            mid = _agent_resolve_member_id(args)
+            if not mid:
+                return {"error": "person_not_found"}
+            ctx["selected"] = mid
+            weights = args.get("weights") if isinstance(args.get("weights"), dict) else {}
+            normalized = {sig["key"]: float(weights.get(sig["key"], sig["default"]) or 0) for sig in TUNING_SIGNALS}
+            return rerank_for_person(mid, normalized, limit=8)
+
+        return {"error": "unknown_tool", "tool": name}
+    except Exception as exc:
+        return {"error": "tool_failed", "tool": name, "detail": type(exc).__name__}
+
+
+AGENT_TOOL_SCHEMAS = [
+    {"type": "function", "strict": False, "name": "search_people",
+     "description": "Find people (official-socio members) by name, company/socio, technology, sector, or role.",
+     "parameters": {"type": "object", "properties": {
+         "query": {"type": "string", "description": "Free text: a name, technology, sector or role."},
+         "company": {"type": "string", "description": "A company/socio name to list its people."}}}},
+    {"type": "function", "strict": False, "name": "get_person_profile",
+     "description": "Get one person's full profile (technologies, sectors, needs, location, event interest).",
+     "parameters": {"type": "object", "properties": {
+         "query": {"type": "string", "description": "Person name."},
+         "member_id": {"type": "integer"}}}},
+    {"type": "function", "strict": False, "name": "search_socios",
+     "description": "Find official socios/companies by name, province, company type, or member type.",
+     "parameters": {"type": "object", "properties": {"query": {"type": "string"}}}},
+    {"type": "function", "strict": False, "name": "get_socio_profile",
+     "description": "Get one official socio/company profile, its readiness, people, and main contact.",
+     "parameters": {"type": "object", "properties": {"query": {"type": "string", "description": "Company name."}}}},
+    {"type": "function", "strict": False, "name": "rank_socios",
+     "description": "Rank official socios deterministically by readiness, event interest, or number of people.",
+     "parameters": {"type": "object", "properties": {
+         "metric": {"type": "string", "enum": ["readiness", "event", "people"]},
+         "limit": {"type": "integer"}}}},
+    {"type": "function", "strict": False, "name": "list_events",
+     "description": "List or search SECPHO events by topic/technology/sector/province, optionally by timeframe.",
+     "parameters": {"type": "object", "properties": {
+         "query": {"type": "string"},
+         "timeframe": {"type": "string", "enum": ["upcoming", "past", ""]}}}},
+    {"type": "function", "strict": False, "name": "list_retos",
+     "description": "List or search retos (supply-demand challenges) by topic, optionally by open/closed status.",
+     "parameters": {"type": "object", "properties": {
+         "query": {"type": "string"},
+         "status": {"type": "string", "enum": ["open", "closed", ""]}}}},
+    {"type": "function", "strict": False, "name": "ecosystem_overview",
+     "description": "High-level counts and top technologies/sectors/provinces across the whole SECPHO dataset.",
+     "parameters": {"type": "object", "properties": {}}},
+    {"type": "function", "strict": False, "name": "aggregate_stats",
+     "description": "Deterministic distribution of socios or members by a dimension.",
+     "parameters": {"type": "object", "properties": {
+         "dimension": {"type": "string", "enum": ["province", "company_type", "member_type", "public_private", "technology", "sector", "readiness"]}}}},
+    {"type": "function", "strict": False, "name": "recommend_contacts",
+     "description": "Get the deterministic model-ranked recommended contacts for one person (with evidence). Math decides the ranking.",
+     "parameters": {"type": "object", "properties": {
+         "query": {"type": "string", "description": "Person name."},
+         "member_id": {"type": "integer"}}}},
+    {"type": "function", "strict": False, "name": "rerank_contacts",
+     "description": "Re-rank a person's recommendations under custom signal weights (0-100 each). Still deterministic.",
+     "parameters": {"type": "object", "properties": {
+         "query": {"type": "string"},
+         "member_id": {"type": "integer"},
+         "weights": {"type": "object", "description": "Map of signal key to 0-100 weight."}}}},
+]
+
+
+def call_agent_step(input_items: list, max_output_tokens: int = 2000):
+    api_key = os.getenv("OPENAI_API_KEY")
+    if not api_key:
+        return None, "fallback_no_api_key"
+    if current_model_tier() == "flagship":
+        max_output_tokens = max(max_output_tokens, 4000)
+    body = {
+        "model": current_model(),
+        "instructions": AGENT_INSTRUCTIONS + language_directive(),
+        "input": input_items,
+        "tools": AGENT_TOOL_SCHEMAS,
+        "max_output_tokens": max_output_tokens,
+        "store": False,
+    }
+    try:
+        response = requests.post(
+            OPENAI_RESPONSES_URL,
+            headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+            json=body,
+            timeout=60,
+        )
+        if response.status_code >= 400:
+            return None, f"fallback_openai_http_{response.status_code}"
+        return response.json(), "ok"
+    except Exception as exc:
+        return None, f"fallback_llm_error_{type(exc).__name__}"
+
+
+def run_agent(input_items: list, ctx: dict, max_steps: int = 6) -> tuple[str, str, list]:
+    trace = []
+    for _ in range(max_steps):
+        data, status = call_agent_step(input_items)
+        if data is None:
+            return "", status, trace
+        output = data.get("output", [])
+        function_calls = [item for item in output if item.get("type") == "function_call"]
+        if not function_calls:
+            return extract_response_text(data), f"agent_{data.get('model', current_model())}", trace
+        for fc in function_calls:
+            name = fc.get("name", "")
+            try:
+                args = json.loads(fc.get("arguments") or "{}")
+            except json.JSONDecodeError:
+                args = {}
+            input_items.append({"type": "function_call", "call_id": fc.get("call_id"), "name": name, "arguments": fc.get("arguments") or "{}"})
+            result = dispatch_tool(name, args if isinstance(args, dict) else {}, ctx)
+            trace.append({"tool": name, "args": args})
+            input_items.append({"type": "function_call_output", "call_id": fc.get("call_id"), "output": json.dumps(result, ensure_ascii=False)[:6000]})
+    data, status = call_agent_step(input_items, max_output_tokens=1500)
+    if data is not None:
+        text = extract_response_text(data)
+        if text:
+            return text, f"agent_{data.get('model', current_model())}_capped", trace
+    return "", "agent_max_steps", trace
+
+
+def agent_chat(message: str, history: list, member_id: int | None = None) -> dict:
+    ctx = {"selected": member_id}
+    input_items = []
+    for turn in (history or [])[-6:]:
+        role = "assistant" if str(turn.get("role")) == "assistant" else "user"
+        content = clean(turn.get("text"), "")
+        if content:
+            input_items.append({"role": role, "content": content[:4000]})
+    if member_id:
+        input_items.append({"role": "user", "content": f"(Context: the user currently has the person with member_id {member_id} selected.)"})
+    input_items.append({"role": "user", "content": message})
+    text, mode, trace = run_agent(input_items, ctx)
+    return {"answer": text, "mode": mode, "selected": ctx.get("selected"), "trace": trace}
+
+
 def markdown_to_html(text: str) -> str:
     escaped = html.escape(text)
     escaped = re.sub(r"^# (.*)$", r"<h1>\1</h1>", escaped, flags=re.MULTILINE)
@@ -1908,6 +2972,7 @@ def markdown_to_html(text: str) -> str:
 def markdown_to_chat_html(text: str) -> str:
     escaped = html.escape(text)
     escaped = re.sub(r"\[person:(\d+)\]", r'<button class="inline-action" onclick="setPerson(\1)">select</button>', escaped)
+    escaped = re.sub(r"\[tune:(\d+)\]", r'<button class="inline-action" onclick="openTuner(\1)">Adjust weighting &amp; report</button>', escaped)
     escaped = re.sub(
         r"(/artifacts/[A-Za-z0-9_.-]+)",
         r'<a href="\1" target="_blank" style="color:var(--brand)">\1</a>',
@@ -1998,14 +3063,27 @@ LOGIN_HTML = """
   <main>
     <img src="/static/secpho_logo_negative.png" alt="secpho">
     <h1>SECPHO Intelligence</h1>
-    <p>This workspace is protected. Sign in to continue.</p>
+    <p data-es="Este espacio está protegido. Inicia sesión para continuar." data-en="This workspace is protected. Sign in to continue.">Este espacio está protegido. Inicia sesión para continuar.</p>
     <form method="post" action="/login">
-      <label for="password">Access password</label>
+      <label for="password" data-es="Contraseña de acceso" data-en="Access password">Contraseña de acceso</label>
       <input id="password" name="password" type="password" autocomplete="current-password" autofocus>
-      <button type="submit">Sign in</button>
+      <button type="submit" data-es="Iniciar sesión" data-en="Sign in">Iniciar sesión</button>
       <div class="error">{{ERROR}}</div>
     </form>
+    <button type="button" id="loginLang" onclick="loginToggle()" style="margin-top:14px;background:none;border:0;color:#9aa0a6;cursor:pointer;font:inherit;text-decoration:underline">English</button>
   </main>
+  <script>
+    var L = (function(){ try { return localStorage.getItem('secpho_lang') || 'es'; } catch (e) { return 'es'; } })();
+    function loginApply(l){
+      L = (l === 'en') ? 'en' : 'es';
+      try { localStorage.setItem('secpho_lang', L); } catch (e) {}
+      document.documentElement.lang = L;
+      document.querySelectorAll('[data-es]').forEach(function(el){ el.textContent = el.getAttribute('data-' + L); });
+      var b = document.getElementById('loginLang'); if (b) b.textContent = (L === 'es') ? 'English' : 'Español';
+    }
+    function loginToggle(){ loginApply(L === 'es' ? 'en' : 'es'); }
+    loginApply(L);
+  </script>
 </body>
 </html>
 """
@@ -2593,6 +3671,36 @@ CHAT_HTML = """
       font-size: 20px;
       font-weight: 900;
     }
+    .send:disabled { opacity: .45; cursor: default; }
+    .thinking { color: #a6a7ab; }
+    .thinking .dots i { font-style: normal; animation: secpho-blink 1.2s infinite; }
+    .thinking .dots i:nth-child(2) { animation-delay: .2s; }
+    .thinking .dots i:nth-child(3) { animation-delay: .4s; }
+    @keyframes secpho-blink { 0%, 100% { opacity: .25; } 50% { opacity: 1; } }
+    .bubble.tuner { width: 100%; max-width: 760px; }
+    .tuner-head { font-size: 13px; color: var(--muted); margin-bottom: 12px; line-height: 1.5; }
+    .tuner-grid { display: grid; grid-template-columns: 210px 1fr; gap: 18px; }
+    @media (max-width: 720px){ .tuner-grid { grid-template-columns: 1fr; } }
+    .tuner-slider { margin-bottom: 11px; }
+    .tuner-slider .top { display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 4px; color: var(--muted); }
+    .tuner-slider .sw { display:inline-block; width:9px; height:9px; border-radius:2px; margin-right:6px; vertical-align:middle; }
+    .tuner-slider input[type=range]{ width: 100%; accent-color: var(--brand); }
+    .tuner-row { display: flex; gap: 9px; align-items: center; padding: 6px 0; border-top: 1px solid #232327; }
+    .tuner-row:first-child { border-top: 0; }
+    .tuner-row .rk { width: 22px; text-align: center; font-weight: 700; }
+    .tuner-row .mv { font-size: 11px; width: 28px; }
+    .tuner-row .nm { flex: 1; min-width: 0; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .tuner-row .bar { width: 110px; height: 10px; border-radius: 5px; overflow: hidden; background: #0e0e10; display: flex; flex: none; }
+    .tuner-row .bar span { height: 100%; }
+    .tuner-row .sc { width: 44px; text-align: right; font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+    .mv.up { color: #2ecc71; } .mv.down { color: var(--hot); } .mv.flat { color: var(--muted); }
+    .tuner-actions { margin-top: 14px; display: flex; gap: 10px; flex-wrap: wrap; }
+    .send-report { background: var(--brand); color: #061112; border: 0; border-radius: 9px; padding: 9px 14px; font-weight: 700; cursor: pointer; }
+    .send-report:disabled { opacity: .5; cursor: default; }
+    .model-row { display: flex; align-items: center; gap: 6px; margin: 0 0 8px; width: min(920px, 100%); }
+    .model-label { font-size: 12px; color: var(--muted); margin-right: 2px; }
+    .model-opt { background: transparent; border: 1px solid #2a2a2e; color: var(--muted); border-radius: 999px; padding: 3px 12px; font-size: 12px; cursor: pointer; }
+    .model-opt.active { background: var(--brand); color: #061112; border-color: var(--brand); font-weight: 700; }
     .fine-print {
       width: min(920px, 100%);
       margin: 8px auto 0;
@@ -2683,75 +3791,85 @@ CHAT_HTML = """
         <img src="/static/secpho_logo_negative.png" alt="secpho">
         <span class="badge" id="llmBadge">LLM</span>
       </div>
-      <button class="new-chat" onclick="newChat()">+ New conversation</button>
-      <a class="new-chat" href="/logout" style="text-decoration:none">Sign out</a>
-      <div class="side-block">
+      <button class="new-chat" onclick="newChat()" data-i18n="newchat">+ New conversation</button>
+      <a class="new-chat" href="/logout" style="text-decoration:none" data-i18n="signout">Sign out</a>
+      <div class="side-block" data-i18n="block_model">
         <strong>Model rule</strong><br>
         The script does the matchmaking. The LLM explains and decorates the deterministic results.
       </div>
-      <div class="side-block">
+      <div class="side-block" data-i18n="block_voice">
         <strong>SECPHO voice</strong><br>
         Collaborate to innovate. Deep tech connections, evidence, and practical next steps.
       </div>
-      <div class="side-block">
+      <div class="side-block" data-i18n="block_try">
         <strong>Try</strong><br>
-        “Who works at ICFO?”<br>
-        “Give me recommendations for David Santana.”<br>
-        “Create a report for David Santana.”
+        “What can you tell me about the SECPHO ecosystem?”<br>
+        “Events about photonics.”<br>
+        “Recent retos in industrial manufacturing.”<br>
+        “Top socios by readiness.”<br>
+        “Recommendations for David Santana.”
       </div>
-      <div class="side-block">
-        <strong>Tool learning loop</strong><br>
-        Unsupported requests become stored proposals for Codex review.<br>
-        <a href="/api/tool-requests" target="_blank" style="color:var(--brand)">View proposals</a>
+      <div class="side-block" data-i18n="block_console">
+        <strong>Scoring console</strong><br>
+        Drag the signal weights and watch recommendations re-rank live.<br>
+        <a href="/tuning" style="color:var(--brand)">Open scoring console</a>
       </div>
-      <div class="side-block">
-        <strong>Feedback inbox</strong><br>
-        Chat users can leave notes for product review.<br>
-        <a href="/api/feedback-inbox" target="_blank" style="color:var(--brand)">View feedback</a>
+      <div class="side-block" data-i18n="block_admin">
+        <strong>Admin console</strong><br>
+        Review captured feedback and the tool-learning loop.<br>
+        <a href="/admin" style="color:var(--brand)">Open admin (admin login)</a>
       </div>
     </aside>
     <main>
       <div class="topbar">
-        <h1>SECPHO Intelligence Chat</h1>
+        <h1 data-i18n="title">SECPHO Intelligence Chat</h1>
         <div class="topbar-actions">
-          <div class="status" id="status">Math decides. LLM explains.</div>
-          <button class="ghost-button" onclick="openFeedback()">Feedback</button>
+          <div class="status" id="status" data-i18n="status_default">Math decides. LLM explains.</div>
+          <button class="ghost-button lang-toggle" id="langToggle" onclick="toggleLang()" title="Español / English">EN</button>
+          <button class="ghost-button" onclick="openFeedback()" data-i18n="feedback_btn">Feedback</button>
         </div>
       </div>
       <div class="chat" id="chat">
         <div class="messages" id="messages">
           <div class="welcome" id="welcome">
             <img src="/static/secpho_logo_negative.png" alt="secpho" style="width:150px; opacity:.95">
-            <h2>Ask about socios, people, recommendations, and reports.</h2>
-            <p>Conversation drives the workflow. The matcher computes ranked introductions; the LLM turns the evidence into useful language.</p>
+            <h2 data-i18n="welcome_h">Ask SECPHO's data anything.</h2>
+            <p data-i18n="welcome_p">Explore socios, people, events, and retos — or get model-ranked introductions and reports. The matcher computes the evidence; the LLM explains it.</p>
             <div class="prompt-grid">
-              <button class="prompt" onclick="sendExample('Who works at ICFO?')">Who works at ICFO?<span>Find people by company</span></button>
-              <button class="prompt" onclick="sendExample('Give me recommendations for David Santana')">Recommend contacts<span>Use the model ranking</span></button>
-              <button class="prompt" onclick="sendExample('Create a report for David Santana')">Create a report<span>One-page LLM briefing</span></button>
-              <button class="prompt" onclick="sendExample('Explain the score logic')">Explain scoring<span>Audit the model signals</span></button>
+              <button class="prompt" data-qkey="ecosystem" onclick="sendExample(this)" data-i18n="ex_ecosystem">Ecosystem overview<span>What data is in here</span></button>
+              <button class="prompt" data-qkey="events" onclick="sendExample(this)" data-i18n="ex_events">Events on photonics<span>Search the agenda</span></button>
+              <button class="prompt" data-qkey="retos" onclick="sendExample(this)" data-i18n="ex_retos">Find retos<span>Supply-demand challenges</span></button>
+              <button class="prompt" data-qkey="province" onclick="sendExample(this)" data-i18n="ex_province">Socios by province<span>Deterministic breakdown</span></button>
+              <button class="prompt" data-qkey="recommend" onclick="sendExample(this)" data-i18n="ex_recommend">Recommend contacts<span>Model-ranked intros</span></button>
+              <button class="prompt" data-qkey="report" onclick="sendExample(this)" data-i18n="ex_report">Create a report<span>One-page briefing</span></button>
             </div>
           </div>
         </div>
       </div>
       <div class="composer-wrap">
+        <div class="model-row">
+          <span class="model-label" data-i18n="model_label">Model</span>
+          <button id="modelMini" class="model-opt active" onclick="setModel('mini')" title="gpt-5-mini — fast, everyday questions">Mini</button>
+          <button id="modelFlag" class="model-opt" onclick="setModel('flagship')" title="Flagship — complex questions">Flagship</button>
+        </div>
         <div class="composer">
-          <textarea id="input" placeholder="Ask SECPHO Matchmaker..." rows="1"></textarea>
+          <textarea id="input" placeholder="Ask SECPHO Matchmaker..." data-i18n-ph="composer_ph" rows="1"></textarea>
           <button class="send" onclick="sendMessage()">↑</button>
         </div>
-        <div class="fine-print">Event signal means shared registration interest, not confirmed attendance.</div>
+        <div class="fine-print" data-i18n="fineprint">Event signal means shared registration interest, not confirmed attendance.</div>
       </div>
     </main>
   </div>
   <div class="feedback-backdrop" id="feedbackModal" role="dialog" aria-modal="true" aria-labelledby="feedbackTitle">
     <div class="feedback-panel">
-      <h2 id="feedbackTitle">Send feedback</h2>
-      <p>Write what feels broken, missing, confusing, or useful. Voice dictation works in supported browsers.</p>
-      <textarea id="feedbackText" placeholder="Example: I asked for a company report and expected sources, but the answer was too generic."></textarea>
+      <h2 id="feedbackTitle" data-i18n="fb_title">Send feedback</h2>
+      <p data-i18n="fb_p">Write what feels broken, missing, confusing, or useful. Voice dictation works in supported browsers.</p>
+      <textarea id="feedbackText" data-i18n-ph="fb_ph" placeholder="Example: I asked for a company report and expected sources, but the answer was too generic."></textarea>
       <div class="feedback-actions">
-        <button class="ghost-button" onclick="toggleVoiceFeedback()" id="voiceButton">Voice</button>
+        <button class="ghost-button" onclick="toggleVoiceFeedback()" id="voiceButton" data-i18n="voice_btn">Voice</button>
         <div>
-          <button class="ghost-button" onclick="closeFeedback()">Cancel</button>
-          <button class="primary-button" onclick="submitFeedback()">Save feedback</button>
+          <button class="ghost-button" onclick="closeFeedback()" data-i18n="cancel">Cancel</button>
+          <button class="primary-button" onclick="submitFeedback()" data-i18n="save_fb">Save feedback</button>
         </div>
       </div>
       <div class="feedback-note" id="feedbackNote"></div>
@@ -2762,12 +3880,105 @@ CHAT_HTML = """
     let feedbackRecognition = null;
     let feedbackListening = false;
 
+    const I18N = {
+      en: {
+        newchat: '+ New conversation', signout: 'Sign out',
+        block_model: '<strong>Model rule</strong><br>The script does the matchmaking. The LLM explains and decorates the deterministic results.',
+        block_voice: '<strong>SECPHO voice</strong><br>Collaborate to innovate. Deep tech connections, evidence, and practical next steps.',
+        block_try: '<strong>Try</strong><br>“What can you tell me about the SECPHO ecosystem?”<br>“Events about photonics.”<br>“Recent retos in industrial manufacturing.”<br>“Top socios by readiness.”<br>“Recommendations for David Santana.”',
+        block_console: '<strong>Scoring console</strong><br>Drag the signal weights and watch recommendations re-rank live.<br><a href="/tuning" style="color:var(--brand)">Open scoring console</a>',
+        block_admin: '<strong>Admin console</strong><br>Review captured feedback and the tool-learning loop.<br><a href="/admin" style="color:var(--brand)">Open admin (admin login)</a>',
+        title: 'SECPHO Intelligence Chat', status_default: 'Math decides. LLM explains.', status_report: 'Report generated from model evidence',
+        feedback_btn: 'Feedback', welcome_h: "Ask SECPHO's data anything.",
+        welcome_p: 'Explore socios, people, events, and retos — or get model-ranked introductions and reports. The matcher computes the evidence; the LLM explains it.',
+        ex_ecosystem: 'Ecosystem overview<span>What data is in here</span>', ex_events: 'Events on photonics<span>Search the agenda</span>',
+        ex_retos: 'Find retos<span>Supply-demand challenges</span>', ex_province: 'Socios by province<span>Deterministic breakdown</span>',
+        ex_recommend: 'Recommend contacts<span>Model-ranked intros</span>', ex_report: 'Create a report<span>One-page briefing</span>',
+        composer_ph: 'Ask SECPHO Matchmaker...', fineprint: 'Event signal means shared registration interest, not confirmed attendance.',
+        fb_title: 'Send feedback', fb_p: 'Write what feels broken, missing, confusing, or useful. Voice dictation works in supported browsers.',
+        fb_ph: 'Example: I asked for a company report and expected sources, but the answer was too generic.',
+        voice_btn: 'Voice', cancel: 'Cancel', save_fb: 'Save feedback',
+        q_ecosystem: 'What can you tell me about the SECPHO ecosystem?', q_events: 'Show me events about photonics',
+        q_retos: 'Show me recent retos about industrial manufacturing', q_province: 'How many socios by province?',
+        q_recommend: 'Give me recommendations for David Santana', q_report: 'Create a report for David Santana',
+        thinking: 'Checking the right tool', writing_report: 'Writing the report from your weighting',
+        err_server: 'Something went wrong reaching the server. Please try again.', err_report: 'Something went wrong generating the report.',
+        err_rate: 'You are sending messages too quickly. Please wait a moment and try again.', err_none: 'No response from the server. Please try again.',
+        tuner_head: 'Adjust what matters for this person, then generate the report from your weighting. This stays pure math — no LLM — until you hit generate.',
+        tuner_reset: 'Reset to model default', tuner_generate: 'Generate report from this weighting', tuner_generating: 'Generating...',
+        llm_on: 'LLM ON', llm_off: 'Fallback', selected_person: 'Selected person', model_label: 'Model',
+        sig_profile_similarity: 'Profile similarity', sig_structured_overlap: 'Tech / sector overlap', sig_event_interest_overlap_score: 'Event interest',
+        sig_needs_overlap: 'Needs overlap', sig_location_overlap_score: 'Location', sig_personal_affinity_score: 'Personal affinity',
+      },
+      es: {
+        newchat: '+ Nueva conversación', signout: 'Cerrar sesión',
+        block_model: '<strong>Regla del modelo</strong><br>El script hace el emparejamiento. El LLM explica y presenta los resultados deterministas.',
+        block_voice: '<strong>Voz SECPHO</strong><br>Colaborar para innovar. Conexiones deep tech, evidencia y próximos pasos prácticos.',
+        block_try: '<strong>Prueba</strong><br>“¿Qué me puedes contar sobre el ecosistema SECPHO?”<br>“Eventos sobre fotónica.”<br>“Retos recientes de fabricación industrial.”<br>“Top socios por readiness.”<br>“Recomendaciones para David Santana.”',
+        block_console: '<strong>Consola de scoring</strong><br>Ajusta los pesos de las señales y observa cómo se reordenan las recomendaciones en vivo.<br><a href="/tuning" style="color:var(--brand)">Abrir consola de scoring</a>',
+        block_admin: '<strong>Consola de administración</strong><br>Revisa el feedback capturado y el bucle de aprendizaje de herramientas.<br><a href="/admin" style="color:var(--brand)">Abrir administración (acceso admin)</a>',
+        title: 'Chat de Inteligencia SECPHO', status_default: 'Las matemáticas deciden. El LLM explica.', status_report: 'Reporte generado a partir de la evidencia del modelo',
+        feedback_btn: 'Comentarios', welcome_h: 'Pregúntale lo que sea a los datos de SECPHO.',
+        welcome_p: 'Explora socios, personas, eventos y retos — o consigue presentaciones y reportes rankeados por el modelo. El matcher calcula la evidencia; el LLM la explica.',
+        ex_ecosystem: 'Resumen del ecosistema<span>Qué datos hay aquí</span>', ex_events: 'Eventos de fotónica<span>Busca en la agenda</span>',
+        ex_retos: 'Buscar retos<span>Retos de oferta y demanda</span>', ex_province: 'Socios por provincia<span>Desglose determinista</span>',
+        ex_recommend: 'Recomendar contactos<span>Presentaciones del modelo</span>', ex_report: 'Crear un reporte<span>Informe de una página</span>',
+        composer_ph: 'Pregúntale al Matchmaker de SECPHO...', fineprint: 'La señal de eventos indica interés de registro compartido, no asistencia confirmada.',
+        fb_title: 'Enviar comentarios', fb_p: 'Escribe qué está roto, falta, confunde o es útil. El dictado por voz funciona en navegadores compatibles.',
+        fb_ph: 'Ejemplo: pedí un reporte de empresa y esperaba fuentes, pero la respuesta fue demasiado genérica.',
+        voice_btn: 'Voz', cancel: 'Cancelar', save_fb: 'Guardar comentarios',
+        q_ecosystem: '¿Qué me puedes contar sobre el ecosistema SECPHO?', q_events: 'Muéstrame eventos sobre fotónica',
+        q_retos: 'Muéstrame retos recientes sobre fabricación industrial', q_province: '¿Cuántos socios hay por provincia?',
+        q_recommend: 'Dame recomendaciones para David Santana', q_report: 'Crea un reporte para David Santana',
+        thinking: 'Buscando la herramienta adecuada', writing_report: 'Escribiendo el reporte con tu ponderación',
+        err_server: 'Hubo un problema al contactar el servidor. Inténtalo de nuevo.', err_report: 'Hubo un problema al generar el reporte.',
+        err_rate: 'Estás enviando mensajes demasiado rápido. Espera un momento e inténtalo de nuevo.', err_none: 'Sin respuesta del servidor. Inténtalo de nuevo.',
+        tuner_head: 'Ajusta lo que importa para esta persona y genera el reporte con tu ponderación. Esto es matemática pura — sin LLM — hasta que pulses generar.',
+        tuner_reset: 'Restablecer al valor del modelo', tuner_generate: 'Generar reporte con esta ponderación', tuner_generating: 'Generando...',
+        llm_on: 'LLM ON', llm_off: 'Alternativo', selected_person: 'Persona seleccionada', model_label: 'Modelo',
+        sig_profile_similarity: 'Similitud de perfil', sig_structured_overlap: 'Solape tecnología / sector', sig_event_interest_overlap_score: 'Interés en eventos',
+        sig_needs_overlap: 'Solape de necesidades', sig_location_overlap_score: 'Ubicación', sig_personal_affinity_score: 'Afinidad personal',
+      },
+    };
+    let LANG = (function(){ try { return localStorage.getItem('secpho_lang') || 'es'; } catch (e) { return 'es'; } })();
+    function t(k){ const d = I18N[LANG] || I18N.es; return (d[k] !== undefined) ? d[k] : (I18N.en[k] !== undefined ? I18N.en[k] : k); }
+    function applyLang(lang){
+      LANG = (lang === 'en') ? 'en' : 'es';
+      try { localStorage.setItem('secpho_lang', LANG); } catch (e) {}
+      document.documentElement.lang = LANG;
+      document.querySelectorAll('[data-i18n]').forEach(el => { el.innerHTML = t(el.getAttribute('data-i18n')); });
+      document.querySelectorAll('[data-i18n-ph]').forEach(el => { el.setAttribute('placeholder', t(el.getAttribute('data-i18n-ph'))); });
+      const lt = document.getElementById('langToggle'); if (lt) lt.textContent = (LANG === 'es') ? 'EN' : 'ES';
+      document.querySelectorAll('[id^="ts-"]').forEach(panel => { const pid = panel.id.slice(3); if (typeof tunerWeights !== 'undefined' && tunerWeights[pid]) buildTunerSliders(pid); });
+    }
+    function toggleLang(){ applyLang(LANG === 'es' ? 'en' : 'es'); }
+    function detectLang(text){
+      const s = ' ' + String(text || '').toLowerCase().replace(/[.,;:!?¿¡]/g, ' ') + ' ';
+      let es = 0, en = 0;
+      if (/[áéíóúñ¿¡]/.test(text)) es += 2;
+      ['qué','cómo','quién','dónde','cuántos','cuántas','para','con','los','las','una','del','eventos','empresa','empresas','recomienda','recomendaciones','socios','muéstrame','dame','sobre','crea','informe','reto','retos','trabaja','provincia'].forEach(w => { if (s.includes(' ' + w + ' ')) es++; });
+      ['what','how','who','where','show','give','company','companies','recommend','report','about','the','events','make','create','people','works','province','top'].forEach(w => { if (s.includes(' ' + w + ' ')) en++; });
+      if (es > en + 1) return 'es';
+      if (en > es + 1) return 'en';
+      return null;
+    }
+
+    let MODEL = (function(){ try { return localStorage.getItem('secpho_model') || 'mini'; } catch (e) { return 'mini'; } })();
+    function setModel(m){
+      MODEL = (m === 'flagship') ? 'flagship' : 'mini';
+      try { localStorage.setItem('secpho_model', MODEL); } catch (e) {}
+      const a = document.getElementById('modelMini'), b = document.getElementById('modelFlag');
+      if (a) a.classList.toggle('active', MODEL === 'mini');
+      if (b) b.classList.toggle('active', MODEL === 'flagship');
+    }
+
     function esc(s) {
       return String(s || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;', "'":'&#39;'}[c]));
     }
 
     async function api(path) {
-      const res = await fetch(path);
+      const sep = path.includes('?') ? '&' : '?';
+      const res = await fetch(path + sep + 'lang=' + LANG + '&model=' + MODEL);
       if (res.status === 401) {
         window.location.href = '/login';
         return {};
@@ -2887,38 +4098,157 @@ CHAT_HTML = """
       document.getElementById('chat').scrollTop = document.getElementById('chat').scrollHeight;
     }
 
+    let sending = false;
+    let history = [];
     async function sendMessage() {
+      if (sending) return;
       const input = document.getElementById('input');
+      const sendBtn = document.querySelector('.send');
       const text = input.value.trim();
       if (!text) return;
+      const detected = detectLang(text);
+      if (detected && detected !== LANG) applyLang(detected);
+      sending = true;
+      if (sendBtn) sendBtn.disabled = true;
       input.value = '';
+      input.style.height = 'auto';
       addMessage('user', esc(text));
-      addMessage('assistant', '<span style="color:#a6a7ab">Checking the right tool. If it is safe to create now, I’ll build it and run it.</span>', '');
+      addMessage('assistant', '<span class="thinking">' + esc(t('thinking')) + '<span class="dots"><i>.</i><i>.</i><i>.</i></span></span>', '');
       const last = document.querySelector('#messages .msg.assistant:last-child');
-      const idPart = selectedMemberId ? '&id=' + encodeURIComponent(selectedMemberId) : '';
-      const data = await api('/api/chat-flow?q=' + encodeURIComponent(text) + idPart);
-      if (data.selected_member_id) selectedMemberId = data.selected_member_id;
-      last.querySelector('.bubble').innerHTML = data.answer_html + '<div class="mode">' + esc((data.llm_available ? 'LLM active' : 'fallback') + ' · ' + data.mode + ' · ' + data.kind) + '</div>';
-      document.getElementById('llmBadge').textContent = data.llm_available ? 'LLM ON' : 'Fallback';
-      document.getElementById('status').textContent = data.kind === 'report' ? 'Report generated from model evidence' : 'Math decides. LLM explains.';
-      document.getElementById('chat').scrollTop = document.getElementById('chat').scrollHeight;
+      try {
+        const res = await fetch('/api/agent', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ message: text, history: history.slice(-6), id: selectedMemberId || null, lang: LANG, model: MODEL })
+        });
+        if (res.status === 401) { window.location.href = '/login'; return; }
+        const data = await res.json();
+        if (!data || !data.answer_html) {
+          const reason = data && data.error === 'rate_limited' ? t('err_rate')
+            : (data && data.error ? 'Request blocked: ' + data.error : t('err_none'));
+          last.querySelector('.bubble').innerHTML = '<span style="color:#ff8a8a">' + esc(reason) + '</span>';
+        } else {
+          if (data.selected_member_id) selectedMemberId = data.selected_member_id;
+          last.querySelector('.bubble').innerHTML = data.answer_html + '<div class="mode">' + esc((data.llm_available ? 'LLM active' : 'fallback') + ' · ' + data.mode + ' · ' + data.kind) + '</div>';
+          document.getElementById('llmBadge').textContent = data.llm_available ? t('llm_on') : t('llm_off');
+          document.getElementById('status').textContent = data.kind === 'report' ? t('status_report') : t('status_default');
+          history.push({ role: 'user', text: text });
+          if (data.answer) history.push({ role: 'assistant', text: data.answer });
+          if (history.length > 12) history = history.slice(-12);
+        }
+      } catch (err) {
+        last.querySelector('.bubble').innerHTML = '<span style="color:#ff8a8a">' + esc(t('err_server')) + '</span>';
+      } finally {
+        sending = false;
+        if (sendBtn) sendBtn.disabled = false;
+        document.getElementById('chat').scrollTop = document.getElementById('chat').scrollHeight;
+      }
     }
 
-    function sendExample(text) {
-      document.getElementById('input').value = text;
+    function sendExample(btn) {
+      const q = (typeof btn === 'string') ? btn : t('q_' + btn.getAttribute('data-qkey'));
+      document.getElementById('input').value = q;
       sendMessage();
     }
 
     function setPerson(id) {
       selectedMemberId = id;
-      document.getElementById('status').textContent = 'Selected person ID ' + id;
+      document.getElementById('status').textContent = t('selected_person') + ' ' + id;
+    }
+
+    const SIGNALS_T = [
+      {key:'profile_similarity', label:'Profile similarity', color:'#00c3c7', def:44},
+      {key:'structured_overlap', label:'Tech / sector overlap', color:'#ff3158', def:24},
+      {key:'event_interest_overlap_score', label:'Event interest', color:'#f5a623', def:14},
+      {key:'needs_overlap', label:'Needs overlap', color:'#7c5cff', def:10},
+      {key:'location_overlap_score', label:'Location', color:'#2ecc71', def:6},
+      {key:'personal_affinity_score', label:'Personal affinity', color:'#e84393', def:2},
+    ];
+    const tunerWeights = {};
+    const tunerTimers = {};
+    function tunerQS(id){ return SIGNALS_T.map(s => s.key + '=' + tunerWeights[id][s.key]).join('&'); }
+
+    async function openTuner(id){
+      const existing = document.getElementById('tuner-' + id);
+      if (existing){ existing.scrollIntoView({behavior:'smooth', block:'center'}); return; }
+      tunerWeights[id] = {}; SIGNALS_T.forEach(s => tunerWeights[id][s.key] = s.def);
+      const node = document.createElement('div');
+      node.className = 'msg assistant';
+      node.id = 'tuner-' + id;
+      node.innerHTML = '<div class="avatar">S</div><div class="bubble tuner">'+
+        '<div class="tuner-head">'+esc(t('tuner_head'))+'</div>'+
+        '<div class="tuner-grid"><div id="ts-'+id+'"></div><div id="tl-'+id+'"></div></div>'+
+        '<div class="tuner-actions"><button class="ghost-button" onclick="resetTuner('+id+')">'+esc(t('tuner_reset'))+'</button>'+
+        '<button class="send-report" id="genbtn-'+id+'" onclick="generateTunedReport('+id+')">'+esc(t('tuner_generate'))+'</button></div></div>';
+      document.getElementById('messages').appendChild(node);
+      buildTunerSliders(id);
+      tunerRerank(id);
+      node.scrollIntoView({behavior:'smooth', block:'center'});
+    }
+
+    function buildTunerSliders(id){
+      document.getElementById('ts-'+id).innerHTML = SIGNALS_T.map(s =>
+        '<div class="tuner-slider"><div class="top"><span><span class="sw" style="background:'+s.color+'"></span>'+t('sig_'+s.key)+'</span>'+
+        '<span id="tv-'+id+'-'+s.key+'" style="color:var(--ink)">'+tunerWeights[id][s.key]+'</span></div>'+
+        '<input type="range" min="0" max="100" value="'+tunerWeights[id][s.key]+'" data-key="'+s.key+'"></div>').join('');
+      document.querySelectorAll('#ts-'+id+' input[type=range]').forEach(r =>
+        r.addEventListener('input', e => {
+          const k = e.target.dataset.key;
+          tunerWeights[id][k] = parseInt(e.target.value, 10);
+          document.getElementById('tv-'+id+'-'+k).textContent = tunerWeights[id][k];
+          clearTimeout(tunerTimers[id]); tunerTimers[id] = setTimeout(() => tunerRerank(id), 120);
+        }));
+    }
+
+    async function tunerRerank(id){
+      const res = await fetch('/api/rerank?id=' + id + '&' + tunerQS(id) + '&lang=' + LANG + '&model=' + MODEL);
+      if (res.status === 401){ window.location.href='/login'; return; }
+      const data = await res.json();
+      const box = document.getElementById('tl-'+id);
+      if (!data.found || !data.candidates.length){ box.innerHTML = '<div class="tuner-row">No candidate pool for this person.</div>'; return; }
+      const max = Math.max.apply(null, data.candidates.map(c => c.custom_score).concat([0.0001]));
+      box.innerHTML = data.candidates.slice(0,6).map(c => {
+        const segs = c.contributions.filter(x => x.contribution > 0).map(x =>
+          '<span style="width:'+(x.contribution/max*100).toFixed(2)+'%;background:'+x.color+'"></span>').join('');
+        let mv = '<span class="mv flat">&mdash;</span>';
+        if (c.movement > 0) mv = '<span class="mv up">&#9650;'+c.movement+'</span>';
+        else if (c.movement < 0) mv = '<span class="mv down">&#9660;'+Math.abs(c.movement)+'</span>';
+        return '<div class="tuner-row"><span class="rk">'+c.new_rank+'</span>'+mv+
+          '<span class="nm">'+esc(c.name)+'</span><span class="bar">'+segs+'</span>'+
+          '<span class="sc">'+c.custom_score.toFixed(3)+'</span></div>';
+      }).join('');
+    }
+
+    function resetTuner(id){
+      SIGNALS_T.forEach(s => tunerWeights[id][s.key] = s.def);
+      buildTunerSliders(id); tunerRerank(id);
+    }
+
+    async function generateTunedReport(id){
+      const btn = document.getElementById('genbtn-'+id);
+      if (btn){ btn.disabled = true; btn.textContent = t('tuner_generating'); }
+      addMessage('assistant', '<span class="thinking">' + esc(t('writing_report')) + '<span class="dots"><i>.</i><i>.</i><i>.</i></span></span>', '');
+      const last = document.querySelector('#messages .msg.assistant:last-child');
+      try {
+        const res = await fetch('/api/report-tuned?id=' + id + '&' + tunerQS(id) + '&lang=' + LANG + '&model=' + MODEL);
+        if (res.status === 401){ window.location.href='/login'; return; }
+        const data = await res.json();
+        last.querySelector('.bubble').innerHTML = (data.report_html || '<span style="color:#ff8a8a">' + esc(t('err_report')) + '</span>') +
+          '<div class="mode">' + esc((data.llm_available ? 'LLM active' : 'fallback') + ' · ' + (data.mode || '') + ' · tuned report') + '</div>';
+      } catch (err) {
+        last.querySelector('.bubble').innerHTML = '<span style="color:#ff8a8a">' + esc(t('err_report')) + '</span>';
+      } finally {
+        if (btn){ btn.disabled = false; btn.textContent = t('tuner_generate'); }
+        document.getElementById('chat').scrollTop = document.getElementById('chat').scrollHeight;
+      }
     }
 
     function newChat() {
       selectedMemberId = null;
+      history = [];
       document.getElementById('messages').innerHTML = document.getElementById('welcome').outerHTML;
       document.getElementById('welcome').style.display = 'block';
-      document.getElementById('status').textContent = 'Math decides. LLM explains.';
+      document.getElementById('status').textContent = t('status_default');
     }
 
     document.getElementById('input').addEventListener('keydown', (e) => {
@@ -2937,7 +4267,240 @@ CHAT_HTML = """
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape') closeFeedback();
     });
+    applyLang(LANG);
+    setModel(MODEL);
   </script>
+</body>
+</html>
+"""
+
+
+ADMIN_HTML = """<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SECPHO Admin</title>
+  <style>
+    :root { --brand:#00c3c7; --hot:#ff3158; --bg:#0c0c0e; --panel:#161619; --ink:#f4f4f5; --muted:#a6a7ab; }
+    * { box-sizing:border-box; }
+    body { margin:0; background:var(--bg); color:var(--ink); font-family:system-ui,Segoe UI,Inter,sans-serif; }
+    header { display:flex; gap:16px; align-items:center; padding:16px 22px; border-bottom:1px solid #232327; }
+    header h1 { font-size:18px; margin:0; }
+    header a { color:var(--brand); text-decoration:none; font-size:14px; }
+    main { max-width:1000px; margin:0 auto; padding:24px 22px 60px; display:grid; gap:26px; }
+    h2 { font-size:15px; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); margin:0 0 12px; }
+    pre { background:var(--panel); border:1px solid #232327; border-radius:10px; padding:16px; white-space:pre-wrap; word-break:break-word; font-size:13px; line-height:1.5; max-height:520px; overflow:auto; }
+    .card { background:var(--panel); border:1px solid #232327; border-left:3px solid var(--brand); border-radius:10px; padding:12px 14px; margin-bottom:10px; }
+    .card b { color:var(--ink); } .card small { color:var(--muted); }
+    .tag { display:inline-block; font-size:11px; padding:2px 8px; border-radius:999px; background:#1f1f23; color:var(--brand); margin-left:6px; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>SECPHO Admin</h1>
+    <a href="/">Back to chat</a>
+    <a href="/classic">Classic view</a>
+    <a href="/logout">Sign out</a>
+  </header>
+  <main>
+    <section>
+      <h2>Feedback inbox</h2>
+      <pre id="feedback">Loading...</pre>
+    </section>
+    <section>
+      <h2>Tool requests &amp; learning loop</h2>
+      <div id="tools">Loading...</div>
+    </section>
+  </main>
+  <script>
+    function esc(s){ return (s||'').replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
+    async function load(){
+      try {
+        const fb = await fetch('/api/feedback-inbox');
+        document.getElementById('feedback').textContent = fb.ok ? await fb.text() : 'No feedback access.';
+      } catch(e){ document.getElementById('feedback').textContent = 'Could not load feedback.'; }
+      try {
+        const tr = await fetch('/api/tool-requests');
+        const tj = tr.ok ? await tr.json() : {requests:[]};
+        const rows = (tj.requests||[]);
+        document.getElementById('tools').innerHTML = rows.length ? rows.map(r =>
+          '<div class="card"><b>' + esc(r.tool_name||'tool') + '</b>' +
+          '<span class="tag">' + esc(r.effective_status||r.status||'proposed') + '</span><br>' +
+          '<small>' + esc(r.user_question||r.purpose||'') + '</small></div>'
+        ).join('') : 'No tool requests yet.';
+      } catch(e){ document.getElementById('tools').textContent = 'Could not load tool requests.'; }
+    }
+    load();
+  </script>
+</body>
+</html>
+"""
+
+
+TUNING_HTML = """<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SECPHO Scoring Console</title>
+<style>
+  :root { --brand:#00c3c7; --hot:#ff3158; --bg:#0c0c0e; --panel:#161619; --line:#232327; --ink:#f4f4f5; --muted:#a6a7ab; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink); font-family:system-ui,Segoe UI,Inter,sans-serif; }
+  header { display:flex; gap:10px; align-items:center; padding:14px 22px; border-bottom:1px solid var(--line); }
+  header h1 { font-size:17px; margin:0; }
+  header .sp { flex:1; }
+  header .hint { font-size:12px; color:var(--muted); }
+  header a { color:var(--brand); text-decoration:none; font-size:14px; margin-left:14px; }
+  .grid { display:grid; grid-template-columns: 340px 1fr; gap:24px; max-width:1180px; margin:0 auto; padding:22px; }
+  @media (max-width: 860px){ .grid { grid-template-columns:1fr; } }
+  h2 { font-size:12px; text-transform:uppercase; letter-spacing:.07em; color:var(--muted); margin:0 0 12px; }
+  .panel { background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:16px; margin-bottom:18px; }
+  input[type=text]{ width:100%; padding:10px 12px; border-radius:9px; border:1px solid var(--line); background:#0e0e10; color:var(--ink); font:inherit; }
+  .results { margin-top:8px; max-height:190px; overflow:auto; }
+  .pres { padding:8px 10px; border-radius:8px; cursor:pointer; }
+  .pres:hover { background:#1d1d21; }
+  .pres small { color:var(--muted); }
+  .selected { font-size:13px; color:var(--muted); margin-top:8px; }
+  .slider { margin:14px 0; }
+  .slider .top { display:flex; justify-content:space-between; align-items:center; font-size:13px; margin-bottom:6px; }
+  .swatch { display:inline-block; width:10px; height:10px; border-radius:3px; margin-right:7px; vertical-align:middle; }
+  .slider .val { font-variant-numeric:tabular-nums; color:var(--muted); }
+  input[type=range]{ width:100%; accent-color:var(--brand); }
+  .btn { width:100%; padding:10px; border-radius:9px; border:1px solid var(--line); background:#1d1d21; color:var(--ink); cursor:pointer; font:inherit; }
+  .note { font-size:12px; color:var(--muted); line-height:1.5; margin:12px 0 0; }
+  .card { background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:14px 16px; margin-bottom:12px; display:flex; gap:14px; align-items:flex-start; }
+  .rank { font-size:20px; font-weight:800; width:38px; text-align:center; line-height:1.15; }
+  .move { font-size:12px; font-weight:700; }
+  .up { color:#2ecc71; } .down { color:var(--hot); } .flat { color:var(--muted); }
+  .who { flex:1; min-width:0; }
+  .who .name { font-weight:700; }
+  .who .sub { font-size:13px; color:var(--muted); margin-bottom:8px; }
+  .bar { display:flex; height:14px; border-radius:7px; overflow:hidden; background:#0e0e10; }
+  .bar span { height:100%; }
+  .chips { margin-top:8px; display:flex; flex-wrap:wrap; gap:6px; }
+  .chip { font-size:11px; padding:2px 8px; border-radius:999px; background:#1d1d21; color:var(--muted); max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .score { text-align:right; font-variant-numeric:tabular-nums; }
+  .score b { font-size:16px; } .score small { color:var(--muted); display:block; }
+</style>
+</head>
+<body>
+<header>
+  <h1>SECPHO Scoring Console</h1>
+  <span class="sp"></span>
+  <span class="hint">Math decides &mdash; drag a weight, watch the ranking move</span>
+  <a href="/">Chat</a><a href="/admin">Admin</a><a href="/logout">Sign out</a>
+</header>
+<div class="grid">
+  <div>
+    <div class="panel">
+      <h2>1 &middot; Pick a person</h2>
+      <input type="text" id="personSearch" placeholder="Search by name or company...">
+      <div class="results" id="personResults"></div>
+      <div class="selected" id="selectedPerson"></div>
+    </div>
+    <div class="panel">
+      <h2>2 &middot; Signal weights</h2>
+      <div id="sliders"></div>
+      <button class="btn" id="reset">Reset to model default</button>
+      <p class="note">Pure math, no LLM. <b>score = &Sigma; (weight &times; signal)</b>. At the default weights this matches the model's own ranking; drag any weight to see the introductions re-order by what SECPHO values.</p>
+    </div>
+  </div>
+  <div>
+    <h2 id="resultsTitle">Ranked introductions</h2>
+    <div id="ranking"></div>
+  </div>
+</div>
+<script>
+  const SIGNALS = [
+    {key:'profile_similarity', label:'Profile similarity', color:'#00c3c7', def:44},
+    {key:'structured_overlap', label:'Tech / sector overlap', color:'#ff3158', def:24},
+    {key:'event_interest_overlap_score', label:'Event interest', color:'#f5a623', def:14},
+    {key:'needs_overlap', label:'Needs overlap', color:'#7c5cff', def:10},
+    {key:'location_overlap_score', label:'Location', color:'#2ecc71', def:6},
+    {key:'personal_affinity_score', label:'Personal affinity', color:'#e84393', def:2},
+  ];
+  let weights = {}; SIGNALS.forEach(s => weights[s.key] = s.def);
+  let memberId = 74449;
+  let timer = null;
+  function esc(s){ return (s||'').replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
+  function buildSliders(){
+    document.getElementById('sliders').innerHTML = SIGNALS.map(s =>
+      '<div class="slider"><div class="top"><span><span class="swatch" style="background:'+s.color+'"></span>'+s.label+'</span>'+
+      '<span class="val" id="val_'+s.key+'">'+weights[s.key]+'</span></div>'+
+      '<input type="range" min="0" max="100" value="'+weights[s.key]+'" data-key="'+s.key+'"></div>').join('');
+    document.querySelectorAll('#sliders input[type=range]').forEach(r => {
+      r.addEventListener('input', e => {
+        const k = e.target.dataset.key;
+        weights[k] = parseInt(e.target.value, 10);
+        document.getElementById('val_'+k).textContent = weights[k];
+        clearTimeout(timer); timer = setTimeout(rerank, 120);
+      });
+    });
+  }
+  async function rerank(){
+    if (!memberId) return;
+    const qs = SIGNALS.map(s => s.key + '=' + weights[s.key]).join('&');
+    const res = await fetch('/api/rerank?id=' + encodeURIComponent(memberId) + '&' + qs);
+    if (res.status === 401){ window.location.href='/login'; return; }
+    render(await res.json());
+  }
+  function render(data){
+    const box = document.getElementById('ranking');
+    if (!data.found || !data.candidates.length){ box.innerHTML = '<div class="card">No candidate pool for this person.</div>'; return; }
+    document.getElementById('resultsTitle').textContent = 'Ranked introductions for ' + (data.target ? data.target.name : '');
+    const max = Math.max.apply(null, data.candidates.map(c => c.custom_score).concat([0.0001]));
+    box.innerHTML = data.candidates.map(c => {
+      const segs = c.contributions.filter(x => x.contribution > 0).map(x =>
+        '<span title="'+esc(x.label)+': '+x.contribution.toFixed(3)+'" style="width:'+(x.contribution/max*100).toFixed(2)+'%;background:'+x.color+'"></span>').join('');
+      let move = '<span class="move flat">&mdash;</span>';
+      if (c.movement > 0) move = '<span class="move up">&#9650;'+c.movement+'</span>';
+      else if (c.movement < 0) move = '<span class="move down">&#9660;'+Math.abs(c.movement)+'</span>';
+      const chips = [];
+      if (c.evidence.technologies) chips.push('tech: ' + c.evidence.technologies);
+      if (c.evidence.sectors) chips.push('sectors: ' + c.evidence.sectors);
+      if (c.evidence.location) chips.push('location: ' + c.evidence.location);
+      if (c.evidence.needs) chips.push('needs: ' + c.evidence.needs);
+      if (c.evidence.events) chips.push('events: ' + c.evidence.events);
+      const chipHtml = chips.slice(0,4).map(t => '<span class="chip">'+esc(t)+'</span>').join('');
+      return '<div class="card"><div class="rank">'+c.new_rank+'<br>'+move+'</div>'+
+        '<div class="who"><div class="name">'+esc(c.name)+'</div>'+
+        '<div class="sub">'+esc(c.socio)+(c.role ? ' &middot; '+esc(c.role) : '')+' <span style="opacity:.6">(model #'+c.default_rank+')</span></div>'+
+        '<div class="bar">'+segs+'</div><div class="chips">'+chipHtml+'</div></div>'+
+        '<div class="score"><b>'+c.custom_score.toFixed(3)+'</b><small>score</small></div></div>';
+    }).join('');
+  }
+  const search = document.getElementById('personSearch');
+  let searchTimer = null;
+  search.addEventListener('input', () => {
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(async () => {
+      const q = search.value.trim();
+      if (!q){ document.getElementById('personResults').innerHTML=''; return; }
+      const res = await fetch('/api/search?q=' + encodeURIComponent(q));
+      if (res.status === 401){ window.location.href='/login'; return; }
+      const data = await res.json();
+      document.getElementById('personResults').innerHTML = (data.results||[]).slice(0,12).map(p =>
+        '<div class="pres" data-id="'+p.member_id+'" data-name="'+esc(p.name)+'"><b>'+esc(p.name)+'</b> <small>&mdash; '+esc(p.socio)+'</small></div>').join('') || '<div class="selected">No people found.</div>';
+      document.querySelectorAll('#personResults .pres').forEach(el => {
+        el.addEventListener('click', () => {
+          memberId = parseInt(el.dataset.id, 10);
+          document.getElementById('selectedPerson').textContent = 'Selected: ' + el.dataset.name;
+          document.getElementById('personResults').innerHTML = '';
+          search.value = el.dataset.name;
+          rerank();
+        });
+      });
+    }, 200);
+  });
+  document.getElementById('reset').addEventListener('click', () => {
+    SIGNALS.forEach(s => weights[s.key] = s.def);
+    buildSliders(); rerank();
+  });
+  buildSliders();
+  rerank();
+</script>
 </body>
 </html>
 """
@@ -2952,7 +4515,10 @@ class Handler(BaseHTTPRequestHandler):
 
     def session(self) -> dict | None:
         if not AUTH_REQUIRED:
-            return {"role": "admin", "auth_disabled": True}
+            # Open dev mode: the app stays usable, but it never grants admin so
+            # admin-only data (emails, feedback, tool requests) is not exposed
+            # unless a real SECPHO_ADMIN_PASSWORD is configured.
+            return {"role": "user", "auth_disabled": True}
         cookies = parse_cookie_header(self.headers.get("Cookie", ""))
         return parse_session_cookie(cookies.get(SESSION_COOKIE_NAME, ""))
 
@@ -2961,7 +4527,7 @@ class Handler(BaseHTTPRequestHandler):
 
     def is_admin(self) -> bool:
         session = self.session()
-        return bool(session and session.get("role") == "admin")
+        return bool(ADMIN_ENABLED and session and session.get("role") == "admin")
 
     def secure_cookie_suffix(self) -> str:
         forwarded_proto = self.headers.get("X-Forwarded-Proto", "")
@@ -3065,9 +4631,18 @@ class Handler(BaseHTTPRequestHandler):
                 {
                     "status": "ok",
                     "llm_available": openai_available(),
+                    "model": current_model(),
                     "auth_required": AUTH_REQUIRED,
-                    "people": len(DATA["people"]),
-                    "matches": len(DATA["matches"]),
+                    "admin_enabled": ADMIN_ENABLED,
+                    "counts": {
+                        "official_socios": len(DATA["socios"]) if not DATA["socios"].empty else len(DATA["readiness"]),
+                        "people": len(DATA["people"]),
+                        "members": len(DATA["members_all"]) if not DATA["members_all"].empty else len(DATA["people"]),
+                        "events": len(DATA["events"]),
+                        "retos": len(DATA["retos"]),
+                        "subscribers": len(DATA["subscribers"]),
+                        "matches": len(DATA["matches"]),
+                    },
                 }
             )
             return
@@ -3077,6 +4652,23 @@ class Handler(BaseHTTPRequestHandler):
                 self.send_redirect("/login")
                 return
             self.send_html(INDEX_HTML)
+            return
+
+        if parsed.path == "/admin":
+            if not self.is_authenticated():
+                self.send_redirect("/login")
+                return
+            if not self.is_admin():
+                self.send_redirect("/")
+                return
+            self.send_html(ADMIN_HTML)
+            return
+
+        if parsed.path == "/tuning":
+            if not self.is_authenticated():
+                self.send_redirect("/login")
+                return
+            self.send_html(TUNING_HTML)
             return
 
         if parsed.path.startswith("/static/"):
@@ -3096,7 +4688,9 @@ class Handler(BaseHTTPRequestHandler):
             if not self.is_authenticated():
                 self.send_unauthorized()
                 return
-            bucket = "llm" if parsed.path in {"/api/chat-flow", "/api/llm-chat", "/api/llm-report"} else "api"
+            set_request_lang(params.get("lang", ["es"])[0])
+            set_request_model(params.get("model", ["mini"])[0])
+            bucket = "llm" if parsed.path in {"/api/chat-flow", "/api/llm-chat", "/api/llm-report", "/api/report-tuned"} else "api"
             if is_rate_limited(self.client_ip(), bucket):
                 self.send_json({"error": "rate_limited"}, status=429)
                 return
@@ -3106,8 +4700,20 @@ class Handler(BaseHTTPRequestHandler):
             self.send_json({"results": search_people(q)})
             return
 
+        if parsed.path == "/api/rerank":
+            member_id = to_int(params.get("id", [""])[0])
+            if member_id is None:
+                self.send_json({"error": "invalid_id"}, status=400)
+                return
+            weights = {sig["key"]: to_float(params.get(sig["key"], ["0"])[0], 0.0) for sig in TUNING_SIGNALS}
+            self.send_json(rerank_for_person(member_id, weights))
+            return
+
         if parsed.path == "/api/person":
-            member_id = int(params.get("id", ["0"])[0])
+            member_id = to_int(params.get("id", [""])[0])
+            if member_id is None:
+                self.send_json({"error": "invalid_id"}, status=400)
+                return
             report = report_for_person(member_id)
             self.send_json(
                 {
@@ -3120,7 +4726,10 @@ class Handler(BaseHTTPRequestHandler):
             return
 
         if parsed.path == "/api/llm-report":
-            member_id = int(params.get("id", ["0"])[0])
+            member_id = to_int(params.get("id", [""])[0])
+            if member_id is None:
+                self.send_json({"error": "invalid_id"}, status=400)
+                return
             report = llm_report_for_person(member_id)
             self.send_json(
                 {
@@ -3128,7 +4737,24 @@ class Handler(BaseHTTPRequestHandler):
                     "report_markdown": report["markdown"],
                     "report_html": markdown_to_html(report["markdown"]),
                     "llm_available": openai_available(),
-                    "model": os.getenv("OPENAI_MODEL", OPENAI_MODEL),
+                    "model": current_model(),
+                }
+            )
+            return
+
+        if parsed.path == "/api/report-tuned":
+            member_id = to_int(params.get("id", [""])[0])
+            if member_id is None:
+                self.send_json({"error": "invalid_id"}, status=400)
+                return
+            weights = {sig["key"]: to_float(params.get(sig["key"], ["0"])[0], 0.0) for sig in TUNING_SIGNALS}
+            report = llm_report_for_person_weighted(member_id, weights)
+            self.send_json(
+                {
+                    "mode": report["mode"],
+                    "report_markdown": report["markdown"],
+                    "report_html": markdown_to_chat_html(report["markdown"]),
+                    "llm_available": openai_available(),
                 }
             )
             return
@@ -3140,29 +4766,27 @@ class Handler(BaseHTTPRequestHandler):
 
         if parsed.path == "/api/llm-chat":
             q = params.get("q", [""])[0]
-            member_id_raw = params.get("id", [""])[0]
-            member_id = int(member_id_raw) if member_id_raw else None
+            member_id = to_int(params.get("id", [""])[0])
             answer = llm_answer_question(q, member_id)
             self.send_json(
                 {
                     "answer": answer["answer"],
                     "mode": answer["mode"],
                     "llm_available": openai_available(),
-                    "model": os.getenv("OPENAI_MODEL", OPENAI_MODEL),
+                    "model": current_model(),
                 }
             )
             return
 
         if parsed.path == "/api/chat-flow":
             q = params.get("q", [""])[0]
-            member_id_raw = params.get("id", [""])[0]
-            member_id = int(member_id_raw) if member_id_raw else None
+            member_id = to_int(params.get("id", [""])[0])
             result = chat_flow(q, member_id)
             self.send_json(
                 {
                     **result,
                     "answer_html": markdown_to_chat_html(result["answer"]),
-                    "model": os.getenv("OPENAI_MODEL", OPENAI_MODEL),
+                    "model": current_model(),
                 }
             )
             return
@@ -3210,6 +4834,8 @@ class Handler(BaseHTTPRequestHandler):
             return
 
         self.send_response(404)
+        self.send_security_headers()
+        self.send_header("Content-Length", "0")
         self.end_headers()
 
     def do_POST(self) -> None:
@@ -3217,7 +4843,7 @@ class Handler(BaseHTTPRequestHandler):
 
         if parsed.path == "/login":
             if is_rate_limited(self.client_ip(), "login"):
-                self.send_html(LOGIN_HTML.replace("{{ERROR}}", "Too many attempts. Try again later."), status=429)
+                self.send_html(LOGIN_HTML.replace("{{ERROR}}", "Demasiados intentos. Inténtalo más tarde."), status=429)
                 return
             try:
                 length = int(self.headers.get("Content-Length", "0"))
@@ -3228,7 +4854,7 @@ class Handler(BaseHTTPRequestHandler):
             password = params.get("password", [""])[0]
             role = check_password(password)
             if not role:
-                self.send_html(LOGIN_HTML.replace("{{ERROR}}", "Invalid password."), status=401)
+                self.send_html(LOGIN_HTML.replace("{{ERROR}}", "Contraseña incorrecta."), status=401)
                 return
             self.send_response(303)
             self.send_security_headers()
@@ -3276,7 +4902,55 @@ class Handler(BaseHTTPRequestHandler):
             self.send_json(result, status=200 if result.get("ok") else 400)
             return
 
+        if parsed.path == "/api/agent":
+            if is_rate_limited(self.client_ip(), "llm"):
+                self.send_json({"error": "rate_limited"}, status=429)
+                return
+            try:
+                length = int(self.headers.get("Content-Length", "0"))
+            except ValueError:
+                length = 0
+            if length > 200000:
+                self.send_json({"error": "payload_too_large"}, status=413)
+                return
+            raw = self.rfile.read(length).decode("utf-8") if length else "{}"
+            try:
+                payload = json.loads(raw)
+            except json.JSONDecodeError:
+                self.send_json({"error": "invalid_json"}, status=400)
+                return
+            set_request_lang(payload.get("lang", "es"))
+            set_request_model(payload.get("model", "mini"))
+            message = clean(payload.get("message"), "")
+            if not message:
+                self.send_json({"error": "empty_message"}, status=400)
+                return
+            history = payload.get("history") if isinstance(payload.get("history"), list) else []
+            member_id = to_int(payload.get("id"))
+            if openai_available():
+                result = agent_chat(message, history, member_id)
+                if clean(result.get("answer"), ""):
+                    self.send_json({
+                        "answer": result["answer"],
+                        "answer_html": markdown_to_chat_html(result["answer"]),
+                        "mode": result["mode"],
+                        "kind": "agent",
+                        "selected_member_id": result.get("selected"),
+                        "llm_available": True,
+                        "model": current_model(),
+                    })
+                    return
+            fb = chat_flow(message, member_id)
+            self.send_json({
+                **fb,
+                "answer_html": markdown_to_chat_html(fb["answer"]),
+                "model": current_model(),
+            })
+            return
+
         self.send_response(404)
+        self.send_security_headers()
+        self.send_header("Content-Length", "0")
         self.end_headers()
 
     def log_message(self, format, *args):
@@ -3286,9 +4960,17 @@ class Handler(BaseHTTPRequestHandler):
 def main() -> None:
     host = os.getenv("HOST", "127.0.0.1")
     port = int(os.getenv("PORT", "8765"))
-    server = ThreadingHTTPServer((host, port), Handler)
+    ensure_state_dirs()
     print(f"SECPHO Matchmaker MVP running at http://{host}:{port}")
+    print(f"  model: {current_model()} | LLM key: {'set' if openai_available() else 'MISSING (deterministic fallback mode)'}")
+    if AUTH_REQUIRED:
+        print(f"  auth: ENABLED (admin password {'set' if ADMIN_ENABLED else 'not set'})")
+    else:
+        print("  auth: DISABLED - set SECPHO_APP_PASSWORD (and SECPHO_ADMIN_PASSWORD) before exposing this app publicly.")
+    if not SESSION_SECRET_FROM_ENV:
+        print("  warning: SECPHO_SESSION_SECRET not set; using a local generated secret. Set it in production for stable sessions.")
     print("Press Ctrl+C to stop.")
+    server = ThreadingHTTPServer((host, port), Handler)
     server.serve_forever()
 
 

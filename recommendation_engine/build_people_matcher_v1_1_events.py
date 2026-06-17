@@ -16,7 +16,7 @@ OUTPUT_PATH = OUTPUT_DIR / "people_matches_v1_1_events.csv"
 DEMO_PATH = OUTPUT_DIR / "people_matcher_demo_examples_v1_1_events.csv"
 
 
-TOP_K = 10
+TOP_K = 50
 PERSONAL_STOP_TERMS = {
     "no toco ninguno",
     "no practico ningun deporte",
