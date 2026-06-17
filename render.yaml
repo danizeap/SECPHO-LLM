@@ -14,13 +14,13 @@ services:
         value: gpt-5-mini
       - key: OPENAI_MODEL_FLAGSHIP
         value: gpt-5.5
+      - key: LLM_DAILY_BUDGET
+        value: "1000"
       - key: OPENAI_API_KEY
         sync: false
-      - key: SECPHO_API_AUTH_TOKEN
-        sync: false
-      - key: SECPHO_APP_PASSWORD
-        sync: false
-      - key: SECPHO_ADMIN_PASSWORD
+      # Named accounts: "email|role|pbkdf2_sha256$..." entries joined by ";".
+      # Generate with: python scripts/make_user.py EMAIL:ROLE ...
+      - key: SECPHO_USERS
         sync: false
       - key: SECPHO_SESSION_SECRET
         generateValue: true
