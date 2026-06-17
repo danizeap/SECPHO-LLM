@@ -2987,7 +2987,7 @@ AGENT_TOOL_SCHEMAS = [
 ]
 
 
-def call_agent_step(input_items: list, max_output_tokens: int = 2000):
+def call_agent_step(input_items: list, max_output_tokens: int = 2000, timeout: int = 60):
     api_key = os.getenv("OPENAI_API_KEY")
     if not api_key:
         return None, "fallback_no_api_key"
@@ -3008,7 +3008,7 @@ def call_agent_step(input_items: list, max_output_tokens: int = 2000):
             OPENAI_RESPONSES_URL,
             headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
             json=body,
-            timeout=60,
+            timeout=timeout,
         )
         if response.status_code >= 400:
             return None, f"fallback_openai_http_{response.status_code}"
@@ -3017,10 +3017,22 @@ def call_agent_step(input_items: list, max_output_tokens: int = 2000):
         return None, f"fallback_llm_error_{type(exc).__name__}"
 
 
+# Cap the cumulative outbound LLM wait for one chat turn: gpt-5-mini latency is
+# 4-60s+, and with up to 5 steps a slow streak could exceed the proxy/CDN request
+# cutoff (~100s) and 524 the user. Per-call timeout shrinks with the remaining
+# budget; on exhaustion run_agent returns "" so the caller falls back to the
+# deterministic heuristic router.
+AGENT_TOTAL_BUDGET_S = 75
+
+
 def run_agent(input_items: list, ctx: dict, max_steps: int = 4) -> tuple[str, str, list]:
     trace = []
+    deadline = time.monotonic() + AGENT_TOTAL_BUDGET_S
     for _ in range(max_steps):
-        data, status = call_agent_step(input_items)
+        remaining = deadline - time.monotonic()
+        if remaining < 5:
+            break
+        data, status = call_agent_step(input_items, timeout=min(60, int(remaining)))
         if data is None:
             return "", status, trace
         output = data.get("output", [])
@@ -3037,11 +3049,13 @@ def run_agent(input_items: list, ctx: dict, max_steps: int = 4) -> tuple[str, st
             result = dispatch_tool(name, args if isinstance(args, dict) else {}, ctx)
             trace.append({"tool": name, "args": args})
             input_items.append({"type": "function_call_output", "call_id": fc.get("call_id"), "output": json.dumps(redact_pii(result), ensure_ascii=False)[:6000]})
-    data, status = call_agent_step(input_items, max_output_tokens=1500)
-    if data is not None:
-        text = extract_response_text(data)
-        if text:
-            return text, f"agent_{data.get('model', current_model())}_capped", trace
+    remaining = deadline - time.monotonic()
+    if remaining >= 5:
+        data, status = call_agent_step(input_items, max_output_tokens=1500, timeout=min(60, int(remaining)))
+        if data is not None:
+            text = extract_response_text(data)
+            if text:
+                return text, f"agent_{data.get('model', current_model())}_capped", trace
     return "", "agent_max_steps", trace
 
 
