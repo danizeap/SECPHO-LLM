@@ -1,0 +1,42 @@
+# Copy this file to a project-specific filename before using it as a launch record.
+project: ""
+change: ""
+date: ""
+owner: ""
+
+related_gates:
+  - "Gate 1 — Product, Asset & Data Inventory"
+  - "Gate 14 — Privacy, Legal & Data Lifecycle"
+  - "Gate 18 — Backup, Recovery, Deletion & Rotation"
+
+data_classes:
+  - name: ""
+    category: ""
+    examples: []
+    sensitivity: ""
+    source: ""
+    storage_location: ""
+    retention: ""
+    deletion_path: ""
+    encryption_or_protection: ""
+    access_roles: []
+
+data_flows:
+  - name: ""
+    from: ""
+    to: ""
+    purpose: ""
+    transport_protection: ""
+    third_parties: []
+
+privacy:
+  personal_data_present: "unknown"
+  sensitive_data_present: "unknown"
+  production_data_present: "unknown"
+  user_notice_or_consent: ""
+  data_subject_request_path: ""
+  retention_policy: ""
+
+prohibited_data:
+  - type: ""
+    prevention_or_detection: ""

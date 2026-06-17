@@ -1,0 +1,641 @@
+# Project-use output template for LGF gate applicability.
+# Copy this file to sdd-plus/security/gate-applicability.yml for a project-specific LGF review.
+# This template applies always-on defaults for deployable projects.
+# The neutral schema/reference template is sdd-plus/security/gate-applicability.template.yml.
+project: ""
+change: ""
+date: ""
+owner: ""
+reviewer: ""
+
+source_of_truth:
+  - "sdd-plus/specs/launchguardian-framework.md"
+  - "sdd-plus/standards/security-shipping-standards.md"
+  - "sdd-plus/security/gate-applicability.template.yml"
+  - "sdd-plus/specs/MASTER_LAUNCHGUARDIAN_CONTEXT.md, if present"
+
+status_values:
+  applies:
+    - true
+    - false
+    - "unknown"
+  confidence:
+    - "high"
+    - "medium"
+    - "low"
+  evidence_type:
+    - "repo_evidence"
+    - "config_evidence"
+    - "human_statement"
+    - "unresolved_question"
+
+high_risk_skip_rule:
+  rule: "For any high-risk gate, applies: false is invalid unless human_confirmation_required, confirmed_by, confirmed_at, reason, and evidence are filled."
+  required_when_high_risk_gate_is_skipped:
+    human_confirmation_required: true
+    confirmed_by: "required"
+    confirmed_at: "required"
+    reason: "required"
+    evidence: "required"
+
+always_on_gates:
+  - "Gate 0 — Scope & Permission"
+  - "Gate 1 — Product, Asset & Data Inventory"
+  - "Gate 3 — Code Security"
+  - "Gate 4 — Secrets & Config Hygiene"
+  - "Gate 10 — Dependency, SBOM & Supply Chain"
+  - "Gate 17 — Observability, Logs & Incident Readiness"
+  - "Gate 20 — Launch Decision"
+
+conditional_trigger_rules:
+  frontend_detected:
+    applies_to:
+      - "Gate 5 — Frontend Exposure"
+  api_routes_detected:
+    applies_to:
+      - "Gate 6 — API Auth & Object Authorization"
+  user_input_crosses_trust_boundary:
+    applies_to:
+      - "Gate 7 — Injection & Input Safety"
+  auth_sessions_cookies_detected:
+    applies_to:
+      - "Gate 8 — Auth, Sessions & CSRF"
+  upload_import_export_or_url_fetch_detected:
+    applies_to:
+      - "Gate 9 — File Upload, SSRF, Imports & Exports"
+  public_deployment_or_infrastructure_detected:
+    applies_to:
+      - "Gate 11 — Infrastructure, DNS, TLS & Web Hardening"
+      - "Gate 12 — Resilience, DDoS, Abuse & Cost Defense"
+  webhooks_jobs_or_integrations_detected:
+    applies_to:
+      - "Gate 13 — Webhooks, Background Jobs & Integrations"
+  personal_or_sensitive_data_detected:
+    applies_to:
+      - "Gate 14 — Privacy, Legal & Data Lifecycle"
+  llm_vector_db_or_agent_tools_detected:
+    applies_to:
+      - "Gate 15 — AI/RAG/Agent Security"
+  tenant_org_client_team_model_detected:
+    applies_to:
+      - "Gate 16 — Multi-Tenant & Internal Permission Isolation"
+  persistent_data_or_rotation_needs_detected:
+    applies_to:
+      - "Gate 18 — Backup, Recovery, Deletion & Rotation"
+  business_rules_credits_payments_plans_invites_detected:
+    applies_to:
+      - "Gate 19 — Business Logic Abuse"
+  production_launch_or_live_users_detected:
+    applies_to:
+      - "Gate 21 — Continuous Monitoring"
+
+gates:
+  - gate_id: 0
+    gate_name: "Gate 0 — Scope & Permission"
+    applies: true
+    confidence: "high"
+    evidence:
+      - type: "human_statement"
+        detail: "Owner approved the review scope."
+        reference: ""
+    reason: "Always-on gate for deployable projects."
+    human_confirmation_required: true
+    confirmed_by: ""
+    confirmed_at: ""
+    unresolved_questions: []
+  - gate_id: 1
+    gate_name: "Gate 1 — Product, Asset & Data Inventory"
+    applies: true
+    confidence: "high"
+    evidence:
+      - type: "repo_evidence"
+        detail: "Project structure, routes, components, data stores, integrations, and assets should be inventoried."
+        reference: ""
+    reason: "Always-on gate for deployable projects."
+    human_confirmation_required: false
+    confirmed_by: ""
+    confirmed_at: ""
+    unresolved_questions: []
+  - gate_id: 2
+    gate_name: "Gate 2 — Threat Modeling"
+    applies: "unknown"
+    confidence: "low"
+    evidence:
+      - type: "unresolved_question"
+        detail: "Does this project include sensitive data, public deployment, auth, APIs, AI/RAG, files, integrations, money movement, or multi-tenant boundaries?"
+        reference: ""
+    reason: "Conditional gate; decide from project risk signals."
+    human_confirmation_required: false
+    confirmed_by: ""
+    confirmed_at: ""
+    unresolved_questions:
+      - "Confirm whether high-impact features exist."
+  - gate_id: 3
+    gate_name: "Gate 3 — Code Security"
+    applies: true
+    confidence: "high"
+    evidence:
+      - type: "repo_evidence"
+        detail: "Deployable project code requires code security review."
+        reference: ""
+    reason: "Always-on gate for deployable projects."
+    human_confirmation_required: false
+    confirmed_by: ""
+    confirmed_at: ""
+    unresolved_questions: []
+  - gate_id: 4
+    gate_name: "Gate 4 — Secrets & Config Hygiene"
+    applies: true
+    confidence: "high"
+    evidence:
+      - type: "config_evidence"
+        detail: "Deployable projects usually depend on environment configuration, credentials, or secrets."
+        reference: ""
+    reason: "Always-on gate for deployable projects."
+    human_confirmation_required: false
+    confirmed_by: ""
+    confirmed_at: ""
+    unresolved_questions: []
+  - gate_id: 5
+    gate_name: "Gate 5 — Frontend Exposure"
+    applies: "unknown"
+    confidence: "low"
+    evidence:
+      - type: "unresolved_question"
+        detail: "Is there a frontend, public assets directory, static build output, or browser-delivered application?"
+        reference: ""
+    reason: "Frontend detected means this gate applies."
+    human_confirmation_required: false
+    confirmed_by: ""
+    confirmed_at: ""
+    unresolved_questions:
+      - "Confirm whether frontend artifacts exist."
+  - gate_id: 6
+    gate_name: "Gate 6 — API Auth & Object Authorization"
+    applies: "unknown"
+    confidence: "low"
+    evidence:
+      - type: "unresolved_question"
+        detail: "Are there API routes, RPC endpoints, webhooks, GraphQL resolvers, or backend actions?"
+        reference: ""
+    reason: "API routes detected means this gate applies."
+    human_confirmation_required: false
+    confirmed_by: ""
+    confirmed_at: ""
+    unresolved_questions:
+      - "Confirm whether API routes exist."
+  - gate_id: 7
+    gate_name: "Gate 7 — Injection & Input Safety"
+    applies: "unknown"
+    confidence: "low"
+    evidence:
+      - type: "unresolved_question"
+        detail: "Does user input reach databases, commands, templates, HTML, Markdown, file paths, parsers, or AI tools?"
+        reference: ""
+    reason: "User input crossing trust boundaries means this gate applies."
+    human_confirmation_required: false
+    confirmed_by: ""
+    confirmed_at: ""
+    unresolved_questions:
+      - "Confirm user-input trust boundaries."
+  - gate_id: 8
+    gate_name: "Gate 8 — Auth, Sessions & CSRF"
+    applies: "unknown"
+    confidence: "low"
+    evidence:
+      - type: "unresolved_question"
+        detail: "Does the project use login, sessions, cookies, OAuth, magic links, password reset, or admin auth?"
+        reference: ""
+    reason: "Auth/session/cookie behavior detected means this gate applies."
+    human_confirmation_required: false
+    confirmed_by: ""
+    confirmed_at: ""
+    unresolved_questions:
+      - "Confirm auth and session model."
+  - gate_id: 9
+    gate_name: "Gate 9 — File Upload, SSRF, Imports & Exports"
+    applies: "unknown"
+    confidence: "low"
+    evidence:
+      - type: "unresolved_question"
+        detail: "Does the project handle uploads, imports, exports, file parsing, generated downloads, or server-side URL fetching?"
+        reference: ""
+    reason: "Upload/import/export or URL-fetching functionality detected means this gate applies."
+    human_confirmation_required: false
+    confirmed_by: ""
+    confirmed_at: ""
+    unresolved_questions:
+      - "Confirm file and URL-fetching flows."
+  - gate_id: 10
+    gate_name: "Gate 10 — Dependency, SBOM & Supply Chain"
+    applies: true
+    confidence: "high"
+    evidence:
+      - type: "repo_evidence"
+        detail: "Deployable projects rely on dependencies, toolchains, or build inputs."
+        reference: ""
+    reason: "Always-on gate for deployable projects."
+    human_confirmation_required: false
+    confirmed_by: ""
+    confirmed_at: ""
+    unresolved_questions: []
+  - gate_id: 11
+    gate_name: "Gate 11 — Infrastructure, DNS, TLS & Web Hardening"
+    applies: "unknown"
+    confidence: "low"
+    evidence:
+      - type: "unresolved_question"
+        detail: "Is there public hosting, DNS, TLS, CDN, WAF, cloud infrastructure, or deployment configuration?"
+        reference: ""
+    reason: "Public deployment or infrastructure detected means this gate applies."
+    human_confirmation_required: false
+    confirmed_by: ""
+    confirmed_at: ""
+    unresolved_questions:
+      - "Confirm deployment and infrastructure exposure."
+  - gate_id: 12
+    gate_name: "Gate 12 — Resilience, DDoS, Abuse & Cost Defense"
+    applies: "unknown"
+    confidence: "low"
+    evidence:
+      - type: "unresolved_question"
+        detail: "Can public traffic, repeated requests, AI calls, uploads, auth flows, or expensive jobs cause outage or cost abuse?"
+        reference: ""
+    reason: "Public exposure, rate-limit-sensitive APIs, AI costs, or abuse paths mean this gate applies."
+    human_confirmation_required: false
+    confirmed_by: ""
+    confirmed_at: ""
+    unresolved_questions:
+      - "Confirm abuse and cost-exposure paths."
+  - gate_id: 13
+    gate_name: "Gate 13 — Webhooks, Background Jobs & Integrations"
+    applies: "unknown"
+    confidence: "low"
+    evidence:
+      - type: "unresolved_question"
+        detail: "Are there webhooks, background workers, queues, scheduled jobs, third-party integrations, or OAuth scopes?"
+        reference: ""
+    reason: "Webhooks, jobs, or integrations detected means this gate applies."
+    human_confirmation_required: false
+    confirmed_by: ""
+    confirmed_at: ""
+    unresolved_questions:
+      - "Confirm integration and async job surfaces."
+  - gate_id: 14
+    gate_name: "Gate 14 — Privacy, Legal & Data Lifecycle"
+    applies: "unknown"
+    confidence: "low"
+    evidence:
+      - type: "unresolved_question"
+        detail: "Does the project collect, store, process, share, retain, or delete personal or sensitive data?"
+        reference: ""
+    reason: "Personal or sensitive data detected means this gate applies."
+    human_confirmation_required: false
+    confirmed_by: ""
+    confirmed_at: ""
+    unresolved_questions:
+      - "Confirm personal and sensitive data handling."
+  - gate_id: 15
+    gate_name: "Gate 15 — AI/RAG/Agent Security"
+    applies: "unknown"
+    confidence: "low"
+    evidence:
+      - type: "unresolved_question"
+        detail: "Does the project use LLMs, embeddings, vector databases, RAG, AI agents, model tools, or AI workflow automation?"
+        reference: ""
+    reason: "LLM/vector DB/agent tooling detected means this gate applies."
+    human_confirmation_required: false
+    confirmed_by: ""
+    confirmed_at: ""
+    unresolved_questions:
+      - "Confirm AI/RAG/agent usage."
+  - gate_id: 16
+    gate_name: "Gate 16 — Multi-Tenant & Internal Permission Isolation"
+    applies: "unknown"
+    confidence: "low"
+    evidence:
+      - type: "unresolved_question"
+        detail: "Does the project include tenants, organizations, workspaces, clients, teams, accounts, internal roles, or cross-user permission boundaries?"
+        reference: ""
+    reason: "Tenant/org/client/team model detected means this gate applies."
+    human_confirmation_required: false
+    confirmed_by: ""
+    confirmed_at: ""
+    unresolved_questions:
+      - "Confirm tenant and permission isolation model."
+  - gate_id: 17
+    gate_name: "Gate 17 — Observability, Logs & Incident Readiness"
+    applies: true
+    confidence: "high"
+    evidence:
+      - type: "repo_evidence"
+        detail: "Deployable projects need logs, incident ownership, and readiness evidence."
+        reference: ""
+    reason: "Always-on gate for deployable projects."
+    human_confirmation_required: false
+    confirmed_by: ""
+    confirmed_at: ""
+    unresolved_questions: []
+  - gate_id: 18
+    gate_name: "Gate 18 — Backup, Recovery, Deletion & Rotation"
+    applies: "unknown"
+    confidence: "low"
+    evidence:
+      - type: "unresolved_question"
+        detail: "Does the project store persistent data, need deletion, require backups, or depend on rotatable secrets/tokens?"
+        reference: ""
+    reason: "Persistent data or rotation needs detected means this gate applies."
+    human_confirmation_required: false
+    confirmed_by: ""
+    confirmed_at: ""
+    unresolved_questions:
+      - "Confirm backup, deletion, recovery, and rotation needs."
+  - gate_id: 19
+    gate_name: "Gate 19 — Business Logic Abuse"
+    applies: "unknown"
+    confidence: "low"
+    evidence:
+      - type: "unresolved_question"
+        detail: "Does the project include plans, subscriptions, payments, credits, invites, trials, quotas, entitlements, approvals, or other business rules?"
+        reference: ""
+    reason: "Business rules/credits/payments/plans/invites detected means this gate applies."
+    human_confirmation_required: false
+    confirmed_by: ""
+    confirmed_at: ""
+    unresolved_questions:
+      - "Confirm business logic abuse surfaces."
+  - gate_id: 20
+    gate_name: "Gate 20 — Launch Decision"
+    applies: true
+    confidence: "high"
+    evidence:
+      - type: "human_statement"
+        detail: "Every LGF review requires an explicit launch decision."
+        reference: ""
+    reason: "Always-on gate for deployable projects."
+    human_confirmation_required: true
+    confirmed_by: ""
+    confirmed_at: ""
+    unresolved_questions: []
+  - gate_id: 21
+    gate_name: "Gate 21 — Continuous Monitoring"
+    applies: "unknown"
+    confidence: "low"
+    evidence:
+      - type: "unresolved_question"
+        detail: "Is this project launching to production, serving live users, or requiring post-launch monitoring and ownership?"
+        reference: ""
+    reason: "Production launch or live users detected means this gate applies."
+    human_confirmation_required: false
+    confirmed_by: ""
+    confirmed_at: ""
+    unresolved_questions:
+      - "Confirm launch and monitoring expectations."
+
+example_completed_matrix_generic_saas_ai_app:
+  description: "Generic SaaS AI app with web frontend, API routes, auth, organizations, subscriptions, LLM calls, vector retrieval, webhooks, jobs, and production launch plans."
+  gates:
+    - gate_id: 0
+      gate_name: "Gate 0 — Scope & Permission"
+      applies: true
+      confidence: "high"
+      evidence:
+        - type: "human_statement"
+          detail: "Owner approved repo and staging URL scope."
+      reason: "Always-on and scope is explicitly approved."
+      human_confirmation_required: true
+      confirmed_by: "Example Owner"
+      confirmed_at: "YYYY-MM-DD"
+    - gate_id: 1
+      gate_name: "Gate 1 — Product, Asset & Data Inventory"
+      applies: true
+      confidence: "high"
+      evidence:
+        - type: "repo_evidence"
+          detail: "Frontend, API, database, auth provider, LLM provider, vector DB, jobs, and webhooks identified."
+      reason: "Always-on and product assets exist."
+      human_confirmation_required: false
+      confirmed_by: ""
+      confirmed_at: ""
+    - gate_id: 2
+      gate_name: "Gate 2 — Threat Modeling"
+      applies: true
+      confidence: "high"
+      evidence:
+        - type: "repo_evidence"
+          detail: "Public SaaS with auth, AI, tenant data, payments, and integrations."
+      reason: "High-impact features require threat modeling."
+      human_confirmation_required: false
+      confirmed_by: ""
+      confirmed_at: ""
+    - gate_id: 3
+      gate_name: "Gate 3 — Code Security"
+      applies: true
+      confidence: "high"
+      evidence:
+        - type: "repo_evidence"
+          detail: "Deployable app code exists."
+      reason: "Always-on gate."
+      human_confirmation_required: false
+      confirmed_by: ""
+      confirmed_at: ""
+    - gate_id: 4
+      gate_name: "Gate 4 — Secrets & Config Hygiene"
+      applies: true
+      confidence: "high"
+      evidence:
+        - type: "config_evidence"
+          detail: "Environment variables and third-party providers detected."
+      reason: "Always-on gate."
+      human_confirmation_required: false
+      confirmed_by: ""
+      confirmed_at: ""
+    - gate_id: 5
+      gate_name: "Gate 5 — Frontend Exposure"
+      applies: true
+      confidence: "high"
+      evidence:
+        - type: "repo_evidence"
+          detail: "Web frontend and public routes detected."
+      reason: "Frontend detected."
+      human_confirmation_required: false
+      confirmed_by: ""
+      confirmed_at: ""
+    - gate_id: 6
+      gate_name: "Gate 6 — API Auth & Object Authorization"
+      applies: true
+      confidence: "high"
+      evidence:
+        - type: "repo_evidence"
+          detail: "API routes and user/org resources detected."
+      reason: "API routes detected."
+      human_confirmation_required: false
+      confirmed_by: ""
+      confirmed_at: ""
+    - gate_id: 7
+      gate_name: "Gate 7 — Injection & Input Safety"
+      applies: true
+      confidence: "high"
+      evidence:
+        - type: "repo_evidence"
+          detail: "User prompts, forms, API inputs, and search/filter inputs detected."
+      reason: "User input crosses trust boundaries."
+      human_confirmation_required: false
+      confirmed_by: ""
+      confirmed_at: ""
+    - gate_id: 8
+      gate_name: "Gate 8 — Auth, Sessions & CSRF"
+      applies: true
+      confidence: "high"
+      evidence:
+        - type: "config_evidence"
+          detail: "Login, sessions, cookies, OAuth, or auth provider detected."
+      reason: "Auth/session behavior detected."
+      human_confirmation_required: false
+      confirmed_by: ""
+      confirmed_at: ""
+    - gate_id: 9
+      gate_name: "Gate 9 — File Upload, SSRF, Imports & Exports"
+      applies: "unknown"
+      confidence: "medium"
+      evidence:
+        - type: "unresolved_question"
+          detail: "No upload route confirmed yet; exports may exist."
+      reason: "File and export behavior is unresolved."
+      human_confirmation_required: false
+      confirmed_by: ""
+      confirmed_at: ""
+    - gate_id: 10
+      gate_name: "Gate 10 — Dependency, SBOM & Supply Chain"
+      applies: true
+      confidence: "high"
+      evidence:
+        - type: "repo_evidence"
+          detail: "Package manifests and lockfiles detected."
+      reason: "Always-on gate."
+      human_confirmation_required: false
+      confirmed_by: ""
+      confirmed_at: ""
+    - gate_id: 11
+      gate_name: "Gate 11 — Infrastructure, DNS, TLS & Web Hardening"
+      applies: true
+      confidence: "high"
+      evidence:
+        - type: "config_evidence"
+          detail: "Public deployment target detected."
+      reason: "Public deployment detected."
+      human_confirmation_required: false
+      confirmed_by: ""
+      confirmed_at: ""
+    - gate_id: 12
+      gate_name: "Gate 12 — Resilience, DDoS, Abuse & Cost Defense"
+      applies: true
+      confidence: "high"
+      evidence:
+        - type: "repo_evidence"
+          detail: "Public app, API endpoints, auth flows, and AI cost exposure detected."
+      reason: "Public exposure and cost-abuse paths detected."
+      human_confirmation_required: false
+      confirmed_by: ""
+      confirmed_at: ""
+    - gate_id: 13
+      gate_name: "Gate 13 — Webhooks, Background Jobs & Integrations"
+      applies: true
+      confidence: "high"
+      evidence:
+        - type: "repo_evidence"
+          detail: "Payment webhook and background worker detected."
+      reason: "Webhooks and jobs detected."
+      human_confirmation_required: false
+      confirmed_by: ""
+      confirmed_at: ""
+    - gate_id: 14
+      gate_name: "Gate 14 — Privacy, Legal & Data Lifecycle"
+      applies: true
+      confidence: "high"
+      evidence:
+        - type: "repo_evidence"
+          detail: "User profiles, org data, prompts, and retained AI outputs detected."
+      reason: "Personal and retained data detected."
+      human_confirmation_required: false
+      confirmed_by: ""
+      confirmed_at: ""
+    - gate_id: 15
+      gate_name: "Gate 15 — AI/RAG/Agent Security"
+      applies: true
+      confidence: "high"
+      evidence:
+        - type: "repo_evidence"
+          detail: "LLM provider and vector DB detected."
+      reason: "LLM and vector retrieval detected."
+      human_confirmation_required: false
+      confirmed_by: ""
+      confirmed_at: ""
+    - gate_id: 16
+      gate_name: "Gate 16 — Multi-Tenant & Internal Permission Isolation"
+      applies: true
+      confidence: "high"
+      evidence:
+        - type: "repo_evidence"
+          detail: "Organization/workspace model detected."
+      reason: "Tenant-like model detected."
+      human_confirmation_required: false
+      confirmed_by: ""
+      confirmed_at: ""
+    - gate_id: 17
+      gate_name: "Gate 17 — Observability, Logs & Incident Readiness"
+      applies: true
+      confidence: "high"
+      evidence:
+        - type: "repo_evidence"
+          detail: "Always-on gate for deployable projects."
+      reason: "Always-on gate."
+      human_confirmation_required: false
+      confirmed_by: ""
+      confirmed_at: ""
+    - gate_id: 18
+      gate_name: "Gate 18 — Backup, Recovery, Deletion & Rotation"
+      applies: true
+      confidence: "medium"
+      evidence:
+        - type: "repo_evidence"
+          detail: "Database and retained user data detected."
+        - type: "unresolved_question"
+          detail: "Restore evidence is unresolved."
+      reason: "Persistent data detected."
+      human_confirmation_required: false
+      confirmed_by: ""
+      confirmed_at: ""
+    - gate_id: 19
+      gate_name: "Gate 19 — Business Logic Abuse"
+      applies: true
+      confidence: "high"
+      evidence:
+        - type: "repo_evidence"
+          detail: "Plans, subscription checks, credits, or entitlements detected."
+      reason: "Business rules detected."
+      human_confirmation_required: false
+      confirmed_by: ""
+      confirmed_at: ""
+    - gate_id: 20
+      gate_name: "Gate 20 — Launch Decision"
+      applies: true
+      confidence: "high"
+      evidence:
+        - type: "human_statement"
+          detail: "Every LGF review requires an explicit launch decision."
+      reason: "Always-on gate."
+      human_confirmation_required: true
+      confirmed_by: "Example Owner"
+      confirmed_at: "YYYY-MM-DD"
+    - gate_id: 21
+      gate_name: "Gate 21 — Continuous Monitoring"
+      applies: true
+      confidence: "high"
+      evidence:
+        - type: "human_statement"
+          detail: "Production launch and live users expected."
+      reason: "Production launch or live users detected."
+      human_confirmation_required: false
+      confirmed_by: ""
+      confirmed_at: ""

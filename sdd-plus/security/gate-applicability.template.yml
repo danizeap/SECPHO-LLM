@@ -1,0 +1,289 @@
+# Neutral schema/reference template for LGF gate applicability.
+# This file documents the fields and may leave gates unknown to avoid project assumptions.
+# For project output, copy sdd-plus/security/gate-applicability.output.template.yml to
+# sdd-plus/security/gate-applicability.yml and apply always-on defaults.
+project: ""
+change: ""
+date: ""
+owner: ""
+
+launchguardian:
+  applies: "unknown"
+  confidence: "low"
+  evidence: []
+  reason: ""
+  human_confirmation_required: true
+  confirmed_by: ""
+  confirmed_at: ""
+  deployable_artifact: ""
+  launch_target: ""
+
+related_gates:
+  - "Gate 0 — Scope & Permission"
+  - "Gate 1 — Product, Asset & Data Inventory"
+  - "Gate 2 — Threat Modeling"
+  - "Gate 3 — Code Security"
+  - "Gate 4 — Secrets & Config Hygiene"
+  - "Gate 5 — Frontend Exposure"
+  - "Gate 6 — API Auth & Object Authorization"
+  - "Gate 7 — Injection & Input Safety"
+  - "Gate 8 — Auth, Sessions & CSRF"
+  - "Gate 9 — File Upload, SSRF, Imports & Exports"
+  - "Gate 10 — Dependency, SBOM & Supply Chain"
+  - "Gate 11 — Infrastructure, DNS, TLS & Web Hardening"
+  - "Gate 12 — Resilience, DDoS, Abuse & Cost Defense"
+  - "Gate 13 — Webhooks, Background Jobs & Integrations"
+  - "Gate 14 — Privacy, Legal & Data Lifecycle"
+  - "Gate 15 — AI/RAG/Agent Security"
+  - "Gate 16 — Multi-Tenant & Internal Permission Isolation"
+  - "Gate 17 — Observability, Logs & Incident Readiness"
+  - "Gate 18 — Backup, Recovery, Deletion & Rotation"
+  - "Gate 19 — Business Logic Abuse"
+  - "Gate 20 — Launch Decision"
+  - "Gate 21 — Continuous Monitoring"
+
+high_risk_skip_rule:
+  rule: "For any high-risk gate, applies: false is invalid unless human_confirmation_required, confirmed_by, confirmed_at, reason, and evidence are filled."
+  required_when_high_risk_gate_is_skipped:
+    human_confirmation_required: true
+    confirmed_by: "required"
+    confirmed_at: "required"
+    reason: "required"
+    evidence: "required"
+
+gates:
+  scope_permission:
+    gate: 0
+    name: "Gate 0 — Scope & Permission"
+    applies: "unknown"
+    confidence: "low"
+    evidence: []
+    reason: ""
+    human_confirmation_required: false
+    confirmed_by: ""
+    confirmed_at: ""
+  product_asset_data_inventory:
+    gate: 1
+    name: "Gate 1 — Product, Asset & Data Inventory"
+    applies: "unknown"
+    confidence: "low"
+    evidence: []
+    reason: ""
+    human_confirmation_required: false
+    confirmed_by: ""
+    confirmed_at: ""
+  threat_modeling:
+    gate: 2
+    name: "Gate 2 — Threat Modeling"
+    applies: "unknown"
+    confidence: "low"
+    evidence: []
+    reason: ""
+    human_confirmation_required: false
+    confirmed_by: ""
+    confirmed_at: ""
+  code_security:
+    gate: 3
+    name: "Gate 3 — Code Security"
+    applies: "unknown"
+    confidence: "low"
+    evidence: []
+    reason: ""
+    human_confirmation_required: false
+    confirmed_by: ""
+    confirmed_at: ""
+  secrets_config_hygiene:
+    gate: 4
+    name: "Gate 4 — Secrets & Config Hygiene"
+    applies: "unknown"
+    confidence: "low"
+    evidence: []
+    reason: ""
+    human_confirmation_required: false
+    confirmed_by: ""
+    confirmed_at: ""
+  frontend_exposure:
+    gate: 5
+    name: "Gate 5 — Frontend Exposure"
+    applies: "unknown"
+    confidence: "low"
+    evidence: []
+    reason: ""
+    human_confirmation_required: false
+    confirmed_by: ""
+    confirmed_at: ""
+  api_auth_object_authorization:
+    gate: 6
+    name: "Gate 6 — API Auth & Object Authorization"
+    applies: "unknown"
+    confidence: "low"
+    evidence: []
+    reason: ""
+    human_confirmation_required: false
+    confirmed_by: ""
+    confirmed_at: ""
+  injection_input_safety:
+    gate: 7
+    name: "Gate 7 — Injection & Input Safety"
+    applies: "unknown"
+    confidence: "low"
+    evidence: []
+    reason: ""
+    human_confirmation_required: false
+    confirmed_by: ""
+    confirmed_at: ""
+  auth_sessions_csrf:
+    gate: 8
+    name: "Gate 8 — Auth, Sessions & CSRF"
+    applies: "unknown"
+    confidence: "low"
+    evidence: []
+    reason: ""
+    human_confirmation_required: false
+    confirmed_by: ""
+    confirmed_at: ""
+  file_upload_ssrf_imports_exports:
+    gate: 9
+    name: "Gate 9 — File Upload, SSRF, Imports & Exports"
+    applies: "unknown"
+    confidence: "low"
+    evidence: []
+    reason: ""
+    human_confirmation_required: false
+    confirmed_by: ""
+    confirmed_at: ""
+  dependency_sbom_supply_chain:
+    gate: 10
+    name: "Gate 10 — Dependency, SBOM & Supply Chain"
+    applies: "unknown"
+    confidence: "low"
+    evidence: []
+    reason: ""
+    human_confirmation_required: false
+    confirmed_by: ""
+    confirmed_at: ""
+  infrastructure_dns_tls_web_hardening:
+    gate: 11
+    name: "Gate 11 — Infrastructure, DNS, TLS & Web Hardening"
+    applies: "unknown"
+    confidence: "low"
+    evidence: []
+    reason: ""
+    human_confirmation_required: false
+    confirmed_by: ""
+    confirmed_at: ""
+  resilience_ddos_abuse_cost_defense:
+    gate: 12
+    name: "Gate 12 — Resilience, DDoS, Abuse & Cost Defense"
+    applies: "unknown"
+    confidence: "low"
+    evidence: []
+    reason: ""
+    human_confirmation_required: false
+    confirmed_by: ""
+    confirmed_at: ""
+  webhooks_background_jobs_integrations:
+    gate: 13
+    name: "Gate 13 — Webhooks, Background Jobs & Integrations"
+    applies: "unknown"
+    confidence: "low"
+    evidence: []
+    reason: ""
+    human_confirmation_required: false
+    confirmed_by: ""
+    confirmed_at: ""
+  privacy_legal_data_lifecycle:
+    gate: 14
+    name: "Gate 14 — Privacy, Legal & Data Lifecycle"
+    applies: "unknown"
+    confidence: "low"
+    evidence: []
+    reason: ""
+    human_confirmation_required: false
+    confirmed_by: ""
+    confirmed_at: ""
+  ai_rag_agent_security:
+    gate: 15
+    name: "Gate 15 — AI/RAG/Agent Security"
+    applies: "unknown"
+    confidence: "low"
+    evidence: []
+    reason: ""
+    human_confirmation_required: false
+    confirmed_by: ""
+    confirmed_at: ""
+  multi_tenant_internal_permission_isolation:
+    gate: 16
+    name: "Gate 16 — Multi-Tenant & Internal Permission Isolation"
+    applies: "unknown"
+    confidence: "low"
+    evidence: []
+    reason: ""
+    human_confirmation_required: false
+    confirmed_by: ""
+    confirmed_at: ""
+  observability_logs_incident_readiness:
+    gate: 17
+    name: "Gate 17 — Observability, Logs & Incident Readiness"
+    applies: "unknown"
+    confidence: "low"
+    evidence: []
+    reason: ""
+    human_confirmation_required: false
+    confirmed_by: ""
+    confirmed_at: ""
+  backup_recovery_deletion_rotation:
+    gate: 18
+    name: "Gate 18 — Backup, Recovery, Deletion & Rotation"
+    applies: "unknown"
+    confidence: "low"
+    evidence: []
+    reason: ""
+    human_confirmation_required: false
+    confirmed_by: ""
+    confirmed_at: ""
+  business_logic_abuse:
+    gate: 19
+    name: "Gate 19 — Business Logic Abuse"
+    applies: "unknown"
+    confidence: "low"
+    evidence: []
+    reason: ""
+    human_confirmation_required: false
+    confirmed_by: ""
+    confirmed_at: ""
+  launch_decision:
+    gate: 20
+    name: "Gate 20 — Launch Decision"
+    applies: true
+    confidence: "high"
+    evidence: []
+    reason: "Every LGF review needs an explicit launch decision."
+    human_confirmation_required: true
+    confirmed_by: ""
+    confirmed_at: ""
+  continuous_monitoring:
+    gate: 21
+    name: "Gate 21 — Continuous Monitoring"
+    applies: "unknown"
+    confidence: "low"
+    evidence: []
+    reason: ""
+    human_confirmation_required: false
+    confirmed_by: ""
+    confirmed_at: ""
+
+allowed_values:
+  applies:
+    - true
+    - false
+    - "unknown"
+  confidence:
+    - "high"
+    - "medium"
+    - "low"
+
+notes:
+  - "Agents may propose gate applicability."
+  - "Humans must confirm skipped high-risk gates."
+  - "Use human_confirmation_required: true when a skipped or uncertain gate affects launch risk."

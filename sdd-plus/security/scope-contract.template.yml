@@ -1,0 +1,53 @@
+# Copy this file to a project-specific filename before using it as a launch record.
+project: ""
+change: ""
+date: ""
+owner: ""
+
+related_gates:
+  - "Gate 0 — Scope & Permission"
+  - "Gate 1 — Product, Asset & Data Inventory"
+  - "Gate 11 — Infrastructure, DNS, TLS & Web Hardening"
+
+scope:
+  summary: ""
+  launch_type: ""
+  environments:
+    - name: ""
+      purpose: ""
+      public_exposure: ""
+  in_scope:
+    - ""
+  out_of_scope:
+    - ""
+  assumptions:
+    - ""
+  open_questions:
+    - ""
+
+users_and_access:
+  intended_users:
+    - ""
+  excluded_users:
+    - ""
+  admin_or_operator_roles:
+    - ""
+
+external_boundaries:
+  domains:
+    - ""
+  third_party_services:
+    - name: ""
+      purpose: ""
+      data_shared: ""
+  inbound_integrations:
+    - ""
+  outbound_integrations:
+    - ""
+
+launch_constraints:
+  must_have:
+    - ""
+  must_not_do:
+    - ""
+  rollback_or_disable_path: ""

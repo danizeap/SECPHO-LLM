@@ -1,0 +1,46 @@
+# Copy this file to a project-specific filename before using it as a launch record.
+project: ""
+change: ""
+date: ""
+owner: ""
+
+related_gates:
+  - "Gate 6 — API Auth & Object Authorization"
+  - "Gate 8 — Auth, Sessions & CSRF"
+  - "Gate 16 — Multi-Tenant & Internal Permission Isolation"
+
+authentication:
+  required: "unknown"
+  provider: ""
+  session_management: ""
+  mfa_required_for_admins: "unknown"
+  password_or_secret_handling: ""
+
+roles:
+  - name: ""
+    description: ""
+    assigned_by: ""
+    review_frequency: ""
+
+permissions:
+  - action: ""
+    anonymous: false
+    user: false
+    admin: false
+    operator: false
+    notes: ""
+
+authorization_checks:
+  server_side_enforced: "unknown"
+  client_side_only_controls: []
+  object_level_authorization: "unknown"
+  tenant_or_account_isolation: "unknown"
+
+privileged_access:
+  admin_surfaces:
+    - ""
+  break_glass_access: ""
+  audit_logging: ""
+
+open_questions:
+  - ""

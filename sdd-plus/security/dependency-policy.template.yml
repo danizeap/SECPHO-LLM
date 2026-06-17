@@ -1,0 +1,50 @@
+# Copy this file to a project-specific filename before using it as a project policy.
+project: ""
+date: ""
+owner: ""
+
+related_gates:
+  - "Gate 10 — Dependency, SBOM & Supply Chain"
+
+policy:
+  package_managers:
+    - ""
+  lockfiles_required: true
+  allowed_registries:
+    - ""
+  prohibited_dependencies:
+    - name_or_pattern: ""
+      reason: ""
+  license_constraints:
+    allowed: []
+    review_required: []
+    prohibited: []
+
+review_rules:
+  new_runtime_dependency:
+    requires_review: true
+    reviewer: ""
+  new_build_or_dev_dependency:
+    requires_review: true
+    reviewer: ""
+  dependency_with_install_scripts:
+    requires_review: true
+    reviewer: ""
+  unmaintained_or_deprecated_dependency:
+    requires_review: true
+    reviewer: ""
+
+vulnerability_thresholds:
+  critical: "block_launch"
+  high: "block_or_human_acceptance_required"
+  medium: "mitigate_or_track"
+  low: "track"
+
+update_cadence:
+  security_updates: ""
+  routine_updates: ""
+
+evidence:
+  audit_commands: []
+  lockfiles: []
+  exceptions: []
