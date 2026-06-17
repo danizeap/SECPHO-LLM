@@ -6,7 +6,7 @@ Read `AGENTS.md` for the full SDD+ operating rules. This file covers only what i
 
 - **Skills are the operating procedures.** The SDD+ skills ship with the Drydock plugin and load automatically when relevant. Do not preload skills; let the task trigger them.
 - **The verifier subagent replaces external verification.** After meaningful implementation work, invoke the `verifier` subagent to independently check the diff, tests, and evidence claims. Your own report is evidence, not verification.
-- **Hooks enforce hard guardrails.** Secrets-path protection runs as a PreToolUse hook. Do not attempt to edit files the hook blocks; tell the Owner instead.
+- **Hooks enforce hard guardrails.** Three PreToolUse hooks run: secrets-path protection (blocks editing secret files), git-safety (blocks destructive git), and lifecycle enforcement (`.claude/hooks/require_active_change.py` blocks `Write`/`Edit`/`MultiEdit` to product source — `backend_api/`, `recommendation_engine/`, `report_engine/`, `scripts/` — when there is no active change packet under `sdd-plus/changes/`). If the lifecycle hook blocks you, open a change first (`/drydock:new <name>`); product source is never edited outside a drydock change. Do not attempt to edit files the secrets hook blocks; tell the Owner instead.
 
 ## First-run rule
 

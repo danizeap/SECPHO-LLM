@@ -2,12 +2,12 @@
 
 ## Purpose
 
-A conversational analyst over SECPHO's cluster data: a bounded tool-calling agent that reasons over real socios/people/events/retos, preserves the deterministic matchmaker as the sole ranking authority, and degrades gracefully when the LLM is unavailable.
+A conversational analyst over SECPHO's cluster data: a bounded tool-calling agent that reasons over real socios/people/events/retos, preserves the deterministic matchmaker as the sole ranking authority, converses naturally, and degrades gracefully when the LLM is slow or unavailable.
 
 ## Requirements
 
 ### Requirement: Tool-calling agent loop
-The system SHALL answer chat questions by running a bounded tool-calling loop (`run_agent`, `max_steps=6`) over the OpenAI Responses API, where the model may call deterministic data tools in sequence and reason over their returned rows before answering. Eleven tools wrap the existing deterministic functions: search_people, get_person_profile, search_socios, get_socio_profile, rank_socios, list_events, list_retos, ecosystem_overview, aggregate_stats, recommend_contacts, rerank_contacts.
+The system SHALL answer chat questions by running a bounded tool-calling loop (`run_agent`) over the OpenAI Responses API, capped BOTH by a step count (`max_steps=4`) AND by a cumulative wall-clock budget (`AGENT_TOTAL_BUDGET_S=75`), where each model call's timeout shrinks with the remaining budget. The model may call deterministic data tools in sequence and reason over their returned rows before answering. Eleven tools wrap the existing deterministic functions: search_people, get_person_profile, search_socios, get_socio_profile, rank_socios, list_events, list_retos, ecosystem_overview, aggregate_stats, recommend_contacts, rerank_contacts.
 
 #### Scenario: Cross-source question chains tools
 - **WHEN** a user asks a question that spans sources (e.g. top socios by province plus photonics events)
@@ -17,23 +17,45 @@ The system SHALL answer chat questions by running a bounded tool-calling loop (`
 - **WHEN** the model keeps requesting tool calls past the step cap, or a tool raises
 - **THEN** the loop makes one final capped model call and the tool dispatcher returns `{"error": ...}` instead of raising, so a request never runs unbounded or 500s.
 
+#### Scenario: Loop is bounded in time
+- **WHEN** the model/tool calls are slow
+- **THEN** each call's timeout shrinks with the remaining budget and, once the budget is spent, the loop stops and the endpoint falls back to `chat_flow` — so a single chat turn cannot exceed ~75s of outbound wait (kept under the proxy/CDN ~100s cutoff).
+
+### Requirement: Conversational-first interaction
+The system SHALL behave as a conversational assistant first, not a report generator, and SHALL reply at the size of the message. It SHALL greet and converse for greetings/small talk; answer direct data questions directly without asking permission; and for open or exploratory messages (e.g. "who should I test?", "show me an example") give a brief, concrete suggestion, OFFER the next step, and WAIT — it SHALL NOT produce a full recommendations report unprompted.
+
+#### Scenario: Greeting
+- **WHEN** the user sends a greeting ("hola")
+- **THEN** the agent replies conversationally and offers what it can do, calling no tools and producing no report.
+
+#### Scenario: Exploratory question offers and waits
+- **WHEN** the user asks an open question like "¿quién me sugieres testear?"
+- **THEN** the agent suggests a specific person with brief reasoning, offers to generate the report, and waits — it does not generate the report unprompted.
+
+#### Scenario: Direct data question answered directly
+- **WHEN** the user asks a direct data question ("¿cuántos socios hay por provincia?")
+- **THEN** the agent looks it up with a tool and answers directly, without asking permission.
+
 ### Requirement: Grounded, no-invention answers
-The system SHALL instruct the agent to use tools for real data and never invent people, companies, counts, scores, events, or retos; when tools return nothing relevant the agent says so plainly. The agent defaults to acting with sensible defaults rather than asking the user to clarify.
+The system SHALL instruct the agent to use tools for real data and never invent people, companies, counts, scores, events, or retos; when tools return nothing relevant the agent says so plainly.
 
 #### Scenario: No relevant data
 - **WHEN** the tools return nothing relevant to the question
 - **THEN** the agent states it plainly and suggests what it can answer instead of fabricating a result.
 
-#### Scenario: Acts with defaults
-- **WHEN** a reasonable request is underspecified (e.g. "top socios" with no metric)
-- **THEN** the agent acts with a sensible default (e.g. readiness ranking) rather than asking a clarifying question.
-
 ### Requirement: Math decides ranking
-The system SHALL source recommendation rankings and scores only from the `recommend_contacts` and `rerank_contacts` tools, and SHALL NOT reorder, re-score, merge, or invent matches; no other tool emits a ranking.
+The system SHALL source recommendation rankings and scores only from the `recommend_contacts` and `rerank_contacts` tools, and SHALL NOT reorder, re-score, merge, or invent matches; no other tool emits a ranking. In chat, recommendations are presented as a concise ranked list with one line of evidence each plus the `[tune:THEIR_MEMBER_ID]` token; the full one-page report is written inline only when the user explicitly asks for "the report" / "el informe".
 
 #### Scenario: Recommendation request
 - **WHEN** a user asks who a person should connect with
 - **THEN** the agent calls `recommend_contacts`, presents its `recommendations_ranked_by_model` order unchanged, preserves any `[person:ID]` token, and appends `[tune:THEIR_MEMBER_ID]` on a final line.
+
+### Requirement: Reliable under variable model latency
+The system SHALL set the OpenAI request timeout to 60s for both the agent step (`call_agent_step`) and the single-shot LLM call (`call_llm`), because gpt-5-mini latency is highly variable (measured 4–60s+ for identical calls). A latency spike within 60s SHALL be awaited rather than treated as a failure, so the chat does not silently fall back to the heuristic router on common spikes.
+
+#### Scenario: Latency spike within budget is awaited
+- **WHEN** a model call takes longer than 30s but under 60s
+- **THEN** the agent waits for the real answer instead of falling back to the heuristic router.
 
 ### Requirement: Conversation memory from client history
 The system SHALL build the agent input from the last ~6 client-supplied conversation turns plus an optional selected-person context line and the new message, so multi-turn follow-ups resolve against prior turns. Conversation state is not stored server-side (`store: False`); the client maintains the history array (capped at 12) and clears it on new chat.
