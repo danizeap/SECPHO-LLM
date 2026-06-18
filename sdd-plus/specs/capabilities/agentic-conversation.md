@@ -58,11 +58,30 @@ The system SHALL set the OpenAI request timeout to 60s for both the agent step (
 - **THEN** the agent waits for the real answer instead of falling back to the heuristic router.
 
 ### Requirement: Conversation memory from client history
-The system SHALL build the agent input from the last ~6 client-supplied conversation turns plus an optional selected-person context line and the new message, so multi-turn follow-ups resolve against prior turns. Conversation state is not stored server-side (`store: False`); the client maintains the history array (capped at 12) and clears it on new chat.
+The system SHALL build the agent input from the last ~6 client-supplied conversation turns plus an optional selected-person context line and the new message, so multi-turn follow-ups resolve against prior turns. Conversation state is not stored server-side (`store: False`); the client maintains the history array (capped at 12). On "new chat" the current conversation is first snapshotted into the persisted conversation store and then the message area and `history` are cleared for a fresh conversation (the prior conversation remains retrievable from the sidebar rather than being discarded).
 
 #### Scenario: Follow-up references earlier turn
 - **WHEN** the user sends a follow-up like "de esos, quien encaja mejor por necesidades?"
 - **THEN** the agent uses the prior turns in history, looks up the referenced people, and returns a grounded comparison.
+
+#### Scenario: New chat archives rather than discards
+- **WHEN** the user starts a new chat with messages already present
+- **THEN** the current conversation is saved to the sidebar list before the message area and `history` are cleared, so it can be reopened later.
+
+### Requirement: Persistent client-side conversation history
+The system SHALL persist chat conversations entirely on the client (browser `localStorage`, no server or database), so that navigating away from the chat page (e.g. to the scoring console or admin page) and back, or reloading, does NOT lose the in-progress conversation. The chat SHALL show a conversation list in the sidebar; selecting an entry restores that conversation's messages, agent `history`, and selected-person context; a per-entry control deletes it. The store SHALL be capped (40 conversations) and SHALL degrade gracefully when `localStorage` is full or unavailable (it shrinks the store, and on hard failure the chat still works without history). Conversations hold only what the chat already renders/holds client-side; no new personal data is persisted beyond the existing message text and the capped (≤12) history array. The conversation list SHALL be rendered without inline event-handler string interpolation (data attributes + a delegated listener), so a conversation title containing markup cannot inject script.
+
+#### Scenario: Conversation survives navigation and reload
+- **WHEN** the user is mid-conversation, navigates to the scoring console or admin page (or reloads), then returns to the chat
+- **THEN** the active conversation's messages and context are restored from `localStorage`, not wiped.
+
+#### Scenario: Switching conversations
+- **WHEN** the user clicks a different conversation in the sidebar list
+- **THEN** the current conversation is saved, and the selected one's messages, `history`, and selected-person are restored.
+
+#### Scenario: localStorage unavailable degrades safely
+- **WHEN** `localStorage` is full, disabled, or throws (e.g. private browsing)
+- **THEN** persistence is skipped or the store is shrunk, and the chat continues to function without raising to the user.
 
 ### Requirement: Privacy of bulk personal data
 The system SHALL drop personal email from people returned in bulk lists (`_agent_compact_person`); an email is surfaced only for a single, specifically requested contact.

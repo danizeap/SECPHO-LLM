@@ -13,4 +13,4 @@ conversation-history
 - [x] Restore active conversation on load (`initConversations()`).
 - [x] Update docs/specs (agentic-conversation delta spec).
 - [x] Run verification (AST parse, served-page assertions, full test suite, verifier subagent).
-- [ ] Owner live browser test (cannot be done here — no browser/JS runtime).
+- [x] Owner live browser test — PASSED on the Render deploy 2026-06-18 (all steps green).

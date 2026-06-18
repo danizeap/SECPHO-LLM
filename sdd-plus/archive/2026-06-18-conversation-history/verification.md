@@ -31,10 +31,16 @@ conversation-history
 
 ## Manual Checks
 
-- [ ] OWNER (live browser, cannot run here — no browser/JS runtime):
-      mid-chat → open tuner → back → conversation restored; sidebar lists conversations;
-      click switches; delete works; new-chat archives; reload restores active; private-mode /
-      storage-disabled still chats.
+- [x] OWNER live browser pass (2026-06-18, on the Render deploy). All green:
+      - Send works again (Enter sends, Shift+Enter newlines, ↑ button sends) — the dead-chat fix.
+      - Grounded data answer (socios por provincia), recommendations + tuner + slider re-rank,
+        tuner "Descargar .docx" downloads a valid report (verified the .docx out-of-band).
+      - Persistence: left to the scoring console AND the admin page and returned — conversation
+        intact; F5 reload auto-restores and highlights the active conversation in the sidebar.
+      - "+ New conversation" archives (doesn't discard); reopen restores full content; two
+        conversations switch cleanly; delete removes (non-active stays, active resets to welcome).
+      - Incognito / storage-disabled: chat works for the session, sidebar simply doesn't persist —
+        no errors, no freeze.
 
 ## Documentation Updates
 
