@@ -6,9 +6,10 @@ report-generation
 
 ## Automated Checks
 
-- [x] `python -m pytest tests/test_report_engine.py` — 10 passed (sections present,
-      determinism, contacts-from-matcher, compound ámbito preserved, real attendance dates,
-      bounded event scores, unknown person/socio raise, no mojibake).
+- [x] `python -m pytest tests/test_report_engine.py` — 14 passed (sections present,
+      determinism, contacts-from-matcher, compound ámbito preserved, real attendance dates
+      from the events table, token-exact reto matching, vocabulary canonicalization,
+      online-overlap floor, bounded event scores, unknown person/socio raise, no mojibake).
 - [x] Module imports and generates person and company `.docx` without error.
 
 ## Manual Checks
@@ -17,7 +18,8 @@ report-generation
       inspected: all 5 sections; matchmaker contacts with clean evidence; events + attended
       history with real Spanish dates; retos emitted surfaced.
 - [x] Determinism: same input → byte-stable paragraph text. Accents correct (no U+FFFD).
-- [x] IVO event-date bug fixed: attended events show real dates from registration filenames.
+- [x] IVO event-date bug fixed: attended events show real dates joined from the events table;
+      the registration filename's export timestamp is explicitly NOT used as an event date.
 - [x] Multi-agent production-readiness review (25 agents): 21 confirmed findings, 0 false
       positives. All 16 code issues fixed — including two critical data-fabrication bugs
       (attendance dates were the registration-export timestamp not the real event date;

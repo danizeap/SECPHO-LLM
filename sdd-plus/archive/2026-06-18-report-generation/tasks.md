@@ -18,4 +18,5 @@ report-generation
 - [x] Production-readiness review (multi-agent, 25 agents): 21 confirmed findings; all 16 code
       issues fixed (incl. 2 critical data-fabrication bugs — export-timestamp dates and
       substring entity matching) + 4 regression tests; 1 data-freshness item flagged to owner.
-- [ ] `sdd.py verify` + verifier subagent.
+- [x] `sdd.py verify` + verifier subagent (PASS WITH FOLLOW-UP; the two doc-only follow-ups —
+      stale test count and a delta-spec line that still described the pre-fix behavior — fixed).

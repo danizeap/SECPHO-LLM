@@ -27,15 +27,15 @@ The "Contactos Recomendados" section SHALL be populated solely from the determin
 - **THEN** the contacts and their order come from `people_matches_v1` for that target, unchanged.
 
 ### Requirement: Event recommendations and attendance with correct dates
-The system SHALL recommend upcoming events scored deterministically against the subject's profile and event history, and SHALL list attended events with their real dates. Event dates SHALL be parsed day-first (`DD-MM-YYYY`); attendance dates SHALL be taken from the registration filenames; an event whose date is known SHALL NOT display "Fecha desconocida".
+The system SHALL recommend upcoming events scored deterministically against the subject's profile and event history, and SHALL list attended events with their real dates. Event dates SHALL be parsed day-first; attendance dates SHALL be looked up from the canonical events table by title — the registration filename's export timestamp SHALL NOT be used as an event date. An attended event not found in the events table SHALL show an honest "Fecha no disponible", never a fabricated date.
 
 #### Scenario: Upcoming events scored
 - **WHEN** events are recommended for a subject
-- **THEN** only future events (date after today) appear, each with a deterministic affinity score and its real date.
+- **THEN** only future events (date after today) appear, each with a deterministic affinity score and its real date; an event whose only relevance is the online-attendance bonus is not surfaced.
 
 #### Scenario: Attended events show real dates
-- **WHEN** the subject has attended events whose registration file encodes a date
-- **THEN** those events list the real date, not "Fecha desconocida".
+- **WHEN** the subject has attended an event that exists in the events table
+- **THEN** the event lists its real date from the events table; an attended title absent from the events table shows "Fecha no disponible", never a fabricated date.
 
 ### Requirement: Reto recommendations and history
 The system SHALL recommend active retos (future closing date) scored by TF-IDF text similarity plus sector overlap, and SHALL list the retos the subject's entity has emitted and applied to.
