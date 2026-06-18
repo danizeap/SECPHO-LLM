@@ -21,3 +21,6 @@ temp/
 .DS_Store
 Thumbs.db
 reports/
+# Generated member reports contain PII — never commit them
+reports_tmp_*.docx
+Informe_*.docx
