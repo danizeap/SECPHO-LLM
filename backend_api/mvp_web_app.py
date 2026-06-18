@@ -23,6 +23,8 @@ from dotenv import load_dotenv
 
 
 BASE_DIR = Path(__file__).resolve().parents[1]
+if str(BASE_DIR) not in sys.path:  # make sibling packages (e.g. report_engine) importable
+    sys.path.insert(0, str(BASE_DIR))
 load_dotenv(BASE_DIR / ".env")
 
 OUTPUT_DIR = BASE_DIR / "recommendation_engine" / "outputs"
@@ -117,6 +119,7 @@ RATE_LIMITS = {
     "llm": (30, 60),
     "api": (120, 60),
     "feedback": (10, 300),
+    "report": (20, 60),
 }
 # Only trust X-Forwarded-For behind a known reverse proxy (e.g. Render). Without
 # this, a client could spoof the header and evade per-IP rate limiting.
@@ -2486,7 +2489,7 @@ def tool_answer(action: str, args: dict, selected_member_id: int | None = None) 
         fallback = render_recommendations(int(member_id))
         payload = llm_payload_for_person(int(member_id))
         answer, mode = decorate_grounded_answer("Explain model-ranked recommendations", payload, fallback)
-        answer = answer + f"\n\n[tune:{int(member_id)}]"
+        answer = answer + f"\n\n[tune:{int(member_id)}] [report:{int(member_id)}]"
         return {
             "answer": answer,
             "mode": mode,
@@ -2693,7 +2696,7 @@ def chat_flow(question: str, selected_member_id: int | None = None) -> dict:
         fallback = render_recommendations(target_member_id)
         payload = llm_payload_for_person(target_member_id)
         answer, mode = decorate_grounded_answer("Explain model-ranked recommendations", payload, fallback)
-        answer = answer + f"\n\n[tune:{target_member_id}]"
+        answer = answer + f"\n\n[tune:{target_member_id}] [report:{target_member_id}]"
         return {
             "answer": answer,
             "mode": mode,
@@ -2832,7 +2835,8 @@ Hard rules (the matchmaker math is the authority, you explain it):
 - "Event interest" means shared SECPHO registration interest, not confirmed attendance. Say so when relevant.
 - Do not list large numbers of personal emails. An email is only for a single, specifically requested contact.
 - Keep any [person:ID] token exactly as given in tool output, so the interface can attach actions.
-- After you present recommendations for a person, put the token [tune:THEIR_MEMBER_ID] on its own final line.
+- After you present recommendations for a person, put [tune:THEIR_MEMBER_ID] and [report:THEIR_MEMBER_ID] on a final line so the user can tune the weights and download the full report (.docx).
+- When you focus on a specific official socio/company, you may offer [report-socio:EXACT_SOCIO_NAME] (use the exact socio name) so its report can be downloaded.
 
 Style: concise and useful for SECPHO staff. Short paragraphs or bullets. No invented precision.
 """
@@ -2917,6 +2921,7 @@ def dispatch_tool(name: str, args: dict, ctx: dict) -> dict:
                 "target": {"member_id": mid, "name": person.get("name"), "socio": person.get("socio")},
                 "recommendations_ranked_by_model": recs,
                 "tune_token": f"[tune:{mid}]",
+                "report_token": f"[report:{mid}]",
                 "note": "Deterministic model ranking. Do not reorder or invent. Math decides; you explain.",
             }
 
@@ -3089,6 +3094,8 @@ def markdown_to_chat_html(text: str) -> str:
     escaped = html.escape(text)
     escaped = re.sub(r"\[person:(\d+)\]", r'<button class="inline-action" onclick="setPerson(\1)">select</button>', escaped)
     escaped = re.sub(r"\[tune:(\d+)\]", r'<button class="inline-action" onclick="openTuner(\1)">Adjust weighting &amp; report</button>', escaped)
+    escaped = re.sub(r"\[report:(\d+)\]", lambda m: f'<button class="inline-action" onclick="downloadReport(\'person\',{m.group(1)})">Descargar informe (.docx)</button>', escaped)
+    escaped = re.sub(r"\[report-socio:([^\]]+)\]", lambda m: f'<button class="inline-action" data-socio="{m.group(1)}" onclick="downloadReportSocio(this)">Descargar informe (.docx)</button>', escaped)
     escaped = re.sub(
         r"(/artifacts/[A-Za-z0-9_.-]+)",
         r'<a href="\1" target="_blank" style="color:var(--brand)">\1</a>',
@@ -4297,7 +4304,8 @@ CHAT_HTML = """
         '<div class="tuner-head">'+esc(t('tuner_head'))+'</div>'+
         '<div class="tuner-grid"><div id="ts-'+id+'"></div><div id="tl-'+id+'"></div></div>'+
         '<div class="tuner-actions"><button class="ghost-button" onclick="resetTuner('+id+')">'+esc(t('tuner_reset'))+'</button>'+
-        '<button class="send-report" id="genbtn-'+id+'" onclick="generateTunedReport('+id+')">'+esc(t('tuner_generate'))+'</button></div></div>';
+        '<button class="send-report" id="genbtn-'+id+'" onclick="generateTunedReport('+id+')">'+esc(t('tuner_generate'))+'</button>'+
+        '<button class="ghost-button" onclick="downloadReport(\'person\','+id+')">Descargar .docx</button></div></div>';
       document.getElementById('messages').appendChild(node);
       buildTunerSliders(id);
       tunerRerank(id);
@@ -4360,6 +4368,25 @@ CHAT_HTML = """
         document.getElementById('chat').scrollTop = document.getElementById('chat').scrollHeight;
       }
     }
+
+    async function downloadReport(kind, key){
+      try {
+        const res = await fetch('/api/report', {
+          method: 'POST', headers: {'Content-Type':'application/json'},
+          body: JSON.stringify({ type: kind, id: kind==='person'? key : null, socio: kind==='company'? key : null, lang: LANG })
+        });
+        if (res.status === 401){ window.location.href='/login'; return; }
+        if (!res.ok){ alert(t('err_report')); return; }
+        const blob = await res.blob();
+        const cd = res.headers.get('Content-Disposition') || '';
+        const mt = cd.match(/filename="?([^"]+)"?/);
+        const fn = mt ? mt[1] : 'Informe.docx';
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a'); a.href = url; a.download = fn;
+        document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+      } catch(e){ alert(t('err_report')); }
+    }
+    function downloadReportSocio(btn){ downloadReport('company', btn.dataset.socio); }
 
     function newChat() {
       selectedMemberId = null;
@@ -5045,6 +5072,58 @@ class Handler(BaseHTTPRequestHandler):
                 },
             )
             self.send_json(result, status=200 if result.get("ok") else 400)
+            return
+
+        if parsed.path == "/api/report":
+            if is_rate_limited(self.client_ip(), "report"):
+                self.send_json({"error": "rate_limited"}, status=429)
+                return
+            try:
+                length = int(self.headers.get("Content-Length", "0"))
+            except ValueError:
+                length = 0
+            if length > 4096:
+                self.send_json({"error": "payload_too_large"}, status=413)
+                return
+            raw = self.rfile.read(length).decode("utf-8") if length else "{}"
+            try:
+                payload = json.loads(raw)
+            except json.JSONDecodeError:
+                self.send_json({"error": "invalid_json"}, status=400)
+                return
+            set_request_lang(payload.get("lang", "es"))
+            kind = clean(payload.get("type"), "")
+            if kind not in ("person", "company"):
+                self.send_json({"error": "invalid_type"}, status=400)
+                return
+            if kind == "person":
+                ident = to_int(payload.get("id"))
+                if ident is None:
+                    self.send_json({"error": "invalid_id"}, status=400)
+                    return
+            else:
+                ident = clean(payload.get("socio"), "")
+                if not ident:
+                    self.send_json({"error": "missing_socio"}, status=400)
+                    return
+            try:
+                import report_engine
+                data, filename = report_engine.generate_bytes(kind, ident)
+            except ValueError:
+                self.send_json({"error": "not_found"}, status=404)
+                return
+            except Exception:
+                LOGGER.exception("report generation failed: %s %s", kind, ident)
+                self.send_json({"error": "report_failed"}, status=500)
+                return
+            LOGGER.info("report generated: %s %s (%d bytes)", kind, ident, len(data))
+            self.send_response(200)
+            self.send_header("Content-Type", "application/vnd.openxmlformats-officedocument.wordprocessingml.document")
+            self.send_header("Content-Disposition", f'attachment; filename="{filename}"')
+            self.send_security_headers()
+            self.send_header("Content-Length", str(len(data)))
+            self.end_headers()
+            self.wfile.write(data)
             return
 
         if parsed.path == "/api/agent":

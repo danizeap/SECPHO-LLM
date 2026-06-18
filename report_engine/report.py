@@ -88,3 +88,27 @@ def generate(kind: str, ident, out_path: str) -> str:
         raise ValueError("kind must be 'person' or 'company'")
     render_docx.render(report).save(out_path)
     return out_path
+
+
+def _safe_filename(name: str) -> str:
+    import re
+    import unicodedata
+
+    ascii_name = unicodedata.normalize("NFKD", str(name)).encode("ascii", "ignore").decode("ascii")
+    slug = re.sub(r"[^A-Za-z0-9]+", "_", ascii_name).strip("_") or "informe"
+    return f"Informe_{slug}.docx"
+
+
+def generate_bytes(kind: str, ident) -> tuple[bytes, str]:
+    """Build a report in memory and return (.docx bytes, suggested filename). No disk write."""
+    import io
+
+    if kind == "person":
+        report = build_person_report(int(ident))
+    elif kind == "company":
+        report = build_company_report(str(ident))
+    else:
+        raise ValueError("kind must be 'person' or 'company'")
+    buf = io.BytesIO()
+    render_docx.render(report).save(buf)
+    return buf.getvalue(), _safe_filename(report.subject_name)

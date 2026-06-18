@@ -4,6 +4,11 @@ Structure and data are deterministic (the matchmaker math decides); the LLM only
 polishes prose in fixed slots (later phases). Phase 1 covers the índice plus
 sections 1-3 (Introducción, Resumen/Ficha, Contactos Recomendados).
 """
-from .report import generate, build_person_report, build_company_report  # noqa: F401
+from .report import (  # noqa: F401
+    generate,
+    generate_bytes,
+    build_person_report,
+    build_company_report,
+)
 
-__all__ = ["generate", "build_person_report", "build_company_report"]
+__all__ = ["generate", "generate_bytes", "build_person_report", "build_company_report"]

@@ -126,3 +126,13 @@ def test_vocabulary_canonicalization_matches_across_sources():
 def test_online_event_requires_topical_overlap():
     empty = {"tech": set(), "sectors": set(), "ambitos": set(), "province": "", "text": ""}
     assert scoring.recommend_events(empty, []) == []  # online bonus alone must not surface an event
+
+
+def test_generate_bytes_returns_valid_docx():
+    import io
+    data, fn = RE.generate_bytes("person", _valid_target())
+    assert isinstance(data, bytes) and len(data) > 100
+    assert fn.startswith("Informe_") and fn.endswith(".docx")
+    docx.Document(io.BytesIO(data))  # must open as a valid Word document
+    # ASCII-safe filename (no accents/spaces that would break a Content-Disposition header)
+    assert fn.encode("ascii")
