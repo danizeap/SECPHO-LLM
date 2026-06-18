@@ -1,0 +1,4 @@
+# Dev/test-only dependencies (not needed at runtime).
+-r requirements.txt
+pytest==8.4.2
+esprima==4.0.1   # parses the inline JS embedded in the served HTML (tests/test_inline_js_syntax.py)

@@ -4314,7 +4314,7 @@ CHAT_HTML = """
         '<div class="tuner-grid"><div id="ts-'+id+'"></div><div id="tl-'+id+'"></div></div>'+
         '<div class="tuner-actions"><button class="ghost-button" onclick="resetTuner('+id+')">'+esc(t('tuner_reset'))+'</button>'+
         '<button class="send-report" id="genbtn-'+id+'" onclick="generateTunedReport('+id+')">'+esc(t('tuner_generate'))+'</button>'+
-        '<button class="ghost-button" onclick="downloadReport(\'person\','+id+')">Descargar .docx</button></div></div>';
+        '<button class="ghost-button" onclick="downloadPersonReport('+id+')">Descargar .docx</button></div></div>';
       document.getElementById('messages').appendChild(node);
       buildTunerSliders(id);
       tunerRerank(id);
@@ -4397,6 +4397,7 @@ CHAT_HTML = """
       } catch(e){ alert(t('err_report')); }
     }
     function downloadReportSocio(btn){ downloadReport('company', btn.dataset.socio); }
+    function downloadPersonReport(id){ downloadReport('person', id); }
 
     // ---- Conversation history (client-side, localStorage) -------------------
     var WELCOME_HTML = (document.getElementById('welcome') || {}).outerHTML || '';
@@ -4440,10 +4441,16 @@ CHAT_HTML = """
       var box = document.getElementById('convList'); if (!box) return;
       box.innerHTML = loadConvs().map(function(c){
         var active = c.id === activeConvId ? ' active' : '';
-        return '<div class="conv-item' + active + '" onclick="loadConversation(\'' + c.id + '\')">' +
+        return '<div class="conv-item' + active + '" data-id="' + esc(c.id) + '">' +
                '<span class="ttl">' + esc(c.title || t('newchat')) + '</span>' +
-               '<span class="del" title="Delete" onclick="event.stopPropagation();deleteConversation(\'' + c.id + '\')">&times;</span></div>';
+               '<span class="del" title="Delete" data-del="' + esc(c.id) + '">&times;</span></div>';
       }).join('');
+    }
+    function onConvListClick(e){
+      var del = e.target.closest('[data-del]');
+      if (del){ e.stopPropagation(); deleteConversation(del.getAttribute('data-del')); return; }
+      var item = e.target.closest('.conv-item');
+      if (item && item.getAttribute('data-id')) loadConversation(item.getAttribute('data-id'));
     }
     function restoreInto(c){
       var msgs = document.getElementById('messages');
@@ -4469,6 +4476,8 @@ CHAT_HTML = """
       renderConvList();
     }
     function initConversations(){
+      var lst = document.getElementById('convList');
+      if (lst && !lst._wired){ lst.addEventListener('click', onConvListClick); lst._wired = true; }
       var act = null; try { act = localStorage.getItem(ACTIVE_KEY); } catch(e){}
       var c = act ? loadConvs().filter(function(x){ return x.id === act; })[0] : null;
       if (c){ activeConvId = c.id; restoreInto(c); }
