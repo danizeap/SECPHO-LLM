@@ -3907,6 +3907,13 @@ CHAT_HTML = """
       .prompt-grid { grid-template-columns: 1fr; }
       .status { display: none; }
     }
+    .conv-list { display:flex; flex-direction:column; gap:3px; margin:8px 0 4px; max-height:40vh; overflow:auto; }
+    .conv-item { display:flex; align-items:center; gap:6px; padding:7px 9px; border-radius:8px; cursor:pointer; color:var(--muted,#a6a7ab); font-size:13px; border:1px solid transparent; }
+    .conv-item:hover { background:#1b1c20; color:var(--ink,#f4f4f5); }
+    .conv-item.active { background:#1b1c20; color:var(--ink,#f4f4f5); border-color:var(--line,#303136); }
+    .conv-item .ttl { flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .conv-item .del { opacity:.45; cursor:pointer; padding:0 2px; }
+    .conv-item .del:hover { opacity:1; color:var(--hot,#ff3158); }
   </style>
 </head>
 <body>
@@ -3918,6 +3925,7 @@ CHAT_HTML = """
       </div>
       <button class="new-chat" onclick="newChat()" data-i18n="newchat">+ New conversation</button>
       <a class="new-chat" href="/logout" style="text-decoration:none" data-i18n="signout">Sign out</a>
+      <div class="conv-list" id="convList"></div>
       <div class="side-block" data-i18n="block_model">
         <strong>Model rule</strong><br>
         The script does the matchmaking. The LLM explains and decorates the deterministic results.
@@ -4267,6 +4275,7 @@ CHAT_HTML = """
         sending = false;
         if (sendBtn) sendBtn.disabled = false;
         document.getElementById('chat').scrollTop = document.getElementById('chat').scrollHeight;
+        saveActive();
       }
     }
 
@@ -4366,6 +4375,7 @@ CHAT_HTML = """
       } finally {
         if (btn){ btn.disabled = false; btn.textContent = t('tuner_generate'); }
         document.getElementById('chat').scrollTop = document.getElementById('chat').scrollHeight;
+        saveActive();
       }
     }
 
@@ -4388,12 +4398,94 @@ CHAT_HTML = """
     }
     function downloadReportSocio(btn){ downloadReport('company', btn.dataset.socio); }
 
+    // ---- Conversation history (client-side, localStorage) -------------------
+    var WELCOME_HTML = (document.getElementById('welcome') || {}).outerHTML || '';
+    var CONV_KEY = 'secpho_convs', ACTIVE_KEY = 'secpho_active', CONV_CAP = 40;
+    var activeConvId = null;
+
+    function loadConvs(){ try { return JSON.parse(localStorage.getItem(CONV_KEY) || '[]'); } catch(e){ return []; } }
+    function storeConvs(convs){
+      convs.sort(function(a,b){ return (b.ts||0)-(a.ts||0); });
+      if (convs.length > CONV_CAP) convs = convs.slice(0, CONV_CAP);
+      try { localStorage.setItem(CONV_KEY, JSON.stringify(convs)); }
+      catch(e){ try { localStorage.setItem(CONV_KEY, JSON.stringify(convs.slice(0, Math.max(5, convs.length>>1)))); } catch(e2){} }
+      return convs;
+    }
+    function snapshotMessages(){
+      var box = document.getElementById('messages').cloneNode(true);
+      var w = box.querySelector('#welcome'); if (w) w.remove();
+      box.querySelectorAll('[id^="tuner-"]').forEach(function(n){ n.remove(); });
+      box.querySelectorAll('.thinking').forEach(function(n){ var m = n.closest('.msg'); if (m) m.remove(); });
+      return box.innerHTML.trim();
+    }
+    function convTitle(){
+      var u = document.querySelector('#messages .msg.user .bubble');
+      var txt = (u ? u.textContent : '').trim().replace(/\s+/g, ' ');
+      return txt ? txt.slice(0, 48) : t('newchat');
+    }
+    function saveActive(){
+      var html = snapshotMessages();
+      if (!html) return;
+      if (!activeConvId) activeConvId = 'c' + Date.now();
+      var convs = loadConvs();
+      var c = convs.filter(function(x){ return x.id === activeConvId; })[0];
+      if (!c){ c = { id: activeConvId, title: convTitle() }; convs.push(c); }
+      if (!c.title || c.title === t('newchat')) c.title = convTitle();
+      c.html = html; c.history = (history || []).slice(-12); c.sel = selectedMemberId; c.ts = Date.now();
+      storeConvs(convs);
+      try { localStorage.setItem(ACTIVE_KEY, activeConvId); } catch(e){}
+      renderConvList();
+    }
+    function renderConvList(){
+      var box = document.getElementById('convList'); if (!box) return;
+      box.innerHTML = loadConvs().map(function(c){
+        var active = c.id === activeConvId ? ' active' : '';
+        return '<div class="conv-item' + active + '" onclick="loadConversation(\'' + c.id + '\')">' +
+               '<span class="ttl">' + esc(c.title || t('newchat')) + '</span>' +
+               '<span class="del" title="Delete" onclick="event.stopPropagation();deleteConversation(\'' + c.id + '\')">&times;</span></div>';
+      }).join('');
+    }
+    function restoreInto(c){
+      var msgs = document.getElementById('messages');
+      if (c && c.html){ msgs.innerHTML = c.html; }
+      else { msgs.innerHTML = WELCOME_HTML; applyLang(LANG); }
+      history = (c && c.history) ? c.history.slice() : [];
+      selectedMemberId = (c && c.sel) ? c.sel : null;
+      document.getElementById('status').textContent = t('status_default');
+      document.getElementById('chat').scrollTop = document.getElementById('chat').scrollHeight;
+    }
+    function loadConversation(id){
+      if (id === activeConvId) return;
+      saveActive();
+      var c = loadConvs().filter(function(x){ return x.id === id; })[0];
+      activeConvId = id;
+      try { localStorage.setItem(ACTIVE_KEY, id); } catch(e){}
+      restoreInto(c);
+      renderConvList();
+    }
+    function deleteConversation(id){
+      storeConvs(loadConvs().filter(function(x){ return x.id !== id; }));
+      if (id === activeConvId){ activeConvId = null; try { localStorage.removeItem(ACTIVE_KEY); } catch(e){} restoreInto(null); }
+      renderConvList();
+    }
+    function initConversations(){
+      var act = null; try { act = localStorage.getItem(ACTIVE_KEY); } catch(e){}
+      var c = act ? loadConvs().filter(function(x){ return x.id === act; })[0] : null;
+      if (c){ activeConvId = c.id; restoreInto(c); }
+      else { activeConvId = 'c' + Date.now(); }
+      renderConvList();
+    }
+
     function newChat() {
+      saveActive();
+      activeConvId = 'c' + Date.now();
+      try { localStorage.setItem(ACTIVE_KEY, activeConvId); } catch(e){}
       selectedMemberId = null;
       history = [];
-      document.getElementById('messages').innerHTML = document.getElementById('welcome').outerHTML;
-      document.getElementById('welcome').style.display = 'block';
+      document.getElementById('messages').innerHTML = WELCOME_HTML;
+      applyLang(LANG);
       document.getElementById('status').textContent = t('status_default');
+      renderConvList();
     }
 
     document.getElementById('input').addEventListener('keydown', (e) => {
@@ -4414,6 +4506,7 @@ CHAT_HTML = """
     });
     applyLang(LANG);
     setModel(MODEL);
+    initConversations();
   </script>
 </body>
 </html>
