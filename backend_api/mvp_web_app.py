@@ -2,6 +2,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 import base64
+import collections
 import hashlib
 import hmac
 import mimetypes
@@ -1603,121 +1604,176 @@ def llm_report_for_person(member_id: int) -> dict:
     return {"mode": mode, "markdown": fallback}
 
 
-def weighting_text(weights: dict) -> str:
+# Spanish labels for the tuning signals (English labels live on TUNING_SIGNALS).
+_SIGNAL_LABELS_ES = {
+    "profile_similarity": "Similitud de perfil",
+    "structured_overlap": "Solape tecnología/sector",
+    "event_interest_overlap_score": "Interés en eventos",
+    "needs_overlap": "Solape de necesidades",
+    "location_overlap_score": "Ubicación",
+    "personal_affinity_score": "Afinidad personal",
+}
+
+
+def _weights_are_default(weights: dict) -> bool:
+    return all(int(round(float(weights.get(s["key"], 0)))) == s["default"] for s in TUNING_SIGNALS)
+
+
+def weighting_note_localized(weights: dict, lang: str) -> str:
+    """Localized curator-weighting note for the report, or '' when the model default is in effect
+    (the report's contacts intro already states the model orders them)."""
+    if _weights_are_default(weights):
+        return ""
     total = sum(max(0.0, float(weights.get(s["key"], 0))) for s in TUNING_SIGNALS) or 1.0
-    is_default = all(
-        int(round(float(weights.get(s["key"], 0)))) == s["default"] for s in TUNING_SIGNALS
-    )
-    if is_default:
-        return "Ranked with the model's default weighting (Profile 44%, Tech/sector 24%, Event 14%, Needs 10%, Location 6%, Affinity 2%)."
-    shares = sorted(
-        ({"label": s["label"], "share": max(0.0, float(weights.get(s["key"], 0))) / total} for s in TUNING_SIGNALS),
-        key=lambda x: x["share"],
-        reverse=True,
-    )
-    top = [s for s in shares if s["share"] > 0][:3]
-    parts = ", ".join(f"{s['label']} {round(s['share'] * 100)}%" for s in top)
-    return f"Ranked with a custom weighting chosen by the curator, emphasizing {parts} (the model default leads with Profile similarity 44%)."
+    ranked = sorted(TUNING_SIGNALS, key=lambda s: max(0.0, float(weights.get(s["key"], 0))), reverse=True)
+    top = [s for s in ranked if float(weights.get(s["key"], 0)) > 0][:3]
+
+    def pct(s):
+        return round(max(0.0, float(weights.get(s["key"], 0))) / total * 100)
+
+    if str(lang).lower().startswith("en"):
+        parts = ", ".join(f"{s['label']} {pct(s)}%" for s in top)
+        return (f"Ranked with a custom weighting chosen by a SECPHO curator, emphasizing {parts} "
+                "(the model default leads with Profile similarity 44%).")
+    parts = ", ".join(f"{_SIGNAL_LABELS_ES[s['key']]} {pct(s)}%" for s in top)
+    return (f"Ordenado con una ponderación personalizada elegida por un curador de SECPHO, con énfasis "
+            f"en {parts} (el modelo por defecto prioriza Similitud de perfil 44%).")
 
 
-def report_for_person_weighted(member_id: int, weights: dict, limit: int = 5) -> str:
-    person = get_person(member_id)
-    data = rerank_for_person(member_id, weights, limit=limit)
-    if not person or not data.get("found"):
-        return "No person found."
-
-    lines = [
-        f"# SECPHO Matchmaker Brief: {person['name']}",
-        "",
-        f"**Socio:** {person['socio']}",
-        f"**Role:** {person['role'] or 'N/D'}",
-        f"**Location:** {', '.join([p for p in [person['municipality'], person['province'], person['country']] if p]) or 'N/D'}",
-        "",
-        "## Recommended Introductions (curated weighting)",
-        "",
-        f"_{weighting_text(weights)}_",
-        "",
-    ]
-    for cand in data["candidates"]:
-        ev = cand["evidence"]
-        evidence = []
-        if ev["technologies"]:
-            evidence.append(f"shared technologies: {ev['technologies']}")
-        if ev["sectors"]:
-            evidence.append(f"shared sectors: {ev['sectors']}")
-        if ev["needs"]:
-            evidence.append(f"shared needs: {ev['needs']}")
-        if ev["location"]:
-            evidence.append(f"location: {ev['location']}")
-        if ev["events"]:
-            evidence.append(f"shared event interest: {ev['events']}")
-        evidence_text = "; ".join(evidence) if evidence else "limited explicit overlap; review profile context."
-        move = ""
-        if cand["movement"] > 0:
-            move = f" (up {cand['movement']} vs the model's ranking)"
-        elif cand["movement"] < 0:
-            move = f" (down {abs(cand['movement'])} vs the model's ranking)"
-        lines.extend([
-            f"### {cand['new_rank']}. {cand['name']} - {cand['socio']}",
-            "",
-            f"**Custom score:** {cand['custom_score']:.3f} | model rank #{cand['default_rank']}{move}",
-            "",
-            f"Why this match: {evidence_text}",
-            "",
-        ])
-    lines.extend([
-        "## How To Read This",
-        "",
-        "The candidate pool and every signal are computed by the deterministic People Matcher V1.1. "
-        "A SECPHO curator chose how much each signal counts; the ranking above is that weighting applied to the math. "
-        "The write-up explains the result - it does not invent or reorder it.",
-    ])
-    return "\n".join(lines)
-
-
-def llm_payload_for_person_weighted(member_id: int, weights: dict) -> dict:
-    person = get_person(member_id)
+def report_contacts_for(member_id: int, weights: dict | None) -> list | None:
+    """Top-5 contacts in the app's ranking, mapped to report_engine's matcher shape, so the report
+    honors the SAME order the chat shows. Returns None when weights is None — then report_engine
+    uses its deterministic default order (identical to the chat's default recommendations)."""
+    if weights is None:
+        return None
     data = rerank_for_person(member_id, weights, limit=5)
-    recommendations = []
-    for cand in data.get("candidates", []):
-        recommendations.append({
-            "rank": cand["new_rank"],
-            "name": cand["name"],
-            "socio": cand["socio"],
-            "role": cand["role"],
-            "custom_score": cand["custom_score"],
-            "model_rank": cand["default_rank"],
-            "moved_vs_model": cand["movement"],
-            **cand["evidence"],
+    if not data.get("found"):
+        return None
+    return [
+        {
+            "candidate_member_id": c["candidate_member_id"],
+            "candidate_name": c["name"],
+            "candidate_socio": c["socio"],
+            "candidate_role": c["role"],
+        }
+        for c in data["candidates"][:5]
+    ]
+
+
+# --- Report prose: the LLM "why this is a good match" narrative ---------------------------- #
+# The math (ranking, scores, shared-item lists) is fixed; the LLM only writes prose around it,
+# always on flagship (member-facing deliverable). Prose is cached by (kind, ident, weighting,
+# lang) so the chat preview and the download reuse the SAME narrative — they never diverge.
+_REPORT_PROSE_CACHE: "collections.OrderedDict" = collections.OrderedDict()
+_REPORT_PROSE_CACHE_MAX = 64
+
+
+def _weights_signature(weights: dict | None) -> str:
+    if not weights:
+        return "default"
+    return ",".join(f"{s['key']}={int(round(float(weights.get(s['key'], 0))))}" for s in TUNING_SIGNALS)
+
+
+def _generate_report_prose(report, lang: str) -> dict:
+    """Flagship-only. Returns {'exec_summary': str, 'rationales': {member_id: str}} reasoning ONLY
+    from the deterministic evidence already in the model — never types numbers, never reorders.
+    Returns {} on any failure so the report still renders complete (deterministic) without prose."""
+    if not getattr(report, "contacts", None) or not openai_available():
+        return {}
+    contacts_brief = []
+    for i, c in enumerate(report.contacts, 1):
+        shared = {
+            k: c.get(k)
+            for k in ("shared_tech", "shared_sectors", "shared_ambitos", "shared_university",
+                      "shared_languages", "shared_hobbies", "shared_sports")
+            if c.get(k)
+        }
+        contacts_brief.append({
+            "id": c.get("candidate_member_id"), "rank": i, "name": c.get("name"),
+            "socio": c.get("socio"), "role": c.get("role"), "shared": shared,
         })
-    return {
-        "principle": "Math decides. The LLM explains. A SECPHO curator chose the weighting.",
-        "weighting": weighting_text(weights),
-        "scope": "Phase 1 recommends only people linked to official SECPHO socios.",
-        "event_signal_warning": "Event overlap indicates shared SECPHO registration interest, not confirmed attendance.",
-        "person": person,
-        "recommendations_ranked_by_model": recommendations,
+    payload = {
+        "subject": report.subject_name,
+        "ficha": [[lbl, val] for lbl, val in report.ficha],
+        "contacts": contacts_brief,
     }
-
-
-def llm_report_for_person_weighted(member_id: int, weights: dict) -> dict:
-    payload = redact_pii(llm_payload_for_person_weighted(member_id, weights))
-    local_report = report_for_person_weighted(member_id, weights)
-    if not payload.get("recommendations_ranked_by_model"):
-        return {"mode": "no_data", "markdown": local_report}
-
+    want_lang = "English" if str(lang).lower().startswith("en") else "español"
     prompt = (
-        "Create a polished SECPHO internal one-page matchmaker briefing from this JSON. "
-        "A human curator set a custom signal weighting (see 'weighting') - state it plainly near the top. "
-        "Keep the exact recommendation order. Mention the custom score and 1-2 evidence points for each "
-        "recommendation. Include a concise executive summary, introduction positioning, recommended next "
-        "action, and the event-signal caveat.\n\n"
-        f"JSON:\n{json.dumps(payload, ensure_ascii=False, indent=2)}"
+        "You are SECPHO's matchmaking analyst writing the NARRATIVE of a member report. The ranking, "
+        "scores and shared-item lists are FIXED by the math — never change, reorder, add, or invent a "
+        "fact or a number. Return STRICT JSON only:\n"
+        '{"exec_summary":"<2-3 sentence overview of why these contacts fit the subject>",'
+        '"rationales":[{"id":<member id>,"why":"<one short paragraph: why this contact is a strong '
+        'match for the subject, reasoning from the shared items provided>"}]}\n'
+        f"Write all prose in {want_lang}. Exactly one rationale per contact id. No numbers, no scores, "
+        "no markdown, no facts beyond the shared items given.\n\nJSON:\n"
+        + json.dumps(payload, ensure_ascii=False)
     )
-    text, mode = call_llm(prompt)
-    if text:
-        return {"mode": mode, "markdown": text}
-    return {"mode": mode, "markdown": "# LLM-Style Briefing Draft\n\n" + local_report}
+    prev_tier = current_model_tier()
+    set_request_model("flagship")
+    try:
+        text, _mode = call_llm(prompt, max_output_tokens=2000)
+    finally:
+        set_request_model(prev_tier)
+    data = parse_json_object(text)
+    if not isinstance(data, dict):
+        return {}
+    rationales = {}
+    for r in data.get("rationales", []) or []:
+        try:
+            rid = int(r.get("id"))
+        except (TypeError, ValueError):
+            continue
+        why = clean(r.get("why"), "")
+        if why:
+            rationales[rid] = why
+    exec_summary = clean(data.get("exec_summary"), "")
+    if not exec_summary and not rationales:
+        return {}
+    return {"exec_summary": exec_summary, "rationales": rationales}
+
+
+def apply_report_prose(report, kind: str, ident, weights: dict | None, lang: str) -> None:
+    """Fill the report's prose slots on flagship, cached so the preview and download match.
+    Safe no-op when the LLM is unavailable (the deterministic report is already complete)."""
+    key = f"{kind}:{ident}:{_weights_signature(weights)}:{'en' if str(lang).lower().startswith('en') else 'es'}"
+    prose = _REPORT_PROSE_CACHE.get(key)
+    if prose is None:
+        prose = _generate_report_prose(report, lang)
+        if prose:  # cache only successful prose so a transient flagship failure can retry
+            _REPORT_PROSE_CACHE[key] = prose
+            _REPORT_PROSE_CACHE.move_to_end(key)
+            while len(_REPORT_PROSE_CACHE) > _REPORT_PROSE_CACHE_MAX:
+                _REPORT_PROSE_CACHE.popitem(last=False)
+    else:
+        _REPORT_PROSE_CACHE.move_to_end(key)
+    if not prose:
+        return
+    if prose.get("exec_summary"):
+        report.exec_summary = prose["exec_summary"]
+    rationales = prose.get("rationales", {})
+    for c in report.contacts:
+        try:
+            cid = int(c.get("candidate_member_id"))
+        except (TypeError, ValueError):
+            continue
+        if cid in rationales:
+            c["rationale"] = rationales[cid]
+
+
+def build_report_model(kind: str, ident, weights: dict | None, lang: str):
+    """Build the unified report model (deterministic structure + math) and fill the LLM prose slots.
+    Both report endpoints use this, so the chat HTML and the downloaded .docx are the same report."""
+    import report_engine as RE
+
+    if kind == "person":
+        contacts = report_contacts_for(int(ident), weights)
+        model = RE.build_person_report(int(ident), contacts=contacts)
+        model.weighting_note = weighting_note_localized(weights, lang) if weights else ""
+    else:
+        model = RE.build_company_report(str(ident))
+    apply_report_prose(model, kind, ident, weights, lang)
+    return model
 
 
 def answer_question(question: str) -> str:
@@ -3914,6 +3970,18 @@ CHAT_HTML = """
     .conv-item .ttl { flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
     .conv-item .del { opacity:.45; cursor:pointer; padding:0 2px; }
     .conv-item .del:hover { opacity:1; color:var(--hot,#ff3158); }
+    /* In-chat report preview (same content as the downloaded .docx). */
+    .rep { font-size:14px; line-height:1.5; }
+    .rep .rep-title { font-size:17px; margin:2px 0; color:var(--ink,#f4f4f5); }
+    .rep .rep-sub { color:var(--muted,#a6a7ab); font-size:12px; margin-bottom:10px; }
+    .rep .rep-h1 { font-size:15px; color:var(--brand,#00c3c7); margin:16px 0 6px; }
+    .rep .rep-h2 { font-size:13px; color:var(--ink,#f4f4f5); margin:12px 0 4px; }
+    .rep p { margin:6px 0; }
+    .rep .rep-item { margin:10px 0 2px; }
+    .rep .rep-why { color:var(--muted,#cfd0d4); margin:4px 0 6px; }
+    .rep ul.rep-list { margin:2px 0 6px; padding-left:18px; }
+    .rep ul.rep-list li { margin:2px 0; }
+    .rep ul.rep-list li.lvl2 { list-style:circle; }
   </style>
 </head>
 <body>
@@ -4369,7 +4437,7 @@ CHAT_HTML = """
         if (res.status === 401){ window.location.href='/login'; return; }
         const data = await res.json();
         last.querySelector('.bubble').innerHTML = (data.report_html || '<span style="color:#ff8a8a">' + esc(t('err_report')) + '</span>') +
-          '<div class="mode">' + esc((data.llm_available ? 'LLM active' : 'fallback') + ' · ' + (data.mode || '') + ' · tuned report') + '</div>';
+          '<div class="mode">' + esc(data.mode_label || (data.mode || '')) + '</div>';
       } catch (err) {
         last.querySelector('.bubble').innerHTML = '<span style="color:#ff8a8a">' + esc(t('err_report')) + '</span>';
       } finally {
@@ -4379,11 +4447,11 @@ CHAT_HTML = """
       }
     }
 
-    async function downloadReport(kind, key){
+    async function downloadReport(kind, key, weights){
       try {
         const res = await fetch('/api/report', {
           method: 'POST', headers: {'Content-Type':'application/json'},
-          body: JSON.stringify({ type: kind, id: kind==='person'? key : null, socio: kind==='company'? key : null, lang: LANG })
+          body: JSON.stringify({ type: kind, id: kind==='person'? key : null, socio: kind==='company'? key : null, lang: LANG, weights: weights || null })
         });
         if (res.status === 401){ window.location.href='/login'; return; }
         if (!res.ok){ alert(t('err_report')); return; }
@@ -4397,7 +4465,7 @@ CHAT_HTML = """
       } catch(e){ alert(t('err_report')); }
     }
     function downloadReportSocio(btn){ downloadReport('company', btn.dataset.socio); }
-    function downloadPersonReport(id){ downloadReport('person', id); }
+    function downloadPersonReport(id){ downloadReport('person', id, (typeof tunerWeights !== 'undefined' ? tunerWeights[id] : null)); }
 
     // ---- Conversation history (client-side, localStorage) -------------------
     var WELCOME_HTML = (document.getElementById('welcome') || {}).outerHTML || '';
@@ -4421,7 +4489,7 @@ CHAT_HTML = """
     }
     function convTitle(){
       var u = document.querySelector('#messages .msg.user .bubble');
-      var txt = (u ? u.textContent : '').trim().replace(/\s+/g, ' ');
+      var txt = (u ? u.textContent : '').trim().replace(/\\s+/g, ' ');
       return txt ? txt.slice(0, 48) : t('newchat');
     }
     function saveActive(){
@@ -5004,15 +5072,28 @@ class Handler(BaseHTTPRequestHandler):
                 self.send_json({"error": "invalid_id"}, status=400)
                 return
             weights = {sig["key"]: to_float(params.get(sig["key"], ["0"])[0], 0.0) for sig in TUNING_SIGNALS}
-            report = llm_report_for_person_weighted(member_id, weights)
-            self.send_json(
-                {
-                    "mode": report["mode"],
-                    "report_markdown": report["markdown"],
-                    "report_html": markdown_to_chat_html(report["markdown"]),
-                    "llm_available": openai_available(),
-                }
-            )
+            lang = params.get("lang", ["es"])[0] or "es"
+            set_request_lang(lang)
+            # The SAME report model the download renders, as HTML: the math fixes every number and
+            # the order; the LLM (flagship) only writes the prose, and its prose is cached so the
+            # download reuses it. Chat preview and .docx never diverge.
+            try:
+                model = build_report_model("person", member_id, weights, lang)
+                import report_engine
+                report_html = report_engine.render_html_of(model)
+            except ValueError:
+                self.send_json({"error": "not_found"}, status=404)
+                return
+            except Exception:
+                LOGGER.exception("tuned report failed: %s", member_id)
+                self.send_json({"error": "report_failed"}, status=500)
+                return
+            narrated = bool(getattr(model, "exec_summary", ""))
+            if str(lang).lower().startswith("es"):
+                mode_label = "La matemática decide · el LLM explica · informe" if narrated else "La matemática decide · informe"
+            else:
+                mode_label = "Math decides · the LLM explains · report" if narrated else "Math decides · report"
+            self.send_json({"report_html": report_html, "mode_label": mode_label, "llm_available": openai_available()})
             return
 
         if parsed.path == "/api/chat":
@@ -5208,9 +5289,17 @@ class Handler(BaseHTTPRequestHandler):
                 if not ident:
                     self.send_json({"error": "missing_socio"}, status=400)
                     return
+            # Optional curator weighting (person only): when present the download reflects the exact
+            # weighting/order the curator saw in chat — what you see is what you download.
+            weights = None
+            lang = payload.get("lang", "es")
+            if kind == "person" and isinstance(payload.get("weights"), dict):
+                raw_w = payload["weights"]
+                weights = {sig["key"]: to_float(raw_w.get(sig["key"]), float(sig["default"])) for sig in TUNING_SIGNALS}
             try:
+                model = build_report_model(kind, ident, weights, lang)
                 import report_engine
-                data, filename = report_engine.generate_bytes(kind, ident)
+                data, filename = report_engine.render_docx_bytes_of(model)
             except ValueError:
                 self.send_json({"error": "not_found"}, status=404)
                 return

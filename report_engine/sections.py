@@ -112,12 +112,18 @@ def contactos(contacts: list[dict], profile: dict) -> list[dict]:
         cid = c.get("candidate_member_id")
         out.append(
             {
+                "candidate_member_id": cid,
                 "name": da._clean(c.get("candidate_name")),
                 "socio": da._clean(c.get("candidate_socio")),
                 "role": da._clean(c.get("candidate_role")),
                 "shared_tech": _shared_from_members(profile["tech"], cid, "technology_parents"),
                 "shared_sectors": _shared_from_members(profile["sectors"], cid, "sector_parents"),
                 "shared_ambitos": _shared_from_members(profile["ambitos"], cid, "ambitos"),
+                # Benign personal-affinity overlap (icebreakers). Sensitive fields are never read.
+                "shared_hobbies": _shared_from_members(profile.get("hobbies", set()), cid, "hobbies"),
+                "shared_sports": _shared_from_members(profile.get("sports", set()), cid, "sports"),
+                "shared_languages": _shared_from_members(profile.get("languages", set()), cid, "languages"),
+                "shared_university": _shared_from_members(profile.get("university", set()), cid, "university"),
             }
         )
     return out

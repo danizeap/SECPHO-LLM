@@ -118,7 +118,12 @@ def socios() -> pd.DataFrame:
 
 @lru_cache(maxsize=1)
 def matches() -> pd.DataFrame:
-    return pd.read_csv(OUTPUTS / "people_matches_v1.csv", encoding="utf-8")
+    # Read the SAME matcher output the live app uses (events-aware), so the report's
+    # contacts and order are identical to the chat. Fall back to the base file only if the
+    # events file is absent, so the CLI/tests still work on a minimal checkout.
+    events_file = OUTPUTS / "people_matches_v1_1_events.csv"
+    base_file = OUTPUTS / "people_matches_v1.csv"
+    return pd.read_csv(events_file if events_file.exists() else base_file, encoding="utf-8")
 
 
 def get_person(member_id: int) -> dict | None:
@@ -176,6 +181,12 @@ def person_profile(person: dict) -> dict:
         "tech": _split_set(person.get("technology_parents")),
         "sectors": _split_set(person.get("sector_parents")),
         "ambitos": _split_set(person.get("ambitos")),
+        # Benign personal-affinity sets (icebreaker angle). Sensitive fields
+        # (children, gender, food_preferences) are intentionally never read.
+        "hobbies": _split_set(person.get("hobbies")),
+        "sports": _split_set(person.get("sports")),
+        "languages": _split_set(person.get("languages")),
+        "university": _split_set(person.get("university")),
         "province": _clean(person.get("province")).lower(),
         "text": _clean(person.get("profile_text")) or _clean(person.get("full_name")),
     }
@@ -193,7 +204,13 @@ def socio_profile(socio_name: str, socio_row: dict | None = None) -> dict:
         ambitos |= _split_set(r.get("ambitos"))
     province = _clean((socio_row or {}).get("province")).lower()
     text = _clean((socio_row or {}).get("profile_text")) or socio_name
-    return {"tech": tech, "sectors": sectors, "ambitos": ambitos, "province": province, "text": text}
+    # Personal-affinity is a person-level concept; keep the keys present (empty) so the
+    # shared-contact builder treats person and company profiles uniformly.
+    return {
+        "tech": tech, "sectors": sectors, "ambitos": ambitos,
+        "hobbies": set(), "sports": set(), "languages": set(), "university": set(),
+        "province": province, "text": text,
+    }
 
 
 def socio_aggregate_attributes(socio_name: str) -> dict:

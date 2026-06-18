@@ -23,6 +23,10 @@ class _NoRedirect(urllib.request.HTTPRedirectHandler):
 def base_url():
     os.environ["SECPHO_APP_PASSWORD"] = "testpass"
     os.environ["SECPHO_SESSION_SECRET"] = "testsecret_integration_0123456789"
+    # Keep the suite hermetic and fast: no real LLM calls. Reports then render deterministically
+    # (the prose slots stay empty), which still exercises the full report pipeline and the
+    # chat==download invariant.
+    os.environ.pop("OPENAI_API_KEY", None)
     sys.path.insert(0, "backend_api")
     import mvp_web_app as app
 
@@ -78,3 +82,40 @@ def test_report_bad_type_is_rejected(base_url):
     cookie = _login(base_url)
     status, _, _ = _post_json(base_url, "/api/report", {"type": "bogus"}, cookie=cookie)
     assert status == 400
+
+
+def _get(url, path, cookie=None):
+    headers = {"Cookie": cookie} if cookie else {}
+    req = urllib.request.Request(url + path, headers=headers)
+    try:
+        with urllib.request.build_opener(_NoRedirect).open(req) as r:
+            return r.status, r.read()
+    except urllib.error.HTTPError as e:
+        return e.code, e.read()
+
+
+def test_report_tuned_returns_html_fragment(base_url):
+    cookie = _login(base_url)
+    qs = "&".join([
+        "profile_similarity=30", "structured_overlap=40", "event_interest_overlap_score=10",
+        "needs_overlap=10", "location_overlap_score=6", "personal_affinity_score=4",
+    ])
+    status, body = _get(base_url, f"/api/report-tuned?id=74663&{qs}&lang=es", cookie=cookie)
+    assert status == 200
+    data = json.loads(body)
+    assert data["report_html"].startswith('<div class="rep">')
+    assert "<script" not in data["report_html"].lower()
+
+
+def test_tuned_download_is_valid_docx(base_url):
+    cookie = _login(base_url)
+    weights = {
+        "profile_similarity": 30, "structured_overlap": 40, "event_interest_overlap_score": 10,
+        "needs_overlap": 10, "location_overlap_score": 6, "personal_affinity_score": 4,
+    }
+    status, headers, data = _post_json(
+        base_url, "/api/report", {"type": "person", "id": 74663, "weights": weights}, cookie=cookie
+    )
+    assert status == 200
+    assert "wordprocessingml" in headers.get("Content-Type", "")
+    assert data[:2] == b"PK"
