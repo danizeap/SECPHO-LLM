@@ -63,7 +63,7 @@ def test_no_sensitive_fields_are_structurally_included():
         assert not any(banned in lbl for lbl in labels), f"sensitive ficha label leaked: {banned}"
     allowed_contact_keys = {
         "candidate_member_id", "name", "socio", "role", "rationale",
-        "shared_tech", "shared_sectors", "shared_ambitos",
+        "shared_tech", "shared_sectors", "shared_ambitos", "shared_needs", "shared_location",
         "shared_hobbies", "shared_sports", "shared_languages", "shared_university",
     }
     for c in m.contacts:

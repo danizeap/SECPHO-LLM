@@ -1655,6 +1655,10 @@ def report_contacts_for(member_id: int, weights: dict | None) -> list | None:
             "candidate_name": c["name"],
             "candidate_socio": c["socio"],
             "candidate_role": c["role"],
+            # Carry the matcher's professional drivers so the report surfaces them (the report
+            # recomputes tech/sectors/affinity from members, but needs/location come from the matcher).
+            "shared_needs": c.get("evidence", {}).get("needs", ""),
+            "shared_location": c.get("evidence", {}).get("location", ""),
         }
         for c in data["candidates"][:5]
     ]
@@ -1684,8 +1688,9 @@ def _generate_report_prose(report, lang: str) -> dict:
     for i, c in enumerate(report.contacts, 1):
         shared = {
             k: c.get(k)
-            for k in ("shared_tech", "shared_sectors", "shared_ambitos", "shared_university",
-                      "shared_languages", "shared_hobbies", "shared_sports")
+            for k in ("shared_tech", "shared_sectors", "shared_ambitos", "shared_needs",
+                      "shared_location", "shared_university", "shared_languages",
+                      "shared_hobbies", "shared_sports")
             if c.get(k)
         }
         contacts_brief.append({
@@ -1704,7 +1709,12 @@ def _generate_report_prose(report, lang: str) -> dict:
         "fact or a number. Return STRICT JSON only:\n"
         '{"exec_summary":"<2-3 sentence overview of why these contacts fit the subject>",'
         '"rationales":[{"id":<member id>,"why":"<one short paragraph: why this contact is a strong '
-        'match for the subject, reasoning from the shared items provided>"}]}\n'
+        'match for the subject>"}]}\n'
+        "Each rationale must LEAD with the strongest PROFESSIONAL reasons — shared technologies, "
+        "sectors, ámbitos, shared needs (shared_needs), and being in the same place (shared_location). "
+        "Mention shared languages or hobbies only briefly at the end as a light networking icebreaker, "
+        "and NEVER as the main reason. If a contact has only soft overlap, say plainly that the fit is "
+        "lighter rather than overselling hobbies.\n"
         f"Write all prose in {want_lang}. Exactly one rationale per contact id. No numbers, no scores, "
         "no markdown, no facts beyond the shared items given.\n\nJSON:\n"
         + json.dumps(payload, ensure_ascii=False)

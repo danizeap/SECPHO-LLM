@@ -106,6 +106,43 @@ def _shared_from_members(target_set: set, candidate_member_id, col: str, limit: 
     return da.SEP.join(items[:limit])
 
 
+def _clean_location(value) -> str:
+    """Matcher location string -> short Spanish phrase ('same municipality: X' -> 'misma localidad: X')."""
+    s = da._clean(value)
+    if not s:
+        return ""
+    low = s.lower()
+    if low.startswith("same municipality:"):
+        return "misma localidad: " + s.split(":", 1)[1].strip()
+    if low.startswith("same province:"):
+        return "misma provincia: " + s.split(":", 1)[1].strip()
+    if low.startswith("same country:"):
+        return "mismo país: " + s.split(":", 1)[1].strip()
+    return s
+
+
+def _clean_needs(value, limit: int = 4) -> str:
+    """Matcher needs string ('cat: detail | detail | cat2: detail') -> the shared need CATEGORIES.
+
+    The feed flattens 'category: details' pipe-joined; we keep the segments that carry a category
+    (the part before ':'), de-duplicate, and cap — that is the meaningful 'what you both need'.
+    """
+    s = da._clean(value)
+    if not s:
+        return ""
+    seen: set[str] = set()
+    cats: list[str] = []
+    for seg in s.split("|"):
+        seg = seg.strip()
+        if ":" in seg:
+            cat = seg.split(":", 1)[0].strip()
+            key = da._canon(cat)
+            if cat and key not in seen:
+                seen.add(key)
+                cats.append(cat)
+    return da.SEP.join(cats[:limit])
+
+
 def contactos(contacts: list[dict], profile: dict) -> list[dict]:
     out = []
     for c in contacts:
@@ -119,6 +156,10 @@ def contactos(contacts: list[dict], profile: dict) -> list[dict]:
                 "shared_tech": _shared_from_members(profile["tech"], cid, "technology_parents"),
                 "shared_sectors": _shared_from_members(profile["sectors"], cid, "sector_parents"),
                 "shared_ambitos": _shared_from_members(profile["ambitos"], cid, "ambitos"),
+                # Professional drivers from the matcher row (what actually ranks them): the shared
+                # needs and same-location signal. These are the substance the rationale leads with.
+                "shared_needs": _clean_needs(c.get("shared_needs")),
+                "shared_location": _clean_location(c.get("shared_location")),
                 # Benign personal-affinity overlap (icebreakers). Sensitive fields are never read.
                 "shared_hobbies": _shared_from_members(profile.get("hobbies", set()), cid, "hobbies"),
                 "shared_sports": _shared_from_members(profile.get("sports", set()), cid, "sports"),

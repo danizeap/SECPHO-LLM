@@ -18,7 +18,8 @@ from __future__ import annotations
 
 
 def _contact_evidence_bullets(c: dict) -> list:
-    """Deterministic evidence bullets for one contact, in a fixed order."""
+    """Deterministic evidence bullets for one contact, in a fixed order — professional drivers
+    (tech, sectors, ámbitos, needs, location) first, then benign personal icebreakers."""
     out = []
     if c.get("shared_tech"):
         out.append(("li2", f"Tecnologías en común: {c['shared_tech']}"))
@@ -26,6 +27,10 @@ def _contact_evidence_bullets(c: dict) -> list:
         out.append(("li2", f"Sectores en común: {c['shared_sectors']}"))
     if c.get("shared_ambitos"):
         out.append(("li2", f"Ámbitos en común: {c['shared_ambitos']}"))
+    if c.get("shared_needs"):
+        out.append(("li2", f"Necesidades en común: {c['shared_needs']}"))
+    if c.get("shared_location"):
+        out.append(("li2", f"Ubicación: {c['shared_location']}"))
     if c.get("shared_university"):
         out.append(("li2", f"Universidad en común: {c['shared_university']}"))
     if c.get("shared_languages"):
