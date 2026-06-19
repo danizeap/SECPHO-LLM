@@ -1776,13 +1776,18 @@ def build_report_model(kind: str, ident, weights: dict | None, lang: str):
     Both report endpoints use this, so the chat HTML and the downloaded .docx are the same report."""
     import report_engine as RE
 
+    # The "Informe de Valor y Oportunidades" is a Spanish-language deliverable (its structure and
+    # headings are Spanish), so ALL its text — weighting note and LLM prose — is Spanish regardless
+    # of the chat UI language. The UI language only affects the chat chrome, never the report body,
+    # so a report is never internally half-English.
+    report_lang = "es"
     if kind == "person":
         contacts = report_contacts_for(int(ident), weights)
         model = RE.build_person_report(int(ident), contacts=contacts)
-        model.weighting_note = weighting_note_localized(weights, lang) if weights else ""
+        model.weighting_note = weighting_note_localized(weights, report_lang) if weights else ""
     else:
         model = RE.build_company_report(str(ident))
-    apply_report_prose(model, kind, ident, weights, lang)
+    apply_report_prose(model, kind, ident, weights, report_lang)
     return model
 
 
@@ -3158,10 +3163,16 @@ def markdown_to_html(text: str) -> str:
 
 def markdown_to_chat_html(text: str) -> str:
     escaped = html.escape(text)
-    escaped = re.sub(r"\[person:(\d+)\]", r'<button class="inline-action" onclick="setPerson(\1)">select</button>', escaped)
-    escaped = re.sub(r"\[tune:(\d+)\]", r'<button class="inline-action" onclick="openTuner(\1)">Adjust weighting &amp; report</button>', escaped)
-    escaped = re.sub(r"\[report:(\d+)\]", lambda m: f'<button class="inline-action" onclick="downloadReport(\'person\',{m.group(1)})">Descargar informe (.docx)</button>', escaped)
-    escaped = re.sub(r"\[report-socio:([^\]]+)\]", lambda m: f'<button class="inline-action" data-socio="{m.group(1)}" onclick="downloadReportSocio(this)">Descargar informe (.docx)</button>', escaped)
+    # Localize the action-button labels to the request language (the chat sends lang and the
+    # endpoint calls set_request_lang before rendering), so nothing bleeds the wrong language.
+    _en = current_lang() == "en"
+    lbl_sel = "select" if _en else "seleccionar"
+    lbl_tune = "Adjust weighting &amp; report" if _en else "Ajustar ponderación e informe"
+    lbl_dl = "Download report (.docx)" if _en else "Descargar informe (.docx)"
+    escaped = re.sub(r"\[person:(\d+)\]", lambda m: f'<button class="inline-action" onclick="setPerson({m.group(1)})">{lbl_sel}</button>', escaped)
+    escaped = re.sub(r"\[tune:(\d+)\]", lambda m: f'<button class="inline-action" onclick="openTuner({m.group(1)})">{lbl_tune}</button>', escaped)
+    escaped = re.sub(r"\[report:(\d+)\]", lambda m: f'<button class="inline-action" onclick="downloadReport(\'person\',{m.group(1)})">{lbl_dl}</button>', escaped)
+    escaped = re.sub(r"\[report-socio:([^\]]+)\]", lambda m: f'<button class="inline-action" data-socio="{m.group(1)}" onclick="downloadReportSocio(this)">{lbl_dl}</button>', escaped)
     escaped = re.sub(
         r"(/artifacts/[A-Za-z0-9_.-]+)",
         r'<a href="\1" target="_blank" style="color:var(--brand)">\1</a>',
@@ -3823,14 +3834,18 @@ CHAT_HTML = """
       font-size: 12px;
     }
     .inline-action {
-      border: 1px solid rgba(0,195,199,.45);
+      border: 1px solid rgba(0,195,199,.55);
       color: var(--brand);
-      background: rgba(0,195,199,.08);
-      border-radius: 999px;
-      padding: 3px 8px;
-      margin-left: 5px;
+      background: rgba(0,195,199,.10);
+      border-radius: 8px;
+      padding: 8px 14px;
+      margin: 8px 8px 0 0;
+      font-size: 13px;
+      font-weight: 600;
+      min-height: 36px;
       cursor: pointer;
     }
+    .inline-action:hover { background: rgba(0,195,199,.18); border-color: rgba(0,195,199,.85); }
     .composer-wrap {
       position: fixed;
       left: 270px;
@@ -4322,7 +4337,7 @@ CHAT_HTML = """
           last.querySelector('.bubble').innerHTML = '<span style="color:#ff8a8a">' + esc(reason) + '</span>';
         } else {
           if (data.selected_member_id) selectedMemberId = data.selected_member_id;
-          last.querySelector('.bubble').innerHTML = data.answer_html + '<div class="mode">' + esc((data.llm_available ? 'LLM active' : 'fallback') + ' · ' + data.mode + ' · ' + data.kind) + '</div>';
+          last.querySelector('.bubble').innerHTML = data.answer_html + '<div class="mode">' + esc(data.llm_available ? t('llm_on') : t('llm_off')) + '</div>';
           document.getElementById('llmBadge').textContent = data.llm_available ? t('llm_on') : t('llm_off');
           document.getElementById('status').textContent = data.kind === 'report' ? t('status_report') : t('status_default');
           history.push({ role: 'user', text: text });
