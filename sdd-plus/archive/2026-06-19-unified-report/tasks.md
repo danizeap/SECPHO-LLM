@@ -13,7 +13,10 @@ unified-report
 - [x] P1/P3: weights flow into both endpoints; tuned download matches the preview.
 - [x] P2: flagship prose (`exec_summary` + per-contact `rationale`), strict-JSON, deterministic fallback.
 - [x] P2: prose cache keyed (kind, ident, weighting, lang) so preview and download reuse the same prose.
-- [x] Removed the dead free-form LLM report functions (the old "LLM writes the whole report" path).
+- [x] Removed the free-form WEIGHTED report functions that fed the tuned report (weighting_text,
+      report_for_person_weighted, llm_payload_for_person_weighted, llm_report_for_person_weighted).
+      Note (verifier): a separate non-weighted `llm_report_for_person` / `/api/llm-report` briefing
+      still exists, used only by the INDEX_HTML demo page — out of scope here; see follow-up to retire it.
 - [x] Tests: html==docx (person/company/with-prose), injected-order honored, privacy allowlist, tuned download, report-tuned HTML; suite green (33).
 - [x] Docs/specs: report-generation delta spec.
 - [x] Verification: AST + escape clean, esprima JS clean, full suite, LIVE flagship end-to-end (prose + chat==download via cache).

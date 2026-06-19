@@ -38,5 +38,7 @@ unified-report
 
 ## Result
 
-PASS (static + hermetic suite + live flagship end-to-end all green). One open item delegated to the
-Owner: the live browser read-through on the deploy. Dead free-form-report code removed.
+PASS (static + hermetic suite + live flagship end-to-end all green; verifier subagent VERIFIED WITH
+NOTES). One open item delegated to the Owner: the live browser read-through on the deploy. The
+free-form WEIGHTED report path that fed the tuned report was removed; a separate non-weighted
+`/api/llm-report` briefing remains on the INDEX_HTML demo page (out of scope; follow-up to retire).
