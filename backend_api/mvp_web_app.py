@@ -3669,14 +3669,26 @@ CHAT_HTML = """
       cursor: pointer;
       font: inherit;
     }
-    .side-block {
+    .side-foot {
+      margin-top: auto;
       border-top: 1px solid var(--line);
-      padding-top: 14px;
-      color: var(--muted);
-      font-size: 13px;
-      line-height: 1.45;
+      padding-top: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
     }
-    .side-block strong { color: var(--ink); }
+    .side-foot-link {
+      color: var(--muted);
+      text-decoration: none;
+      font-size: 13px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 5px 4px;
+      border-radius: 6px;
+    }
+    .side-foot-link:hover { color: var(--ink); background: #1b1c20; }
+    .side-foot-link .gear { font-size: 15px; }
     main {
       display: flex;
       flex-direction: column;
@@ -4005,33 +4017,10 @@ CHAT_HTML = """
         <span class="badge" id="llmBadge">LLM</span>
       </div>
       <button class="new-chat" onclick="newChat()" data-i18n="newchat">+ New conversation</button>
-      <a class="new-chat" href="/logout" style="text-decoration:none" data-i18n="signout">Sign out</a>
       <div class="conv-list" id="convList"></div>
-      <div class="side-block" data-i18n="block_model">
-        <strong>Model rule</strong><br>
-        The script does the matchmaking. The LLM explains and decorates the deterministic results.
-      </div>
-      <div class="side-block" data-i18n="block_voice">
-        <strong>SECPHO voice</strong><br>
-        Collaborate to innovate. Deep tech connections, evidence, and practical next steps.
-      </div>
-      <div class="side-block" data-i18n="block_try">
-        <strong>Try</strong><br>
-        “What can you tell me about the SECPHO ecosystem?”<br>
-        “Events about photonics.”<br>
-        “Recent retos in industrial manufacturing.”<br>
-        “Top socios by readiness.”<br>
-        “Recommendations for David Santana.”
-      </div>
-      <div class="side-block" data-i18n="block_console">
-        <strong>Scoring console</strong><br>
-        Drag the signal weights and watch recommendations re-rank live.<br>
-        <a href="/tuning" style="color:var(--brand)">Open scoring console</a>
-      </div>
-      <div class="side-block" data-i18n="block_admin">
-        <strong>Admin console</strong><br>
-        Review captured feedback and the tool-learning loop.<br>
-        <a href="/admin" style="color:var(--brand)">Open admin (admin login)</a>
+      <div class="side-foot">
+        <a class="side-foot-link" href="/admin" title="Admin"><span class="gear">⚙</span><span data-i18n="admin_link">Admin</span></a>
+        <a class="side-foot-link" href="/logout" data-i18n="signout">Sign out</a>
       </div>
     </aside>
     <main>
@@ -4096,12 +4085,7 @@ CHAT_HTML = """
 
     const I18N = {
       en: {
-        newchat: '+ New conversation', signout: 'Sign out',
-        block_model: '<strong>Model rule</strong><br>The script does the matchmaking. The LLM explains and decorates the deterministic results.',
-        block_voice: '<strong>SECPHO voice</strong><br>Collaborate to innovate. Deep tech connections, evidence, and practical next steps.',
-        block_try: '<strong>Try</strong><br>“What can you tell me about the SECPHO ecosystem?”<br>“Events about photonics.”<br>“Recent retos in industrial manufacturing.”<br>“Top socios by readiness.”<br>“Recommendations for David Santana.”',
-        block_console: '<strong>Scoring console</strong><br>Drag the signal weights and watch recommendations re-rank live.<br><a href="/tuning" style="color:var(--brand)">Open scoring console</a>',
-        block_admin: '<strong>Admin console</strong><br>Review captured feedback and the tool-learning loop.<br><a href="/admin" style="color:var(--brand)">Open admin (admin login)</a>',
+        newchat: '+ New conversation', signout: 'Sign out', admin_link: 'Admin',
         title: 'SECPHO Intelligence Chat', status_default: 'Math decides. LLM explains.', status_report: 'Report generated from model evidence',
         feedback_btn: 'Feedback', welcome_h: "Ask SECPHO's data anything.",
         welcome_p: 'Explore socios, people, events, and retos — or get model-ranked introductions and reports. The matcher computes the evidence; the LLM explains it.',
@@ -4125,12 +4109,7 @@ CHAT_HTML = """
         sig_needs_overlap: 'Needs overlap', sig_location_overlap_score: 'Location', sig_personal_affinity_score: 'Personal affinity',
       },
       es: {
-        newchat: '+ Nueva conversación', signout: 'Cerrar sesión',
-        block_model: '<strong>Regla del modelo</strong><br>El script hace el emparejamiento. El LLM explica y presenta los resultados deterministas.',
-        block_voice: '<strong>Voz SECPHO</strong><br>Colaborar para innovar. Conexiones deep tech, evidencia y próximos pasos prácticos.',
-        block_try: '<strong>Prueba</strong><br>“¿Qué me puedes contar sobre el ecosistema SECPHO?”<br>“Eventos sobre fotónica.”<br>“Retos recientes de fabricación industrial.”<br>“Top socios por readiness.”<br>“Recomendaciones para David Santana.”',
-        block_console: '<strong>Consola de scoring</strong><br>Ajusta los pesos de las señales y observa cómo se reordenan las recomendaciones en vivo.<br><a href="/tuning" style="color:var(--brand)">Abrir consola de scoring</a>',
-        block_admin: '<strong>Consola de administración</strong><br>Revisa el feedback capturado y el bucle de aprendizaje de herramientas.<br><a href="/admin" style="color:var(--brand)">Abrir administración (acceso admin)</a>',
+        newchat: '+ Nueva conversación', signout: 'Cerrar sesión', admin_link: 'Administración',
         title: 'Chat de Inteligencia SECPHO', status_default: 'Las matemáticas deciden. El LLM explica.', status_report: 'Reporte generado a partir de la evidencia del modelo',
         feedback_btn: 'Comentarios', welcome_h: 'Pregúntale lo que sea a los datos de SECPHO.',
         welcome_p: 'Explora socios, personas, eventos y retos — o consigue presentaciones y reportes rankeados por el modelo. El matcher calcula la evidencia; el LLM la explica.',
