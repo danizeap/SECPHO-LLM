@@ -1575,29 +1575,6 @@ def report_for_person(member_id: int) -> str:
     return "\n".join(lines)
 
 
-def llm_report_for_person(member_id: int) -> dict:
-    payload = redact_pii(llm_payload_for_person(member_id))
-    local_report = report_for_person(member_id)
-
-    prompt = (
-        "Create a polished SECPHO internal one-page matchmaker briefing from this JSON. "
-        "Keep the exact recommendation order. Mention the score and 1-2 evidence points "
-        "for each recommendation. Include a concise executive summary, introduction "
-        "positioning, recommended next action, and the event-signal caveat.\n\n"
-        f"JSON:\n{json.dumps(payload, ensure_ascii=False, indent=2)}"
-    )
-    text, mode = call_llm(prompt)
-    if text:
-        return {"mode": mode, "markdown": text}
-
-    fallback = (
-        "# LLM-Style Briefing Draft\n\n"
-        f"**Mode:** grounded fallback ({mode}).\n\n"
-        "This is the same structure the LLM receives: deterministic recommendations, "
-        "score evidence, introduction positioning, and caveats.\n\n"
-        + local_report
-    )
-    return {"mode": mode, "markdown": fallback}
 
 
 # Spanish labels for the tuning signals (English labels live on TUNING_SIGNALS).
@@ -1785,6 +1762,32 @@ def build_report_model(kind: str, ident, weights: dict | None, lang: str):
         model = RE.build_company_report(str(ident))
     apply_report_prose(model, kind, ident, weights, report_lang)
     return model
+
+
+def unified_report_chat_response(member_id: int) -> dict | None:
+    """An in-chat 'el informe' request renders the SAME unified report as the tuner/download —
+    a deterministic HTML fragment (math decides; LLM only the prose), never the old free-form
+    LLM report. Returns None if the member can't be built so the caller can fall through."""
+    import report_engine as RE
+
+    try:
+        model = build_report_model("person", int(member_id), None, "es")
+    except (ValueError, TypeError):
+        return None
+    dl_label = "Download .docx" if current_lang() == "en" else "Descargar .docx"
+    fragment = RE.render_html_of(model) + (
+        '<div class="rep-actions">'
+        f'<button class="rep-download" data-id="{int(member_id)}" data-weights="null" '
+        f'onclick="downloadReportFromBtn(this)">{dl_label}</button></div>'
+    )
+    return {
+        "answer": f"Informe de Valor y Oportunidades para {model.subject_name}",
+        "answer_html": fragment,
+        "mode": "report_unified",
+        "selected_member_id": int(member_id),
+        "kind": "report",
+        "llm_available": openai_available(),
+    }
 
 
 def answer_question(question: str) -> str:
@@ -2571,14 +2574,7 @@ def tool_answer(action: str, args: dict, selected_member_id: int | None = None) 
             member_id = exact_or_best_person(clean(args.get("query"), ""))
         if not member_id:
             return None
-        report = llm_report_for_person(int(member_id))
-        return {
-            "answer": report["markdown"],
-            "mode": report["mode"],
-            "selected_member_id": int(member_id),
-            "kind": "report",
-            "llm_available": openai_available(),
-        }
+        return unified_report_chat_response(int(member_id))
 
     if action == "search_events":
         result = search_events(
@@ -2750,14 +2746,9 @@ def chat_flow(question: str, selected_member_id: int | None = None) -> dict:
             target_member_id = found_id
 
     if report_intent and target_member_id:
-        report = llm_report_for_person(target_member_id)
-        return {
-            "answer": report["markdown"],
-            "mode": report["mode"],
-            "selected_member_id": target_member_id,
-            "kind": "report",
-            "llm_available": openai_available(),
-        }
+        resp = unified_report_chat_response(target_member_id)
+        if resp:
+            return resp
 
     if rec_intent and target_member_id:
         fallback = render_recommendations(target_member_id)
@@ -4988,7 +4979,7 @@ class Handler(BaseHTTPRequestHandler):
                 if clean(result.get("answer"), ""):
                     self.send_json({
                         "answer": result["answer"],
-                        "answer_html": markdown_to_chat_html(result["answer"]),
+                        "answer_html": result.get("answer_html") or markdown_to_chat_html(result["answer"]),
                         "mode": result["mode"],
                         "kind": "agent",
                         "selected_member_id": result.get("selected"),
@@ -4999,7 +4990,7 @@ class Handler(BaseHTTPRequestHandler):
             fb = chat_flow(message, member_id)
             self.send_json({
                 **fb,
-                "answer_html": markdown_to_chat_html(fb["answer"]),
+                "answer_html": fb.get("answer_html") or markdown_to_chat_html(fb["answer"]),
                 "model": current_model(),
             })
             return

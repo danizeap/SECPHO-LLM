@@ -44,11 +44,15 @@ The system SHALL instruct the agent to use tools for real data and never invent 
 - **THEN** the agent states it plainly and suggests what it can answer instead of fabricating a result.
 
 ### Requirement: Math decides ranking
-The system SHALL source recommendation rankings and scores only from the `recommend_contacts` and `rerank_contacts` tools, and SHALL NOT reorder, re-score, merge, or invent matches; no other tool emits a ranking. In chat, recommendations are presented as a concise ranked list with one line of evidence each plus the `[tune:THEIR_MEMBER_ID]` token; the full one-page report is written inline only when the user explicitly asks for "the report" / "el informe".
+The system SHALL source recommendation rankings and scores only from the `recommend_contacts` and `rerank_contacts` tools, and SHALL NOT reorder, re-score, merge, or invent matches; no other tool emits a ranking. In chat, recommendations are presented as a concise ranked list with one line of evidence each plus the `[tune:THEIR_MEMBER_ID]` token. When the user explicitly asks for "the report" / "el informe", the system SHALL render the SINGLE unified report (the same deterministic report produced by the tuner and the download) inline as an HTML fragment with a "Descargar .docx" button — NOT a free-form LLM-written document; it SHALL be identical in structure, contacts, order, and numbers to the tuner/download report.
 
 #### Scenario: Recommendation request
 - **WHEN** a user asks who a person should connect with
-- **THEN** the agent calls `recommend_contacts`, presents its `recommendations_ranked_by_model` order unchanged, preserves any `[person:ID]` token, and appends `[tune:THEIR_MEMBER_ID]` on a final line.
+- **THEN** the agent calls `recommend_contacts`, presents its `recommendations_ranked_by_model` order unchanged, preserves any `[person:ID]` token, and appends `[tune:THEIR_MEMBER_ID]` / `[report:THEIR_MEMBER_ID]` on a final line.
+
+#### Scenario: In-chat report request renders the unified report
+- **WHEN** the user asks for "el informe" / "the report" for a person
+- **THEN** the chat renders the unified report (deterministic structure, math-fixed numbers, flagship prose, "Contactos recomendados", a "Descargar .docx" button) — the SAME report as the tuner and the download, never a free-form LLM briefing.
 
 ### Requirement: Reliable under variable model latency
 The system SHALL set the OpenAI request timeout to 60s for both the agent step (`call_agent_step`) and the single-shot LLM call (`call_llm`), because gpt-5-mini latency is highly variable (measured 4–60s+ for identical calls). A latency spike within 60s SHALL be awaited rather than treated as a failure, so the chat does not silently fall back to the heuristic router on common spikes.
