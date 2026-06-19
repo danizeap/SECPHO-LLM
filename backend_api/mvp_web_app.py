@@ -3992,6 +3992,9 @@ CHAT_HTML = """
     .rep ul.rep-list { margin:2px 0 6px; padding-left:18px; }
     .rep ul.rep-list li { margin:2px 0; }
     .rep ul.rep-list li.lvl2 { list-style:circle; }
+    .rep-actions { margin:14px 0 2px; }
+    .rep-download { background:var(--brand,#00c3c7); color:#04181a; border:none; border-radius:8px; padding:10px 18px; font-size:14px; font-weight:600; cursor:pointer; }
+    .rep-download:hover { filter:brightness(1.08); }
   </style>
 </head>
 <body>
@@ -4116,7 +4119,7 @@ CHAT_HTML = """
         err_server: 'Something went wrong reaching the server. Please try again.', err_report: 'Something went wrong generating the report.',
         err_rate: 'You are sending messages too quickly. Please wait a moment and try again.', err_none: 'No response from the server. Please try again.',
         tuner_head: 'Adjust what matters for this person, then generate the report from your weighting. This stays pure math — no LLM — until you hit generate.',
-        tuner_reset: 'Reset to model default', tuner_generate: 'Generate report from this weighting', tuner_generating: 'Generating...',
+        tuner_reset: 'Reset to model default', tuner_generate: 'Generate report from this weighting', tuner_generating: 'Generating...', download_docx: 'Download .docx',
         llm_on: 'LLM ON', llm_off: 'Fallback', selected_person: 'Selected person', model_label: 'Model',
         sig_profile_similarity: 'Profile similarity', sig_structured_overlap: 'Tech / sector overlap', sig_event_interest_overlap_score: 'Event interest',
         sig_needs_overlap: 'Needs overlap', sig_location_overlap_score: 'Location', sig_personal_affinity_score: 'Personal affinity',
@@ -4145,7 +4148,7 @@ CHAT_HTML = """
         err_server: 'Hubo un problema al contactar el servidor. Inténtalo de nuevo.', err_report: 'Hubo un problema al generar el reporte.',
         err_rate: 'Estás enviando mensajes demasiado rápido. Espera un momento e inténtalo de nuevo.', err_none: 'Sin respuesta del servidor. Inténtalo de nuevo.',
         tuner_head: 'Ajusta lo que importa para esta persona y genera el reporte con tu ponderación. Esto es matemática pura — sin LLM — hasta que pulses generar.',
-        tuner_reset: 'Restablecer al valor del modelo', tuner_generate: 'Generar reporte con esta ponderación', tuner_generating: 'Generando...',
+        tuner_reset: 'Restablecer al valor del modelo', tuner_generate: 'Generar reporte con esta ponderación', tuner_generating: 'Generando...', download_docx: 'Descargar .docx',
         llm_on: 'LLM ON', llm_off: 'Alternativo', selected_person: 'Persona seleccionada', model_label: 'Modelo',
         sig_profile_similarity: 'Similitud de perfil', sig_structured_overlap: 'Solape tecnología / sector', sig_event_interest_overlap_score: 'Interés en eventos',
         sig_needs_overlap: 'Solape de necesidades', sig_location_overlap_score: 'Ubicación', sig_personal_affinity_score: 'Afinidad personal',
@@ -4442,12 +4445,18 @@ CHAT_HTML = """
       if (btn){ btn.disabled = true; btn.textContent = t('tuner_generating'); }
       addMessage('assistant', '<span class="thinking">' + esc(t('writing_report')) + '<span class="dots"><i>.</i><i>.</i><i>.</i></span></span>', '');
       const last = document.querySelector('#messages .msg.assistant:last-child');
+      // Snapshot the weights that produce THIS report, so its download button stays correct even
+      // if the sliders change afterwards.
+      const used = (typeof tunerWeights !== 'undefined' && tunerWeights[id]) ? Object.assign({}, tunerWeights[id]) : {};
       try {
         const res = await fetch('/api/report-tuned?id=' + id + '&' + tunerQS(id) + '&lang=' + LANG + '&model=' + MODEL);
         if (res.status === 401){ window.location.href='/login'; return; }
         const data = await res.json();
+        const dl = '<div class="rep-actions"><button class="rep-download" data-id="' + id +
+          '" data-weights="' + esc(JSON.stringify(used)) + '" onclick="downloadReportFromBtn(this)">' +
+          esc(t('download_docx')) + '</button></div>';
         last.querySelector('.bubble').innerHTML = (data.report_html || '<span style="color:#ff8a8a">' + esc(t('err_report')) + '</span>') +
-          '<div class="mode">' + esc(data.mode_label || (data.mode || '')) + '</div>';
+          dl + '<div class="mode">' + esc(data.mode_label || (data.mode || '')) + '</div>';
       } catch (err) {
         last.querySelector('.bubble').innerHTML = '<span style="color:#ff8a8a">' + esc(t('err_report')) + '</span>';
       } finally {
@@ -4476,6 +4485,10 @@ CHAT_HTML = """
     }
     function downloadReportSocio(btn){ downloadReport('company', btn.dataset.socio); }
     function downloadPersonReport(id){ downloadReport('person', id, (typeof tunerWeights !== 'undefined' ? tunerWeights[id] : null)); }
+    function downloadReportFromBtn(btn){
+      var w = null; try { w = JSON.parse(btn.dataset.weights || 'null'); } catch(e){}
+      downloadReport('person', btn.dataset.id, w);
+    }
 
     // ---- Conversation history (client-side, localStorage) -------------------
     var WELCOME_HTML = (document.getElementById('welcome') || {}).outerHTML || '';
