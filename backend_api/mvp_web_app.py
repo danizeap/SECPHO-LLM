@@ -282,11 +282,44 @@ def load_data() -> dict:
         "retos": optional(RETOS_PATH),
         "subscribers": optional(SUBSCRIBERS_PATH),
         "members_all": optional(MEMBERS_ALL_PATH),
+        # New live-only entities (Phase 1): empty until the zero-copy live layer fills them.
+        "proyectos": pd.DataFrame(),
+        "casos_exito": pd.DataFrame(),
     }
 
 
 ensure_state_dirs()
 DATA = load_data()
+
+
+def _start_live_refresh() -> None:
+    """Zero-copy live layer (Phase 1): when SECPHO_LIVE_DATA is on (with SECPHO_API_AUTH_TOKEN
+    configured), refresh the live-capable sources in a background thread and swap them into DATA when
+    they land. Best-effort — the CSV
+    snapshot is the immediate fallback, and a disabled/failed live load just leaves the CSV view in
+    place. Persists nothing; never blocks startup."""
+    try:
+        import live_data
+    except Exception:
+        return
+    if not live_data.live_enabled():
+        return
+
+    def _bg():
+        try:
+            live = live_data.load_all(["retos", "proyectos", "casos_exito"])
+            for key, df in live.items():
+                if df is not None and not df.empty:
+                    DATA[key] = df
+            if live:
+                LOGGER.info("live data loaded: %s", {k: len(v) for k, v in live.items()})
+        except Exception:
+            LOGGER.warning("live data refresh failed; staying on CSV fallback")
+
+    threading.Thread(target=_bg, daemon=True, name="live-data-refresh").start()
+
+
+_start_live_refresh()
 
 
 def utc_now_iso() -> str:
