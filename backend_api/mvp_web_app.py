@@ -282,9 +282,10 @@ def load_data() -> dict:
         "retos": optional(RETOS_PATH),
         "subscribers": optional(SUBSCRIBERS_PATH),
         "members_all": optional(MEMBERS_ALL_PATH),
-        # New live-only entities (Phase 1): empty until the zero-copy live layer fills them.
+        # New live-only entities: empty until the zero-copy live layer fills them.
         "proyectos": pd.DataFrame(),
         "casos_exito": pd.DataFrame(),
+        "actividades": pd.DataFrame(),
     }
 
 
@@ -2096,6 +2097,31 @@ def render_events(result: dict) -> str:
     return "\n".join(lines)
 
 
+def list_activities(query: str = "", socio: str = "", limit: int = 10) -> dict:
+    """List/search SECPHO member activities (actividades) from the in-memory live table, most recent
+    first, optionally filtered by socio and/or topic. Empty when live is off. The engagement signal
+    that feeds health/churn intelligence later."""
+    acts = DATA.get("actividades", pd.DataFrame())
+    if acts is None or acts.empty:
+        return {"activities": [], "total": 0}
+    df = acts.copy()
+    if socio:
+        df = df[df["socio"].astype(str).str.lower().str.contains(socio.lower(), na=False)]
+    tokens = expand_search_terms(query)
+    if tokens:
+        mask = pd.Series(False, index=df.index)
+        for col in ("socio", "type", "description", "author"):
+            if col in df.columns:
+                mask = mask | text_contains_any(df[col], tokens)
+        df = df[mask]
+    total = len(df)
+    df = df.assign(_d=pd.to_datetime(df.get("date"), dayfirst=True, errors="coerce"))
+    df = df.sort_values("_d", ascending=False, na_position="last")
+    fields = ["socio", "date", "type", "author", "description"]
+    rows = [{f: clean(r.get(f), "") for f in fields} for _, r in df.head(max(1, min(limit, 25))).iterrows()]
+    return {"activities": rows, "total": total}
+
+
 def list_projects(query: str = "", limit: int = 8) -> dict:
     """List/search SECPHO projects (proyectos) from the in-memory live table. Returns non-financial
     fields only — budget figures are gated until the access model (P4). Empty when live is off."""
@@ -3014,6 +3040,9 @@ def dispatch_tool(name: str, args: dict, ctx: dict) -> dict:
         if name == "list_projects":
             return list_projects(query=clean(args.get("query"), ""), limit=10)
 
+        if name == "list_activities":
+            return list_activities(query=clean(args.get("query"), ""), socio=clean(args.get("socio"), ""), limit=10)
+
         if name == "ecosystem_overview":
             return ecosystem_overview()
 
@@ -3088,6 +3117,11 @@ AGENT_TOOL_SCHEMAS = [
      "description": "List or search SECPHO projects (proyectos) by topic/technology/sector/partner/program. Non-financial fields only (no budgets).",
      "parameters": {"type": "object", "properties": {
          "query": {"type": "string"}}}},
+    {"type": "function", "strict": False, "name": "list_activities",
+     "description": "List or search SECPHO member activities (actividades) by socio and/or topic; most recent first. The engagement signal.",
+     "parameters": {"type": "object", "properties": {
+         "query": {"type": "string"},
+         "socio": {"type": "string"}}}},
     {"type": "function", "strict": False, "name": "ecosystem_overview",
      "description": "High-level counts and top technologies/sectors/provinces across the whole SECPHO dataset.",
      "parameters": {"type": "object", "properties": {}}},

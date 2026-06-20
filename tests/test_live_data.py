@@ -71,6 +71,22 @@ def test_casos_normalizer_parses_repr_lists():
     assert "<p>" not in row["summary"]
 
 
+ACTIV_FIXTURE = [{
+    "Socio": "ACME", "Tipo socio": "Pleno", "Fecha": "15/03/2026", "Autor": "Ana",
+    "[QN]": "Q1", "Tipo": "Reunión", "Descripción": "<p>Llamada de seguimiento</p>",
+}]
+
+
+def test_actividades_normalizer():
+    df = ld.normalize_actividades(ACTIV_FIXTURE)
+    expected = {"activity_id", "socio", "socio_type", "date", "author", "qn", "type", "description"}
+    assert expected.issubset(set(df.columns))
+    row = df.iloc[0]
+    assert row["socio"] == "ACME" and row["date"] == "15/03/2026" and row["type"] == "Reunión"
+    assert "<p>" not in row["description"] and "seguimiento" in row["description"]   # HTML stripped
+    assert len(row["activity_id"]) == 16 and ld.KEY_COLUMNS["actividades"] == "activity_id"  # synthetic key
+
+
 def test_live_off_by_default_even_with_token(monkeypatch):
     # A token alone must NOT enable live (a .env token shouldn't trigger network in tests).
     monkeypatch.setenv("SECPHO_API_AUTH_TOKEN", "test-token")

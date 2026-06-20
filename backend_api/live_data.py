@@ -166,11 +166,36 @@ def normalize_casos(raw) -> pd.DataFrame:
 # --------------------------------------------------------------------------- #
 # Registry + parallel loader
 # --------------------------------------------------------------------------- #
+def normalize_actividades(raw) -> pd.DataFrame:
+    """Live actividades JSON -> a canonical activity log (new entity; the engagement signal). Adds a
+    synthetic stable `activity_id` (content hash) since the source has no id, for change detection."""
+    rows = []
+    for _rid, r in _records(raw):
+        socio = _clean(r.get("Socio"))
+        date = _clean(r.get("Fecha"))
+        atype = _clean(r.get("Tipo"))
+        author = _clean(r.get("Autor"))
+        desc = _strip_html(r.get("Descripción"))
+        aid = hashlib.sha1(f"{socio}|{date}|{atype}|{author}|{desc}".encode("utf-8", "replace")).hexdigest()[:16]
+        rows.append({
+            "activity_id": aid,
+            "socio": socio,
+            "socio_type": _clean(r.get("Tipo socio")),
+            "date": date,
+            "author": author,
+            "qn": _clean(r.get("[QN]")),
+            "type": atype,
+            "description": desc,
+        })
+    return pd.DataFrame(rows)
+
+
 # name -> (endpoint, extra query, normalizer)
 SOURCES = {
     "retos": ("retos", "", normalize_retos),
     "proyectos": ("proyectos", "", normalize_proyectos),
     "casos_exito": ("casos-exito", "", normalize_casos),
+    "actividades": ("actividades", "", normalize_actividades),
 }
 
 
@@ -221,7 +246,7 @@ REFRESH_INTERVALS: dict[str, int] = {}
 _TICK_SECONDS = int(os.getenv("SECPHO_LIVE_TICK_SECONDS", "60"))
 
 # Stable record key per source for diffing (id where available, else a stable field).
-KEY_COLUMNS = {"retos": "reto_id", "proyectos": "proyecto_id", "casos_exito": "title"}
+KEY_COLUMNS = {"retos": "reto_id", "proyectos": "proyecto_id", "casos_exito": "title", "actividades": "activity_id"}
 
 _LAST: dict[str, pd.DataFrame] = {}          # previous pull per source (in RAM, for diffing)
 _LAST_REFRESH: dict[str, float] = {}         # monotonic time of last refresh attempt (cadence)
