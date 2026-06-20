@@ -2096,6 +2096,29 @@ def render_events(result: dict) -> str:
     return "\n".join(lines)
 
 
+def list_projects(query: str = "", limit: int = 8) -> dict:
+    """List/search SECPHO projects (proyectos) from the in-memory live table. Returns non-financial
+    fields only — budget figures are gated until the access model (P4). Empty when live is off."""
+    projects = DATA.get("proyectos", pd.DataFrame())
+    if projects is None or projects.empty:
+        return {"projects": [], "total": 0}
+    df = projects.copy()
+    tokens = expand_search_terms(query)
+    if tokens:
+        searchable = ["title", "acronym", "technologies", "sectors", "ambitos", "partners",
+                      "funding_program", "type", "stage", "lead"]
+        mask = pd.Series(False, index=df.index)
+        for col in searchable:
+            if col in df.columns:
+                mask = mask | text_contains_any(df[col], tokens)
+        df = df[mask]
+    total = len(df)
+    fields = ["proyecto_id", "acronym", "title", "technologies", "sectors", "ambitos", "partners",
+              "type", "stage", "start", "end", "lead", "funding_program", "url"]  # no budget/financial
+    rows = [{f: clean(r.get(f), "") for f in fields} for _, r in df.head(max(1, min(limit, 25))).iterrows()]
+    return {"projects": rows, "total": total}
+
+
 def list_retos(query: str = "", status: str = "", limit: int = 8) -> dict:
     retos = DATA.get("retos", pd.DataFrame())
     if retos is None or retos.empty:
@@ -2988,6 +3011,9 @@ def dispatch_tool(name: str, args: dict, ctx: dict) -> dict:
         if name == "list_retos":
             return list_retos(query=clean(args.get("query"), ""), status=clean(args.get("status"), ""), limit=10)
 
+        if name == "list_projects":
+            return list_projects(query=clean(args.get("query"), ""), limit=10)
+
         if name == "ecosystem_overview":
             return ecosystem_overview()
 
@@ -3058,6 +3084,10 @@ AGENT_TOOL_SCHEMAS = [
      "parameters": {"type": "object", "properties": {
          "query": {"type": "string"},
          "status": {"type": "string", "enum": ["open", "closed", ""]}}}},
+    {"type": "function", "strict": False, "name": "list_projects",
+     "description": "List or search SECPHO projects (proyectos) by topic/technology/sector/partner/program. Non-financial fields only (no budgets).",
+     "parameters": {"type": "object", "properties": {
+         "query": {"type": "string"}}}},
     {"type": "function", "strict": False, "name": "ecosystem_overview",
      "description": "High-level counts and top technologies/sectors/provinces across the whole SECPHO dataset.",
      "parameters": {"type": "object", "properties": {}}},
