@@ -7,7 +7,7 @@ A conversational analyst over SECPHO's cluster data: a bounded tool-calling agen
 ## Requirements
 
 ### Requirement: Tool-calling agent loop
-The system SHALL answer chat questions by running a bounded tool-calling loop (`run_agent`) over the OpenAI Responses API, capped BOTH by a step count (`max_steps=4`) AND by a cumulative wall-clock budget (`AGENT_TOTAL_BUDGET_S=75`), where each model call's timeout shrinks with the remaining budget. The model may call deterministic data tools in sequence and reason over their returned rows before answering. The tools wrap existing deterministic functions: search_people, get_person_profile, search_socios, get_socio_profile, rank_socios, list_events, list_retos, list_projects, list_activities, ecosystem_overview, aggregate_stats, recommend_contacts, rerank_contacts. `list_projects` lists/searches SECPHO projects (proyectos) from the live in-memory table and returns non-financial fields only (budgets are gated until the access model). `list_activities` lists/searches SECPHO member activities (actividades) from the live in-memory table, most recent first, optionally by socio/topic. Both return empty when the live layer is off.
+The system SHALL answer chat questions by running a bounded tool-calling loop (`run_agent`) over the OpenAI Responses API, capped BOTH by a step count (`max_steps=4`) AND by a cumulative wall-clock budget (`AGENT_TOTAL_BUDGET_S=75`), where each model call's timeout shrinks with the remaining budget. The model may call deterministic data tools in sequence and reason over their returned rows before answering. The tools wrap existing deterministic functions: search_people, get_person_profile, search_socios, get_socio_profile, rank_socios, list_events, list_retos, list_projects, list_activities, search_success_cases, ecosystem_overview, aggregate_stats, recommend_contacts, rerank_contacts. `list_projects` lists/searches SECPHO projects (proyectos) from the live in-memory table and returns non-financial fields only (budgets are gated until the access model). `list_activities` lists/searches SECPHO member activities (actividades) from the live in-memory table, most recent first, optionally by socio/topic. `search_success_cases` does semantic (embedding) retrieval over success stories with a keyword fallback. The live-table tools return empty when the live layer is off.
 
 #### Scenario: Cross-source question chains tools
 - **WHEN** a user asks a question that spans sources (e.g. top socios by province plus photonics events)
@@ -21,6 +21,10 @@ The system SHALL answer chat questions by running a bounded tool-calling loop (`
 - **WHEN** the user asks about a socio's recent activity (e.g. "what has ACME been up to lately?")
 - **THEN** the agent calls `list_activities`, which filters the in-memory activity log by socio/topic and returns the matching activities, most recent first.
 
+#### Scenario: Success-stories question
+- **WHEN** the user asks "what success stories do we have in clean energy?"
+- **THEN** the agent calls `search_success_cases` and answers from the returned cases, grounded in their summaries.
+
 #### Scenario: Loop is bounded and exception-safe
 - **WHEN** the model keeps requesting tool calls past the step cap, or a tool raises
 - **THEN** the loop makes one final capped model call and the tool dispatcher returns `{"error": ...}` instead of raising, so a request never runs unbounded or 500s.
@@ -28,6 +32,23 @@ The system SHALL answer chat questions by running a bounded tool-calling loop (`
 #### Scenario: Loop is bounded in time
 - **WHEN** the model/tool calls are slow
 - **THEN** each call's timeout shrinks with the remaining budget and, once the budget is spent, the loop stops and the endpoint falls back to `chat_flow` — so a single chat turn cannot exceed ~75s of outbound wait (kept under the proxy/CDN ~100s cutoff).
+
+### Requirement: Semantic search over success stories
+The system SHALL provide a `search_success_cases` tool that retrieves SECPHO success cases (casos de
+éxito) by semantic similarity: it embeds the case write-ups into an IN-MEMORY vector index (rebuilt
+lazily when the data changes; persisting nothing) and ranks cases by cosine similarity to the query's
+embedding. When embeddings are unavailable (no API key or an embedding failure) it SHALL fall back to
+deterministic keyword search so it always works. It SHALL return the matched cases WITH their summary
+text (so the LLM answers grounded and can cite the actual case), and SHALL return empty when the live
+layer is off.
+
+#### Scenario: Semantic match by meaning
+- **WHEN** the user asks about a theme (e.g. "space and satellites") and embeddings are available
+- **THEN** `search_success_cases` returns the most semantically relevant cases (including ones whose titles don't contain the query words), each with its summary and a similarity score.
+
+#### Scenario: Keyword fallback without embeddings
+- **WHEN** no embedding API is available
+- **THEN** the tool falls back to keyword search over the case title/summary/sectors/technologies and still returns relevant cases.
 
 ### Requirement: Conversational-first interaction
 The system SHALL behave as a conversational assistant first, not a report generator, and SHALL reply at the size of the message. It SHALL greet and converse for greetings/small talk; answer direct data questions directly without asking permission; and for open or exploratory messages (e.g. "who should I test?", "show me an example") give a brief, concrete suggestion, OFFER the next step, and WAIT — it SHALL NOT produce a full recommendations report unprompted.

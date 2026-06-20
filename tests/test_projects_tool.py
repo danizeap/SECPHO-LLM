@@ -83,3 +83,34 @@ def test_list_activities_empty_and_registered(monkeypatch):
     monkeypatch.setitem(app.DATA, "actividades", pd.DataFrame())
     assert app.list_activities(query="x") == {"activities": [], "total": 0}
     assert "list_activities" in {t["name"] for t in app.AGENT_TOOL_SCHEMAS}
+
+
+def _sample_cases() -> pd.DataFrame:
+    return pd.DataFrame([
+        {"title": "BILASURF", "summary": "Superficies funcionalizadas con fotónica avanzada",
+         "year": "2026", "technologies": ["Fotónica"], "sectors": ["Espacio"]},
+        {"title": "AGROAI", "summary": "Inteligencia artificial para agricultura de precisión",
+         "year": "2025", "technologies": ["IA"], "sectors": ["Agroalimentación"]},
+    ])
+
+
+def test_search_success_cases_keyword_fallback(monkeypatch):
+    # OPENAI_API_KEY is "" for this module -> no embeddings -> deterministic keyword fallback.
+    app._CASOS_RAG.update(hash=None, vecs=None, rows=None)
+    monkeypatch.setitem(app.DATA, "casos_exito", _sample_cases())
+    out = app.search_success_cases(query="fotónica")
+    assert out["mode"] == "keyword" and out["total"] >= 1
+    assert any("fotónica" in (c["title"] + c["summary"]).lower() for c in out["cases"])
+
+
+def test_search_success_cases_returns_summary_for_citation(monkeypatch):
+    app._CASOS_RAG.update(hash=None, vecs=None, rows=None)
+    monkeypatch.setitem(app.DATA, "casos_exito", _sample_cases())
+    out = app.search_success_cases(query="agricultura")
+    assert any("agricultura" in c["summary"].lower() for c in out["cases"])  # the matched text is returned
+
+
+def test_search_success_cases_empty_and_registered(monkeypatch):
+    monkeypatch.setitem(app.DATA, "casos_exito", pd.DataFrame())
+    assert app.search_success_cases(query="x")["cases"] == []
+    assert "search_success_cases" in {t["name"] for t in app.AGENT_TOOL_SCHEMAS}

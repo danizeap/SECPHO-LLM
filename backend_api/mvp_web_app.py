@@ -18,6 +18,7 @@ import threading
 import time
 from datetime import datetime, timezone
 
+import numpy as np
 import pandas as pd
 import requests
 from dotenv import load_dotenv
@@ -50,6 +51,8 @@ TOOL_BUILD_EVENTS_PATH = APP_STATE_DIR / "tool_build_events.jsonl"
 FEEDBACK_INBOX_PATH = APP_STATE_DIR / "feedback_inbox.md"
 GENERATED_ARTIFACTS_DIR = BASE_DIR / "data" / "generated_artifacts"
 OPENAI_RESPONSES_URL = "https://api.openai.com/v1/responses"
+OPENAI_EMBED_URL = "https://api.openai.com/v1/embeddings"
+OPENAI_EMBED_MODEL = os.getenv("OPENAI_EMBED_MODEL") or "text-embedding-3-small"
 OPENAI_MODEL = os.getenv("OPENAI_MODEL") or "gpt-5-mini"
 OPENAI_MODEL_FLAGSHIP = os.getenv("OPENAI_MODEL_FLAGSHIP") or "gpt-5.5"
 LOGGER = logging.getLogger("secpho")
@@ -2097,6 +2100,99 @@ def render_events(result: dict) -> str:
     return "\n".join(lines)
 
 
+# --- Semantic search (RAG) over success stories ------------------------------------------- #
+# In-memory only: case embeddings live in RAM, rebuilt lazily when the data changes. Persists
+# nothing. Falls back to keyword search when embeddings are unavailable (no key) so it always works.
+_CASOS_RAG = {"hash": None, "vecs": None, "rows": None}
+
+
+def _embed_texts(texts: list) -> "np.ndarray | None":
+    """Embed texts via OpenAI, L2-normalized for cosine. Returns None with no key / on failure."""
+    api_key = os.getenv("OPENAI_API_KEY")
+    if not api_key or not texts:
+        return None
+    try:
+        resp = requests.post(
+            OPENAI_EMBED_URL,
+            headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+            json={"model": OPENAI_EMBED_MODEL, "input": texts},
+            timeout=60,
+        )
+        if resp.status_code >= 400:
+            return None
+        vecs = np.array([d["embedding"] for d in resp.json().get("data", [])], dtype="float32")
+        if vecs.size == 0:
+            return None
+        norms = np.linalg.norm(vecs, axis=1, keepdims=True)
+        norms[norms == 0] = 1.0
+        return vecs / norms
+    except Exception:
+        return None
+
+
+def _casos_doc(row: dict) -> str:
+    parts = [clean(row.get("title"), ""), clean(row.get("summary"), "")]
+    for col in ("technologies", "sectors", "ambitos"):
+        v = row.get(col)
+        parts.append(" ".join(map(str, v)) if isinstance(v, list) else clean(v, ""))
+    return " ".join(p for p in parts if p)
+
+
+def _casos_out(row: dict, score=None) -> dict:
+    def listish(v):
+        return v if isinstance(v, list) else clean(v, "")
+    out = {
+        "title": clean(row.get("title"), ""), "summary": clean(row.get("summary"), ""),
+        "year": clean(row.get("year"), ""), "technologies": listish(row.get("technologies")),
+        "sectors": listish(row.get("sectors")),
+    }
+    if score is not None:
+        out["score"] = round(float(score), 3)
+    return out
+
+
+def _build_casos_index() -> bool:
+    """Lazily embed the success cases into an in-RAM index; rebuild when the data changes. Returns
+    True if a usable vector index exists. Stores the rows either way (for the keyword fallback)."""
+    casos = DATA.get("casos_exito", pd.DataFrame())
+    if casos is None or casos.empty:
+        _CASOS_RAG.update(hash=None, vecs=None, rows=None)
+        return False
+    rows = casos.to_dict("records")
+    h = (len(rows), tuple(r.get("title", "") for r in rows))
+    if _CASOS_RAG["hash"] == h and _CASOS_RAG["vecs"] is not None:
+        return True
+    vecs = _embed_texts([_casos_doc(r) for r in rows])
+    _CASOS_RAG.update(hash=(h if vecs is not None else None), vecs=vecs, rows=rows)
+    return vecs is not None
+
+
+def search_success_cases(query: str = "", limit: int = 5) -> dict:
+    """Semantic search over SECPHO success stories (casos de éxito); keyword fallback without
+    embeddings. Returns the most relevant cases with their summary for the LLM to cite. Empty when off."""
+    casos = DATA.get("casos_exito", pd.DataFrame())
+    if casos is None or casos.empty:
+        return {"cases": [], "total": 0, "mode": "none"}
+    if query.strip() and _build_casos_index():
+        qv = _embed_texts([query])
+        if qv is not None:
+            rows = _CASOS_RAG["rows"]
+            sims = _CASOS_RAG["vecs"] @ qv[0]
+            order = np.argsort(-sims)[:max(1, min(limit, 15))]
+            return {"cases": [_casos_out(rows[i], score=sims[i]) for i in order],
+                    "total": len(rows), "mode": "semantic"}
+    df = casos.copy()
+    tokens = expand_search_terms(query)
+    if tokens:
+        mask = pd.Series(False, index=df.index)
+        for col in ("title", "summary", "sectors", "technologies"):
+            if col in df.columns:
+                mask = mask | text_contains_any(df[col].astype(str), tokens)
+        df = df[mask]
+    return {"cases": [_casos_out(r) for _, r in df.head(max(1, min(limit, 15))).iterrows()],
+            "total": len(df), "mode": "keyword"}
+
+
 def list_activities(query: str = "", socio: str = "", limit: int = 10) -> dict:
     """List/search SECPHO member activities (actividades) from the in-memory live table, most recent
     first, optionally filtered by socio and/or topic. Empty when live is off. The engagement signal
@@ -3043,6 +3139,9 @@ def dispatch_tool(name: str, args: dict, ctx: dict) -> dict:
         if name == "list_activities":
             return list_activities(query=clean(args.get("query"), ""), socio=clean(args.get("socio"), ""), limit=10)
 
+        if name == "search_success_cases":
+            return search_success_cases(query=clean(args.get("query"), ""), limit=5)
+
         if name == "ecosystem_overview":
             return ecosystem_overview()
 
@@ -3122,6 +3221,10 @@ AGENT_TOOL_SCHEMAS = [
      "parameters": {"type": "object", "properties": {
          "query": {"type": "string"},
          "socio": {"type": "string"}}}},
+    {"type": "function", "strict": False, "name": "search_success_cases",
+     "description": "Semantic search over SECPHO success stories (casos de éxito) by meaning — returns the most relevant cases with their summary, year, technologies, sectors.",
+     "parameters": {"type": "object", "properties": {
+         "query": {"type": "string"}}}},
     {"type": "function", "strict": False, "name": "ecosystem_overview",
      "description": "High-level counts and top technologies/sectors/provinces across the whole SECPHO dataset.",
      "parameters": {"type": "object", "properties": {}}},
