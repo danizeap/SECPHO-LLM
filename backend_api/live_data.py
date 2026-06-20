@@ -14,11 +14,15 @@ background refresher, change-diff feed, and access model arrive in later phases.
 from __future__ import annotations
 
 import ast
+import collections
 import concurrent.futures
 import datetime
+import hashlib
 import html
 import os
 import re
+import threading
+import time
 
 import pandas as pd
 import requests
@@ -205,3 +209,115 @@ def load_all(names: list[str] | None = None) -> dict[str, pd.DataFrame]:
 def freshness() -> dict[str, str]:
     """source -> ISO-8601 UTC timestamp of last successful live load (for freshness stamps)."""
     return dict(_FRESHNESS)
+
+
+# --------------------------------------------------------------------------- #
+# Refresher + in-RAM change-feed (Phase 2)
+# --------------------------------------------------------------------------- #
+# Per-source cadence (seconds). Default covers all; override per source to make it tiered. These are
+# low-volatility reference sources, so hours is plenty.
+DEFAULT_REFRESH_SECONDS = int(os.getenv("SECPHO_LIVE_REFRESH_SECONDS", "10800"))  # 3h
+REFRESH_INTERVALS: dict[str, int] = {}
+_TICK_SECONDS = int(os.getenv("SECPHO_LIVE_TICK_SECONDS", "60"))
+
+# Stable record key per source for diffing (id where available, else a stable field).
+KEY_COLUMNS = {"retos": "reto_id", "proyectos": "proyecto_id", "casos_exito": "title"}
+
+_LAST: dict[str, pd.DataFrame] = {}          # previous pull per source (in RAM, for diffing)
+_LAST_REFRESH: dict[str, float] = {}         # monotonic time of last refresh attempt (cadence)
+_CHANGES: "collections.deque" = collections.deque(maxlen=int(os.getenv("SECPHO_LIVE_CHANGES_MAX", "200")))
+_refresher_started = False
+
+
+def _row_hash(rec: dict) -> str:
+    payload = "|".join(f"{k}={rec[k]!r}" for k in sorted(rec))
+    return hashlib.sha1(payload.encode("utf-8", "replace")).hexdigest()
+
+
+def _index(df: pd.DataFrame | None, key: str) -> dict[str, str]:
+    """key value -> row content hash, for one frame."""
+    if df is None or df.empty or key not in df.columns:
+        return {}
+    return {str(rec.get(key, "")): _row_hash(rec) for rec in df.to_dict("records")}
+
+
+def diff_frames(old_df, new_df, key: str) -> dict[str, list]:
+    """Structural diff between two pulls of a source, by record key + content hash."""
+    old, new = _index(old_df, key), _index(new_df, key)
+    old_k, new_k = set(old), set(new)
+    return {
+        "added": sorted(new_k - old_k),
+        "modified": sorted(k for k in (old_k & new_k) if old[k] != new[k]),
+        "removed": sorted(old_k - new_k),
+    }
+
+
+def _refresh_once(names: list[str] | None = None, apply_fn=None) -> list[dict]:
+    """One refresh cycle for the given sources: load → diff vs the previous in-RAM pull → record any
+    change → apply (swap into the app's view). The first pull of a source is the baseline (no change
+    emitted). A failed source is skipped (stale-while-revalidate: the last-good view stays). Returns
+    the change entries emitted this cycle. Persists nothing (everything is in RAM)."""
+    names = names or list(SOURCES)
+    emitted: list[dict] = []
+    for name in names:
+        _LAST_REFRESH[name] = time.monotonic()
+        try:
+            df = load_source(name)
+        except Exception:
+            df = None
+        if df is None:
+            continue  # stale-while-revalidate: keep the last-good view
+        prev = _LAST.get(name)
+        if prev is not None:
+            d = diff_frames(prev, df, KEY_COLUMNS.get(name, ""))
+            if d["added"] or d["modified"] or d["removed"]:
+                entry = {
+                    "ts": datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds"),
+                    "source": name,
+                    "added": len(d["added"]),
+                    "modified": len(d["modified"]),
+                    "removed": len(d["removed"]),
+                    "keys": {k: v[:20] for k, v in d.items()},  # bounded sample of changed keys
+                }
+                _CHANGES.append(entry)
+                emitted.append(entry)
+        _LAST[name] = df
+        if apply_fn is not None:
+            apply_fn(name, df)
+    return emitted
+
+
+def _due(name: str) -> bool:
+    interval = REFRESH_INTERVALS.get(name, DEFAULT_REFRESH_SECONDS)
+    last = _LAST_REFRESH.get(name)
+    return last is None or (time.monotonic() - last) >= interval
+
+
+def start_refresher(apply_fn=None, stop_event: "threading.Event | None" = None):
+    """Start the background refresher (daemon): an immediate first load (baseline) then a periodic,
+    per-source-cadenced re-pull with the in-RAM change-feed. No-op when live is disabled. Returns the
+    stop Event (set it to stop) or None when disabled."""
+    global _refresher_started
+    if not live_enabled():
+        return None
+    ev = stop_event or threading.Event()
+
+    def _loop():
+        while not ev.is_set():
+            due = [n for n in SOURCES if _due(n)]
+            if due:
+                try:
+                    _refresh_once(due, apply_fn=apply_fn)
+                except Exception:
+                    pass  # best-effort; never logs token/values
+            ev.wait(_TICK_SECONDS)
+
+    threading.Thread(target=_loop, daemon=True, name="live-data-refresher").start()
+    _refresher_started = True
+    return ev
+
+
+def changes(limit: int = 50) -> list[dict]:
+    """Most-recent change-feed entries (in-RAM, bounded). Zero persistence."""
+    items = list(_CHANGES)[-limit:]
+    return list(reversed(items))

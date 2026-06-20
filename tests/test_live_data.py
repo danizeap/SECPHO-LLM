@@ -4,6 +4,7 @@ values; no real confidential data, no network. Run: python -m pytest tests/test_
 import os
 import sys
 
+import pandas as pd
 import requests
 
 # Default to live DISABLED -> no network. Opt-in needs both a token AND the SECPHO_LIVE_DATA flag.
@@ -92,3 +93,61 @@ def test_load_all_isolates_failures(monkeypatch):
     assert "retos" in out                                  # the good source loads
     assert "proyectos" not in out and "casos_exito" not in out  # failed sources just absent (fallback)
     assert "retos" in ld.freshness()                       # freshness stamped on success
+
+
+# --------------------------------------------------------------------------- #
+# Phase 2: refresher + in-RAM change-feed
+# --------------------------------------------------------------------------- #
+def _reset_refresher_state():
+    ld._LAST.clear()
+    ld._LAST_REFRESH.clear()
+    ld._CHANGES.clear()
+
+
+def test_diff_frames_detects_add_modify_remove():
+    old = pd.DataFrame([{"reto_id": "1", "title": "A"}, {"reto_id": "2", "title": "B"}])
+    new = pd.DataFrame([{"reto_id": "2", "title": "B2"}, {"reto_id": "3", "title": "C"}])
+    d = ld.diff_frames(old, new, "reto_id")
+    assert d["added"] == ["3"] and d["removed"] == ["1"] and d["modified"] == ["2"]
+
+
+def test_refresh_cycle_baseline_then_change(monkeypatch):
+    monkeypatch.setenv("SECPHO_API_AUTH_TOKEN", "t")
+    monkeypatch.setenv("SECPHO_LIVE_DATA", "1")
+    _reset_refresher_state()
+    seq = {"i": 0}
+    frames = [
+        pd.DataFrame([{"reto_id": "1", "title": "A"}]),                                   # baseline
+        pd.DataFrame([{"reto_id": "1", "title": "A"}, {"reto_id": "2", "title": "B"}]),   # +1 added
+    ]
+    monkeypatch.setattr(ld, "load_source", lambda name: frames[min(seq["i"], len(frames) - 1)])
+    applied = {}
+
+    out1 = ld._refresh_once(["retos"], apply_fn=lambda n, df: applied.__setitem__(n, df))
+    assert out1 == [] and "retos" in applied          # first pull is the baseline: no change emitted
+    seq["i"] = 1
+    out2 = ld._refresh_once(["retos"], apply_fn=lambda n, df: applied.__setitem__(n, df))
+    assert len(out2) == 1 and out2[0]["source"] == "retos" and out2[0]["added"] == 1
+    assert ld.changes()[0]["added"] == 1              # the change is on the in-RAM feed
+
+
+def test_refresh_cycle_stale_while_revalidate_on_failure(monkeypatch):
+    monkeypatch.setenv("SECPHO_API_AUTH_TOKEN", "t")
+    monkeypatch.setenv("SECPHO_LIVE_DATA", "1")
+    _reset_refresher_state()
+    calls = {"i": 0}
+    good = pd.DataFrame([{"reto_id": "1", "title": "A"}])
+
+    def load(name):
+        if calls["i"] == 0:
+            return good
+        raise requests.RequestException("source down")
+
+    monkeypatch.setattr(ld, "load_source", load)
+    applied = {}
+    ld._refresh_once(["retos"], apply_fn=lambda n, df: applied.__setitem__(n, df))
+    before = applied["retos"]
+    calls["i"] = 1
+    out = ld._refresh_once(["retos"], apply_fn=lambda n, df: applied.__setitem__(n, df))
+    assert out == []                                  # failed cycle emits nothing
+    assert applied["retos"] is before                 # SWR: last-good view left untouched

@@ -293,11 +293,10 @@ DATA = load_data()
 
 
 def _start_live_refresh() -> None:
-    """Zero-copy live layer (Phase 1): when SECPHO_LIVE_DATA is on (with SECPHO_API_AUTH_TOKEN
-    configured), refresh the live-capable sources in a background thread and swap them into DATA when
-    they land. Best-effort — the CSV
-    snapshot is the immediate fallback, and a disabled/failed live load just leaves the CSV view in
-    place. Persists nothing; never blocks startup."""
+    """Zero-copy live layer: when SECPHO_LIVE_DATA is on (with SECPHO_API_AUTH_TOKEN configured), start
+    the background refresher — an immediate load, then periodic re-pulls on a per-source cadence —
+    swapping live sources into DATA (CSV fallback / stale-while-revalidate) and maintaining an in-RAM
+    change-feed. Non-blocking; persists nothing."""
     try:
         import live_data
     except Exception:
@@ -305,18 +304,15 @@ def _start_live_refresh() -> None:
     if not live_data.live_enabled():
         return
 
-    def _bg():
-        try:
-            live = live_data.load_all(["retos", "proyectos", "casos_exito"])
-            for key, df in live.items():
-                if df is not None and not df.empty:
-                    DATA[key] = df
-            if live:
-                LOGGER.info("live data loaded: %s", {k: len(v) for k, v in live.items()})
-        except Exception:
-            LOGGER.warning("live data refresh failed; staying on CSV fallback")
+    def _apply(name, df):
+        if df is not None and not df.empty:
+            DATA[name] = df
 
-    threading.Thread(target=_bg, daemon=True, name="live-data-refresh").start()
+    try:
+        live_data.start_refresher(apply_fn=_apply)
+        LOGGER.info("live data refresher started")
+    except Exception:
+        LOGGER.warning("live data refresher failed to start; staying on CSV fallback")
 
 
 _start_live_refresh()
