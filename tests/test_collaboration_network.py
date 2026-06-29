@@ -61,7 +61,21 @@ def test_network_overview_hubs(monkeypatch):
     out = app.network_overview()
     assert out["available"] is True and out["socios"] == 4     # ACME, BETA, GAMMA, Lasercare,SL (DELTA isolated)
     assert out["connections"] == 4                              # ACME-BETA, ACME-GAMMA, BETA-GAMMA, ACME-Lasercare
+    assert out["connections_via_projects"] == 4 and out["connections_via_retos"] == 3
+    assert out["note"] == ""                                    # projects present -> no reto-dominated caveat
     assert out["top_hubs"][0]["socio"] == "ACME"               # highest weighted degree
+
+
+def test_network_overview_flags_reto_dominated(monkeypatch):
+    # #4: when projects contribute no edges (sparse proyectos.partners), the overview says so.
+    monkeypatch.setattr(app, "_NETWORK", {"sig": None, "adj": None})
+    monkeypatch.setitem(app.DATA, "proyectos", pd.DataFrame())   # no project partners
+    monkeypatch.setitem(app.DATA, "retos", pd.DataFrame([
+        {"reto_id": "r1", "reto_number": "R1", "title": "Reto1", "issuing_entities": "BETA",
+         "applying_entities": "ACME, GAMMA", "beneficiary_socio": ""}]))
+    out = app.network_overview()
+    assert out["connections_via_projects"] == 0 and out["connections_via_retos"] >= 1
+    assert out["note"] != "" and "reto" in out["note"].lower()
 
 
 def test_connection_between(monkeypatch):

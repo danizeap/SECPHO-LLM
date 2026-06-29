@@ -135,8 +135,9 @@ The system SHALL expose `POST /api/agent` behind the `/api` authentication gate 
 - **THEN** the endpoint responds 400 `empty_message`.
 
 ### Requirement: Deterministic, gated financial tools
-The agent SHALL expose four financial tools — `financial_overview`, `socio_financials`,
-`cuota_status`, `list_invoices`. Every monetary figure SHALL be computed deterministically in the data
+The agent SHALL expose five financial tools — `financial_overview`, `socio_financials`,
+`cuota_status`, `list_invoices`, and `top_socios_by_turnover` (rank socios by company turnover).
+Every monetary figure SHALL be computed deterministically in the data
 layer (parsing Spanish-formatted and plain amounts); the LLM SHALL quote those figures VERBATIM and
 SHALL NOT compute, sum, estimate, convert, or round a euro itself. Each tool SHALL require the
 `data.financiero` grant (fail-closed) and return empty when the live layer is off; invoice status is
@@ -158,6 +159,17 @@ financial answer SHALL carry an as-of stamp.
   NOT report a raw `total_turnover` sum, because self-reported turnover is heavy-tailed (a few members
   report group/global figures) so a sum is dominated by outliers and misleads as a cluster total.
 
+#### Scenario: Per-socio contribution total reconciles with the yearly figures
+- **WHEN** `socio_financials` reports a socio's contributions
+- **THEN** `contributions.total` is the euro sum of the per-year figures (not the source `"TOTAL"`
+  field, which is not a euro amount), so it reconciles with the per-year breakdown.
+
+#### Scenario: Biggest members and their collaborators
+- **WHEN** a `data.financiero` holder asks who the highest-revenue socios are (optionally, who they
+  collaborate with)
+- **THEN** `top_socios_by_turnover` ranks socios by turnover (highest first), composable with
+  `socio_network`; a caller without `data.financiero` is refused before the tool runs.
+
 ### Requirement: Health/churn intelligence tools
 The agent SHALL expose deterministic health/churn tools: `at_risk_socios` (active socios going quiet,
 ranked stalest-first, threshold default 120 days, active-members-only by default), `socio_health`
@@ -178,6 +190,17 @@ ratio, or total that no tool returned (it MAY suggest outreach).
 - **WHEN** a user asks for a churn rate or percentage the tools did not return
 - **THEN** the agent says it is not available rather than computing one (only tool-returned figures,
   e.g. `health_overview.going_quiet_pct`, are quoted).
+
+#### Scenario: At-risk includes active members with no recorded activity
+- **WHEN** `at_risk_socios` runs in active-members-only mode
+- **THEN** it includes active members whose recency is None — including those with NO activity record
+  at all — surfaced first as the most dormant, so its total reconciles with
+  `health_overview.going_quiet` (rows may carry `days_since_last: null`).
+
+#### Scenario: No ungrounded trend claims
+- **WHEN** answering about churn or engagement
+- **THEN** the agent does not assert a temporal trend, a "recent pattern", or which factor is most
+  common/recent unless a tool returned that breakdown.
 
 #### Scenario: Why members leave (gated)
 - **WHEN** a `data.financiero` holder asks why members churn
@@ -203,3 +226,9 @@ nodes. The LLM SHALL quote the deterministic figures and SHALL NOT derive its ow
 - **WHEN** a user asks how two socios are linked
 - **THEN** `connection_between` returns the shared projects/retos, or that there is no direct
   collaboration.
+
+#### Scenario: Cluster overview is honest about reto-dominance
+- **WHEN** `network_overview` summarizes the cluster graph
+- **THEN** it reports the split of connections via projects vs retos and a note when the graph is
+  reto-dominated (or entirely reto-based) because project partner data is sparse — so the agent does
+  not imply rich project collaboration the data doesn't support.

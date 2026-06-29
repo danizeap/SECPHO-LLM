@@ -134,8 +134,9 @@ say so. The privileged `RENDER_API_KEY` SHALL never appear in the repo, client, 
   credential.
 
 ### Requirement: data.financiero gates the financial tools
-The `data.financiero` grant SHALL gate the four financial tools (`financial_overview`,
-`socio_financials`, `cuota_status`, `list_invoices`) via `TOOL_REQUIRED_GRANT`, enforced fail-closed
+The `data.financiero` grant SHALL gate the five financial tools (`financial_overview`,
+`socio_financials`, `cuota_status`, `list_invoices`, `top_socios_by_turnover`) via
+`TOOL_REQUIRED_GRANT`, enforced fail-closed
 in `dispatch_tool`. Financial data SHALL NOT be reachable through any non-gated path: it is excluded
 from the heuristic fallback and from the matchmaking report.
 

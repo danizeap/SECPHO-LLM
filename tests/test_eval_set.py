@@ -29,6 +29,7 @@ EXPECTED_GRANTS = {
     "recommend_contacts": "tool.matchmaking", "rerank_contacts": "tool.matchmaking",
     "financial_overview": "data.financiero", "socio_financials": "data.financiero",
     "cuota_status": "data.financiero", "list_invoices": "data.financiero",
+    "top_socios_by_turnover": "data.financiero",
     "at_risk_socios": "data.socios", "socio_health": "data.socios", "health_overview": "data.socios",
     "churn_breakdown": "data.financiero",
     "socio_network": "data.socios", "network_overview": "data.socios", "connection_between": "data.socios",

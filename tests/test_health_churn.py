@@ -145,3 +145,26 @@ def test_at_risk_active_only_filters_departed(monkeypatch):
     out = app.at_risk_socios(days=120, active_only=True)
     assert out["active_only"] is True and out["total"] == 0  # STALE/GONE departed -> filtered out
     assert app.at_risk_socios(days=120, active_only=False)["total"] == 2  # includes departed
+
+
+def test_at_risk_includes_zero_activity_active_members(monkeypatch):
+    # #5: an ACTIVE member with NO activity record is the most dormant -> must appear (first), so the
+    # list reconciles with health_overview.going_quiet (which at_risk used to undercount).
+    _pin_today(monkeypatch)
+    monkeypatch.setitem(app.DATA, "actividades", _acts())     # ACME recent; STALE quiet; SILENT absent
+    monkeypatch.setitem(app.DATA, "cuotas", pd.DataFrame([
+        {"altabaja_id": "1", "socio": "ACME", "status": "activo"},     # active + recent -> not quiet
+        {"altabaja_id": "2", "socio": "STALE", "status": "activo"},    # active + stale -> quiet
+        {"altabaja_id": "3", "socio": "SILENT", "status": "activo"},   # active + NO activity row -> quiet
+    ]))
+    out = app.at_risk_socios(days=120, active_only=True)
+    socios = [r["socio"] for r in out["socios"]]
+    assert out["total"] == 2 and "ACME" not in socios          # ACME recent, excluded
+    assert socios[0] == "SILENT"                               # no-activity member surfaced first
+    assert out["socios"][0]["days_since_last"] is None and out["socios"][0]["activities_total"] == 0
+    assert app.health_overview()["going_quiet"] == out["total"]  # at_risk now reconciles with the %
+
+
+def test_prompt_forbids_ungrounded_trend_claims():
+    # #6: the LLM must not assert a "recent pattern"/trend no tool returned.
+    assert "recent pattern" in app.AGENT_INSTRUCTIONS

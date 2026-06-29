@@ -109,6 +109,44 @@ def test_turnover_robust_to_outliers(monkeypatch):
     assert "total_turnover" not in t                          # no €100B-style misleading sum
 
 
+def test_contributions_total_is_sum_of_years(monkeypatch):
+    # #3: the source "TOTAL" field is not euros; report the euro SUM of the yearly figures instead.
+    monkeypatch.setitem(app.DATA, "invoices", pd.DataFrame())
+    monkeypatch.setitem(app.DATA, "cuotas", pd.DataFrame())
+    monkeypatch.setitem(app.DATA, "negocio_financiero", pd.DataFrame([
+        {"socio": "ACME", "revenue": "1.000.000,00 €", "investment_received": "", "employees": "10"}]))
+    monkeypatch.setitem(app.DATA, "contributions", pd.DataFrame([
+        {"socio": "ACME", "total_contribution": "180", "participation": "", "ranking": "",
+         "contributions_by_year": {"2017": "27.410,00 €", "2018": "0,00 €", "2019": "2.590,00 €"}}]))
+    c = app.socio_financials("ACME")["contributions"]
+    assert c["total"] == "30.000,00 €"                         # 27.410 + 0 + 2.590, NOT the source 180
+    assert c["by_year"]["2017"] == "27.410,00 €"
+
+
+def test_top_socios_by_turnover_ranks_desc(monkeypatch):
+    # #2: rank socios by company turnover, highest first; unparseable turnover excluded.
+    monkeypatch.setitem(app.DATA, "negocio_financiero", pd.DataFrame([
+        {"socio": "SMALL", "revenue": "1.000.000,00 €", "investment_received": "", "employees": "5"},
+        {"socio": "BIG", "revenue": "50.000.000,00 €", "investment_received": "", "employees": "200"},
+        {"socio": "MID", "revenue": "10.000.000,00 €", "investment_received": "", "employees": "50"},
+        {"socio": "NONE", "revenue": "No definido", "investment_received": "", "employees": "2"},
+    ]))
+    out = app.top_socios_by_turnover(limit=2)
+    assert out["total"] == 3                                       # NONE (unparseable) excluded
+    assert [r["socio"] for r in out["socios"]] == ["BIG", "MID"]   # highest first, limited to 2
+    assert out["socios"][0]["turnover"] == "50.000.000,00 €"
+
+
+def test_top_socios_by_turnover_gated(monkeypatch):
+    monkeypatch.setitem(app.DATA, "negocio_financiero", pd.DataFrame([
+        {"socio": "X", "revenue": "1.000.000,00 €", "investment_received": "", "employees": "5"}]))
+    assert app.TOOL_REQUIRED_GRANT["top_socios_by_turnover"] == "data.financiero"
+    out = app.dispatch_tool("top_socios_by_turnover", {"limit": 5}, {"grants": frozenset({"data.socios"})})
+    assert out == {"error": "forbidden", "tool": "top_socios_by_turnover", "required_grant": "data.financiero"}
+    ok = app.dispatch_tool("top_socios_by_turnover", {"limit": 5}, {"grants": frozenset({"data.financiero"})})
+    assert ok.get("error") != "forbidden" and ok["socios"][0]["socio"] == "X"
+
+
 def test_socio_financials(monkeypatch):
     monkeypatch.setitem(app.DATA, "invoices", _invoices())
     monkeypatch.setitem(app.DATA, "cuotas", _cuotas())
