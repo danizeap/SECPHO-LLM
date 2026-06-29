@@ -18,4 +18,5 @@ chat-history-isolation
 - [x] Adversarial security review (4 lenses) — found 1 HIGH (shared-password forgeable tag; not
       reachable in named-account prod) + 1 INFO (multi-tab); both fixed (`_history_tag` + `saveActive`
       guard) and covered by regression tests. Injection + crypto lenses: holds.
-- [ ] Owner approval, then deploy + manual two-user check.
+- [x] Owner approval, then deploy + manual two-user check — deployed (commit b0d18fe), live two-user
+      check PASSED (limited user sees an empty history, not the dev's prior conversation).

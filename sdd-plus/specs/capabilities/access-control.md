@@ -165,3 +165,36 @@ baseline member grant is the appropriate tier.
 #### Scenario: Network tools need data.socios
 - **WHEN** a caller without `data.socios` invokes a network tool
 - **THEN** `dispatch_tool` returns `forbidden` before the tool runs.
+
+### Requirement: Conversation history is isolated per user on a shared browser
+Client-side conversation history (browser `localStorage` — the platform persists nothing
+server-side) SHALL NOT be visible across user accounts on the same browser. The server SHALL embed in
+the served chat page an opaque per-user tag (`_history_tag`): for a roster-validated named account it
+is `HMAC(SESSION_SECRET, email)` (stable per user, so the same user keeps their history and the email
+never reaches the page or storage); when the login identity is self-asserted (shared-password mode,
+where the typed email is not roster-validated) it SHALL instead bind to the per-login `nonce`, so a
+typed email cannot forge another user's namespace. Before loading any stored history the client SHALL
+compare the page tag to the stored owner tag and, on mismatch (including the legacy un-tagged state),
+CLEAR (`removeItem`) the conversation keys — cleared, not hidden, because the content may be sensitive
+(financial figures, churn reasons, PII). Persisting history (`saveActive`) SHALL abort when the stored
+owner tag no longer matches the page tag (concurrent-tab guard). This closes the data-at-rest path
+around the RBAC tool gates without any server-side persistence.
+
+#### Scenario: A different user inherits no history
+- **WHEN** user B logs in on a browser where user A previously used the chat
+- **THEN** the page tag differs from the stored owner tag, so the client clears the conversation keys
+  before rendering — B sees an empty history, never A's conversations.
+
+#### Scenario: The same named user keeps their own history
+- **WHEN** the same roster account returns on the same browser
+- **THEN** the page tag (derived from the account, not the per-login nonce) matches, no purge occurs,
+  and their own history loads.
+
+#### Scenario: A self-asserted email cannot forge another user's namespace
+- **WHEN** two shared-password logins type the same email
+- **THEN** their tags differ (each bound to its per-login nonce), so neither inherits the other's history.
+
+#### Scenario: The per-user tag never exposes the email
+- **WHEN** the chat page is served to a logged-in user
+- **THEN** the embedded tag is a fixed-length opaque hash keyed by the session secret; the raw email
+  never appears in the DOM or in `localStorage`.
