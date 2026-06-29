@@ -81,3 +81,19 @@ itself.
 #### Scenario: Stable re-pull is silent
 - **WHEN** a source is re-pulled with identical content
 - **THEN** no change is recorded (the content-hash diff produces no false positives).
+
+### Requirement: Financial sources in the live layer (🔴, zero-copy)
+The system SHALL live-load and normalize SECPHO's financial reports/v1 sources into canonical
+in-memory frames, persisting nothing: `negocio_financiero` (turnover + investment), `cuotas` (cuota
+amount, join/leave dates, churn reason), `invoices` (the per-socio billing ledger with
+status/concept/due/paid/amount), and `contributions` (per-socio yearly contributions). They load only
+when the live layer is enabled, are members of `SENSITIVE_SOURCES`, and their EXPOSURE is gated at the
+tool layer (see the `access-control` capability), not at load. A socio counts as a `baja` (left) only
+when `Fecha de baja definitiva` is a real date — the source uses the literal "No consta" for active
+members. The change-feed records counts for these sources but OMITS the changed-key sample, so a
+surfaced feed cannot reveal which socios had financial changes.
+
+#### Scenario: Financial frames normalize and gate
+- **WHEN** the live layer is on and a financial source is pulled
+- **THEN** it normalizes into its canonical frame, "No consta" counts as active, and any change-feed
+  entry for it carries counts only (no key sample).

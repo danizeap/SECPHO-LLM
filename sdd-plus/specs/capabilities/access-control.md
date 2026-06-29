@@ -132,3 +132,14 @@ say so. The privileged `RENDER_API_KEY` SHALL never appear in the repo, client, 
 - **THEN** the read is treated as indeterminate (the known roster is kept) or the write is refused —
   the system never computes a write against a guessed-empty roster that would clobber every
   credential.
+
+### Requirement: data.financiero gates the financial tools
+The `data.financiero` grant SHALL gate the four financial tools (`financial_overview`,
+`socio_financials`, `cuota_status`, `list_invoices`) via `TOOL_REQUIRED_GRANT`, enforced fail-closed
+in `dispatch_tool`. Financial data SHALL NOT be reachable through any non-gated path: it is excluded
+from the heuristic fallback and from the matchmaking report.
+
+#### Scenario: Granted vs ungranted financial access
+- **WHEN** the same financial tool is invoked with and without `data.financiero`
+- **THEN** the granted caller gets the computed result; the ungranted caller gets `forbidden` and the
+  tool never executes.

@@ -133,3 +133,21 @@ The system SHALL expose `POST /api/agent` behind the `/api` authentication gate 
 #### Scenario: Empty message rejected
 - **WHEN** a request body has no message text
 - **THEN** the endpoint responds 400 `empty_message`.
+
+### Requirement: Deterministic, gated financial tools
+The agent SHALL expose four financial tools — `financial_overview`, `socio_financials`,
+`cuota_status`, `list_invoices`. Every monetary figure SHALL be computed deterministically in the data
+layer (parsing Spanish-formatted and plain amounts); the LLM SHALL quote those figures VERBATIM and
+SHALL NOT compute, sum, estimate, convert, or round a euro itself. Each tool SHALL require the
+`data.financiero` grant (fail-closed) and return empty when the live layer is off; invoice status is
+derived from the source `Estado` (Cancelada excluded; outstanding = Vencida + Enviada). Every
+financial answer SHALL carry an as-of stamp.
+
+#### Scenario: Financial question answered from the tools
+- **WHEN** a granted user asks a financial question
+- **THEN** the agent calls the matching financial tool and answers from its deterministic figures,
+  quoting amounts verbatim with an as-of stamp.
+
+#### Scenario: Ungranted financial caller refused
+- **WHEN** a caller without `data.financiero` triggers a financial tool
+- **THEN** `dispatch_tool` returns `forbidden` before the tool runs and the agent does not guess a figure.

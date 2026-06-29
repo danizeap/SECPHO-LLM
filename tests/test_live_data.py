@@ -99,7 +99,7 @@ def test_load_all_isolates_failures(monkeypatch):
     monkeypatch.setenv("SECPHO_API_AUTH_TOKEN", "test-token")
     monkeypatch.setenv("SECPHO_LIVE_DATA", "1")           # explicit opt-in
 
-    def fake_fetch(endpoint, extra=""):
+    def fake_fetch(endpoint, extra="", timeout=None):
         if endpoint == "retos":
             return RETOS_FIXTURE
         raise requests.RequestException("simulated source failure")

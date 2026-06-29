@@ -474,6 +474,11 @@ def load_data() -> dict:
         "proyectos": pd.DataFrame(),
         "casos_exito": pd.DataFrame(),
         "actividades": pd.DataFrame(),
+        # 🔴 financial (live-only, gated behind data.financiero at the tool layer; empty until live).
+        "negocio_financiero": pd.DataFrame(),
+        "cuotas": pd.DataFrame(),
+        "invoices": pd.DataFrame(),
+        "contributions": pd.DataFrame(),
     }
 
 
@@ -2426,6 +2431,199 @@ def list_projects(query: str = "", limit: int = 8) -> dict:
     return {"projects": rows, "total": total}
 
 
+# --------------------------------------------------------------------------- #
+# Financial intelligence (P5, live-financial-views). DETERMINISTIC: every euro is computed here in
+# pandas; the LLM only narrates. Exposure is gated behind data.financiero (see TOOL_REQUIRED_GRANT).
+# Amounts arrive Spanish-formatted ("1.234,56 €") or as plain integers; _parse_eur handles both.
+# --------------------------------------------------------------------------- #
+def _parse_eur(value):
+    """SECPHO money string -> float, or None. Handles Spanish format ('1.234,56 €', negatives), plain
+    integers ('7500000'), and the literal 'No definido' / empty -> None."""
+    s = str(value or "").strip()
+    if not s or "definido" in s.lower():
+        return None
+    neg = s.lstrip().startswith("-")
+    digits = re.sub(r"[^\d.,]", "", s)
+    if not digits:
+        return None
+    if "," in digits:                                  # Spanish: '.' thousands, ',' decimal
+        digits = digits.replace(".", "").replace(",", ".")
+    elif "." in digits:                                # no comma: dots grouping 3 digits are thousands
+        parts = digits.split(".")
+        if all(len(p) == 3 for p in parts[1:]):
+            digits = digits.replace(".", "")
+    try:
+        v = float(digits)
+        return -v if neg else v
+    except ValueError:
+        return None
+
+
+def _fmt_eur(amount) -> str:
+    """Float -> Spanish euro string (1234.5 -> '1.234,50 €'). None/NaN -> '—'."""
+    if amount is None or (isinstance(amount, float) and pd.isna(amount)):
+        return "—"
+    s = f"{abs(amount):,.2f}".replace(",", "·").replace(".", ",").replace("·", ".")
+    return f"{'-' if amount < 0 else ''}{s} €"
+
+
+def _inv_status(estado) -> str:
+    """Normalize the source Estado to a canonical status. Substring match with priority
+    cancelled > overdue > sent > paid, so a multi-value Estado (e.g. 'Pagada, Vencida') is never
+    silently dropped to 'unknown' and lost from the financial totals."""
+    s = str(estado or "").strip().lower()
+    if "cancel" in s:
+        return "cancelled"
+    if "vencid" in s:
+        return "overdue"
+    if "enviad" in s:
+        return "sent"
+    if "pagad" in s:
+        return "paid"
+    return "unknown"
+
+
+def _fin_as_of() -> str:
+    """Most recent live-load timestamp across the financial sources (freshness/provenance stamp)."""
+    try:
+        import live_data
+        fr = live_data.freshness()
+    except Exception:
+        return ""
+    stamps = [fr[s] for s in ("invoices", "cuotas", "negocio_financiero", "contributions") if fr.get(s)]
+    return max(stamps) if stamps else ""
+
+
+def financial_overview() -> dict:
+    """Deterministic cluster financial aggregates (billing, membership cuotas, turnover). Every figure
+    is computed here; empty when the live layer is off."""
+    inv = DATA.get("invoices", pd.DataFrame())
+    cuotas = DATA.get("cuotas", pd.DataFrame())
+    negocio = DATA.get("negocio_financiero", pd.DataFrame())
+    if (inv is None or inv.empty) and (cuotas is None or cuotas.empty) and (negocio is None or negocio.empty):
+        return {"available": False}
+    out = {"available": True, "as_of": _fin_as_of()}
+    if inv is not None and not inv.empty:
+        d = inv.copy()
+        d["_amt"] = d["total"].map(_parse_eur)
+        d["_st"] = d["status"].map(_inv_status)
+        paid = d[d["_st"] == "paid"]
+        outstanding = d[d["_st"].isin(["overdue", "sent"])]
+        overdue = d[d["_st"] == "overdue"]
+        out["invoices"] = {
+            "count": int(len(d)),
+            "socios_billed": int(d["socio"].nunique()),
+            "total_invoiced": _fmt_eur(d[d["_st"] != "cancelled"]["_amt"].sum(skipna=True)),
+            "total_paid": _fmt_eur(paid["_amt"].sum(skipna=True)),
+            "total_outstanding": _fmt_eur(outstanding["_amt"].sum(skipna=True)),
+            "overdue_amount": _fmt_eur(overdue["_amt"].sum(skipna=True)),
+            "overdue_count": int(len(overdue)),
+            "paid_by_concept": {c: _fmt_eur(g["_amt"].sum(skipna=True))
+                                for c, g in paid.groupby("concept") if str(c).strip()},
+        }
+    if cuotas is not None and not cuotas.empty:
+        c = cuotas.copy()
+        c["_amt"] = c["cuota_amount"].map(_parse_eur)
+        out["membership"] = {
+            "active_members": int((c["status"] == "activo").sum()),
+            "left_members": int((c["status"] == "baja").sum()),
+            "annual_cuota_base": _fmt_eur(c[c["status"] == "activo"]["_amt"].sum(skipna=True)),
+        }
+    if negocio is not None and not negocio.empty:
+        rev = negocio["revenue"].map(_parse_eur).dropna()
+        out["turnover"] = {
+            "socios_with_turnover": int(len(rev)),
+            "total_turnover": _fmt_eur(rev.sum() if len(rev) else None),
+            "median_turnover": _fmt_eur(rev.median() if len(rev) else None),
+        }
+    return out
+
+
+def _fin_match(df, name):
+    if df is None or df.empty or "socio" not in df.columns:
+        return pd.DataFrame()
+    return df[df["socio"].astype(str).str.lower().str.contains(name.lower(), na=False, regex=False)]
+
+
+def socio_financials(socio: str = "") -> dict:
+    """Deterministic per-socio financial summary: billing, cuota/membership, turnover, contributions."""
+    name = (socio or "").strip()
+    if not name:
+        return {"error": "socio_required"}
+    out = {"socio_query": name, "as_of": _fin_as_of()}
+    si = _fin_match(DATA.get("invoices", pd.DataFrame()), name)
+    if not si.empty:
+        si = si.copy()
+        si["_amt"] = si["total"].map(_parse_eur)
+        si["_st"] = si["status"].map(_inv_status)
+        out["invoices"] = {
+            "count": int(len(si)),
+            "total_paid": _fmt_eur(si[si["_st"] == "paid"]["_amt"].sum(skipna=True)),
+            "outstanding": _fmt_eur(si[si["_st"].isin(["overdue", "sent"])]["_amt"].sum(skipna=True)),
+        }
+    sc = _fin_match(DATA.get("cuotas", pd.DataFrame()), name)
+    if not sc.empty:
+        r = sc.iloc[0]
+        out["membership"] = {"cuota_amount": clean(r.get("cuota_amount"), ""), "status": clean(r.get("status"), ""),
+                             "join_date": clean(r.get("join_date"), ""), "churn_reason": clean(r.get("churn_reason"), "")}
+    sn = _fin_match(DATA.get("negocio_financiero", pd.DataFrame()), name)
+    if not sn.empty:
+        r = sn.iloc[0]
+        out["business"] = {"revenue": clean(r.get("revenue"), ""), "employees": clean(r.get("employees"), ""),
+                           "investment_received": clean(r.get("investment_received"), "")}
+    sk = _fin_match(DATA.get("contributions", pd.DataFrame()), name)
+    if not sk.empty:
+        r = sk.iloc[0]
+        byyear = r.get("contributions_by_year")
+        out["contributions"] = {"total": clean(r.get("total_contribution"), ""),
+                                "by_year": byyear if isinstance(byyear, dict) else {}}
+    if len(out) <= 2:
+        return {"socio_query": name, "found": False}
+    return out
+
+
+def cuota_status(status: str = "", limit: int = 20) -> dict:
+    """Deterministic payment status by socio: who is overdue / pending, sorted by amount outstanding."""
+    inv = DATA.get("invoices", pd.DataFrame())
+    if inv is None or inv.empty:
+        return {"socios": [], "total": 0}
+    d = inv.copy()
+    d["_amt"] = d["total"].map(_parse_eur)
+    d["_st"] = d["status"].map(_inv_status)
+    want = (status or "").strip().lower()
+    target = {"overdue": ["overdue"], "pending": ["overdue", "sent"], "paid": ["paid"],
+              "sent": ["sent"]}.get(want, ["overdue", "sent"])
+    d = d[d["_st"].isin(target)]
+    if d.empty:
+        return {"socios": [], "total": 0, "status": want or "pending"}
+    g = d.groupby("socio").agg(amount=("_amt", "sum"), invoices=("invoice_id", "count")).reset_index()
+    g = g.sort_values("amount", ascending=False)
+    rows = [{"socio": r["socio"], "outstanding": _fmt_eur(r["amount"]), "invoices": int(r["invoices"])}
+            for _, r in g.head(max(1, min(limit, 100))).iterrows()]
+    return {"socios": rows, "total": int(len(g)), "status": want or "pending",
+            "total_outstanding": _fmt_eur(d["_amt"].sum(skipna=True)), "as_of": _fin_as_of()}
+
+
+def list_invoices(socio: str = "", year: str = "", status: str = "", limit: int = 15) -> dict:
+    """List/search invoices (newest first), optionally by socio / year / status. Empty when live off."""
+    inv = DATA.get("invoices", pd.DataFrame())
+    if inv is None or inv.empty:
+        return {"invoices": [], "total": 0}
+    d = inv.copy()
+    if socio:
+        d = d[d["socio"].astype(str).str.lower().str.contains(socio.lower(), na=False, regex=False)]
+    d["_dt"] = pd.to_datetime(d["invoice_date"], dayfirst=True, errors="coerce")
+    if str(year).strip():
+        d = d[d["_dt"].dt.year.astype("Int64").astype(str).eq(str(year).strip())]
+    if str(status).strip():
+        d = d[d["status"].map(_inv_status) == status.strip().lower()]
+    total = len(d)
+    d = d.sort_values("_dt", ascending=False, na_position="last")
+    fields = ["invoice_no", "socio", "invoice_date", "due_date", "concept", "status", "total"]
+    rows = [{f: clean(r.get(f), "") for f in fields} for _, r in d.head(max(1, min(limit, 50))).iterrows()]
+    return {"invoices": rows, "total": int(total), "as_of": _fin_as_of()}
+
+
 def list_retos(query: str = "", status: str = "", limit: int = 8) -> dict:
     retos = DATA.get("retos", pd.DataFrame())
     if retos is None or retos.empty:
@@ -3251,6 +3449,11 @@ Hard rules (the matchmaker math is the authority, you explain it):
 - Phase 1 covers people linked to official socios. Subscribers/contacts are context only.
 - "Event interest" means shared SECPHO registration interest, not confirmed attendance. Say so when relevant.
 - Do not list large numbers of personal emails. An email is only for a single, specifically requested contact.
+- Financial figures (euros, revenue, cuotas, invoiced/paid/outstanding/overdue, turnover) come ONLY from
+  the financial tools (financial_overview, socio_financials, cuota_status, list_invoices) and ONLY when
+  the tool actually returns them. Quote those amounts VERBATIM — never compute, sum, estimate, convert,
+  or round a euro figure yourself. If a financial tool returns forbidden or empty, say you don't have
+  access to that and stop — do not guess a number.
 - Keep any [person:ID] token exactly as given in tool output, so the interface can attach actions.
 - After you present recommendations for a person, put [tune:THEIR_MEMBER_ID] and [report:THEIR_MEMBER_ID] on a final line so the user can tune the weights and download the full report (.docx).
 - When you focus on a specific official socio/company, you may offer [report-socio:EXACT_SOCIO_NAME] (use the exact socio name) so its report can be downloaded.
@@ -3300,6 +3503,11 @@ TOOL_REQUIRED_GRANT = {
     "search_success_cases": "data.casos",
     "recommend_contacts": "tool.matchmaking",
     "rerank_contacts": "tool.matchmaking",
+    # 🔴 financial tools — gated behind data.financiero (admin/dev implicit; user only if granted).
+    "financial_overview": "data.financiero",
+    "socio_financials": "data.financiero",
+    "cuota_status": "data.financiero",
+    "list_invoices": "data.financiero",
 }
 
 
@@ -3351,6 +3559,19 @@ def dispatch_tool(name: str, args: dict, ctx: dict) -> dict:
 
         if name == "search_success_cases":
             return search_success_cases(query=clean(args.get("query"), ""), limit=5)
+
+        if name == "financial_overview":
+            return financial_overview()
+
+        if name == "socio_financials":
+            return socio_financials(socio=clean(args.get("socio") or args.get("query"), ""))
+
+        if name == "cuota_status":
+            return cuota_status(status=clean(args.get("status"), ""), limit=20)
+
+        if name == "list_invoices":
+            return list_invoices(socio=clean(args.get("socio"), ""), year=clean(args.get("year"), ""),
+                                 status=clean(args.get("status"), ""), limit=15)
 
         if name == "ecosystem_overview":
             return ecosystem_overview()
@@ -3435,6 +3656,22 @@ AGENT_TOOL_SCHEMAS = [
      "description": "Semantic search over SECPHO success stories (casos de éxito) by meaning — returns the most relevant cases with their summary, year, technologies, sectors.",
      "parameters": {"type": "object", "properties": {
          "query": {"type": "string"}}}},
+    {"type": "function", "strict": False, "name": "financial_overview",
+     "description": "Cluster-wide financial summary: total invoiced/paid/outstanding, overdue, revenue by concept (cuota/actividad/proyecto), active-member cuota base, and turnover. All figures are deterministic; quote them verbatim.",
+     "parameters": {"type": "object", "properties": {}}},
+    {"type": "function", "strict": False, "name": "socio_financials",
+     "description": "One socio's financial summary: billing (paid/outstanding), cuota/membership status, turnover, and yearly contributions. Quote the figures verbatim.",
+     "parameters": {"type": "object", "properties": {
+         "socio": {"type": "string", "description": "Company/socio name."}}}},
+    {"type": "function", "strict": False, "name": "cuota_status",
+     "description": "Which socios are overdue or pending on payments, sorted by amount outstanding, with the total outstanding. Use for 'who hasn't paid / who is behind'.",
+     "parameters": {"type": "object", "properties": {
+         "status": {"type": "string", "enum": ["overdue", "pending", "sent", "paid", ""]}}}},
+    {"type": "function", "strict": False, "name": "list_invoices",
+     "description": "List invoices (newest first), optionally filtered by socio, year, or status (overdue/sent/paid/cancelled). Returns invoice number, socio, dates, concept, status, amount.",
+     "parameters": {"type": "object", "properties": {
+         "socio": {"type": "string"}, "year": {"type": "string"},
+         "status": {"type": "string", "enum": ["overdue", "sent", "paid", "cancelled", ""]}}}},
     {"type": "function", "strict": False, "name": "ecosystem_overview",
      "description": "High-level counts and top technologies/sectors/provinces across the whole SECPHO dataset.",
      "parameters": {"type": "object", "properties": {}}},

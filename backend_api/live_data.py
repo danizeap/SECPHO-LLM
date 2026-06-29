@@ -48,11 +48,11 @@ def live_enabled() -> bool:
 # --------------------------------------------------------------------------- #
 # Fetch + small helpers
 # --------------------------------------------------------------------------- #
-def _fetch_json(endpoint: str, extra: str = ""):
+def _fetch_json(endpoint: str, extra: str = "", timeout: int | None = None):
     tok = _token()
     if not tok:
         return None
-    resp = requests.get(f"{API_BASE}/{endpoint}?auth={tok}{extra}", timeout=FETCH_TIMEOUT)
+    resp = requests.get(f"{API_BASE}/{endpoint}?auth={tok}{extra}", timeout=timeout or FETCH_TIMEOUT)
     resp.raise_for_status()
     return resp.json()
 
@@ -86,6 +86,13 @@ def _as_list(value):
         return ast.literal_eval(s)
     except (ValueError, SyntaxError):
         return s
+
+
+def _join_list(value) -> str:
+    """A JSON list field (e.g. Estado/Concepto) -> a clean comma-joined string; scalar -> cleaned."""
+    if isinstance(value, list):
+        return ", ".join(_clean(x) for x in value if _clean(x))
+    return _clean(value)
 
 
 # --------------------------------------------------------------------------- #
@@ -190,19 +197,121 @@ def normalize_actividades(raw) -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
+# --------------------------------------------------------------------------- #
+# Financial normalizers (🔴 sensitive). Loaded into RAM like the rest; EXPOSURE is gated at the tool
+# layer behind `data.financiero`. Zero-copy: never persisted. Field names verified against the live
+# reports/v1 endpoints (schema-only probe, June 2026).
+# --------------------------------------------------------------------------- #
+def normalize_negocio_financiero(raw) -> pd.DataFrame:
+    """Live datosnegocio JSON -> the FINANCIAL view of each socio: turnover + investment. Key: socio."""
+    rows = []
+    for _rid, r in _records(raw):
+        rows.append({
+            "socio": _clean(r.get("Socio")),
+            "revenue": _clean(r.get("Cifra de negocio")),
+            "investment_received": _clean(r.get("Inversion recibida")),
+            "investment_sought": _clean(r.get("Inversion buscada")),
+            "employees": _clean(r.get("Num. de empleados")),
+            "exportation": _clean(r.get("Exportación")),
+            "last_updated": _clean(r.get("Fecha ult. act.")),
+        })
+    return pd.DataFrame(rows)
+
+
+_DATE_RE = re.compile(r"^\d{1,2}/\d{1,2}/\d{2,4}$")
+
+
+def normalize_cuotas(raw) -> pd.DataFrame:
+    """Live altasbajas JSON -> membership economics: cuota amount, join/leave dates, churn reason.
+    Key: altabaja_id (the source's dict id). Also the raw signal for the later health/churn slice.
+    A socio counts as 'baja' (left) ONLY if 'Fecha de baja definitiva' is a real date — the source
+    uses the literal 'No consta' (not recorded) for active members, so a non-empty value is NOT a
+    leave."""
+    rows = []
+    for rid, r in _records(raw):
+        leave = _clean(r.get("Fecha de baja definitiva"))
+        left = bool(_DATE_RE.match(leave))
+        rows.append({
+            "altabaja_id": rid,
+            "socio": _clean(r.get("Socio")),
+            "company_type": _clean(r.get("Tipo de empresa")),
+            "cuota_amount": _clean(r.get("Importe Cuota")),
+            "join_date": _clean(r.get("Fecha de incorporación")),
+            "welcome_date": _clean(r.get("Fecha de welcome")),
+            "leave_request_date": _clean(r.get("Fecha solicitud baja")),
+            "leave_date": leave,
+            "churn_reason_type": _clean(r.get("Tipo motivo de baja")),
+            "churn_reason": _clean(r.get("Descripción motivo")),
+            "status": "baja" if left else "activo",
+        })
+    return pd.DataFrame(rows)
+
+
+def normalize_invoices(raw) -> pd.DataFrame:
+    """Live facturacion-total JSON -> the invoice/billing ledger per socio (status, due, paid,
+    amount). Key: invoice_id (the source's dict id). Source for cuota/payment status + invoice lookups."""
+    rows = []
+    for rid, r in _records(raw):
+        rows.append({
+            "invoice_id": rid,
+            "invoice_no": _clean(r.get("Número")),
+            "socio": _clean(r.get("Socio")),
+            "status": _join_list(r.get("Estado")),
+            "concept": _join_list(r.get("Concepto")),
+            "invoice_date": _clean(r.get("Fecha Factura")),
+            "due_date": _clean(r.get("Vencimiento")),
+            "payment_date": _clean(r.get("Fecha de pago")),
+            "net": _clean(r.get("Neto")),
+            "total": _clean(r.get("Total")),
+        })
+    return pd.DataFrame(rows)
+
+
+def normalize_contributions(raw) -> pd.DataFrame:
+    """Live financiacion JSON -> per-socio annual financial contribution history. Key: socio. The
+    per-year figures are kept as a {year: amount} dict for trend aggregation."""
+    rows = []
+    for _rid, r in _records(raw):
+        by_year = {
+            k.replace("Finan. ", "").strip(): _clean(v)
+            for k, v in r.items()
+            if isinstance(k, str) and k.startswith("Finan. ")
+        }
+        rows.append({
+            "socio": _clean(r.get("Socio")),
+            "participation": _clean(r.get("Participación")),
+            "ranking": _clean(r.get("Ranking")),
+            "total_contribution": _clean(r.get("TOTAL")),
+            "contributions_by_year": by_year,
+        })
+    return pd.DataFrame(rows)
+
+
 # name -> (endpoint, extra query, normalizer)
 SOURCES = {
     "retos": ("retos", "", normalize_retos),
     "proyectos": ("proyectos", "", normalize_proyectos),
     "casos_exito": ("casos-exito", "", normalize_casos),
     "actividades": ("actividades", "", normalize_actividades),
+    # 🔴 financial sources — in RAM like the rest; exposure gated at the tool layer (data.financiero).
+    "negocio_financiero": ("datosnegocio", "", normalize_negocio_financiero),
+    "cuotas": ("altasbajas", "", normalize_cuotas),
+    "invoices": ("facturacion-total", "", normalize_invoices),
+    "contributions": ("financiacion", "", normalize_contributions),
 }
+
+# 🔴 sources whose data is sensitive (financial). Used to gate change-feed key samples (P5f-c) and to
+# signal callers that exposure requires the data.financiero grant.
+SENSITIVE_SOURCES = frozenset({"negocio_financiero", "cuotas", "invoices", "contributions"})
+
+# Larger / slower financial endpoints that need a longer fetch timeout than the default.
+SLOW_SOURCES = frozenset({"invoices", "contributions", "cuotas"})
 
 
 def load_source(name: str) -> pd.DataFrame | None:
     """Fetch + normalize one source live. Returns None when live is disabled (no token)."""
     endpoint, extra, normalizer = SOURCES[name]
-    raw = _fetch_json(endpoint, extra)
+    raw = _fetch_json(endpoint, extra, timeout=60 if name in SLOW_SOURCES else None)
     if raw is None:
         return None
     df = normalizer(raw)
@@ -246,7 +355,10 @@ REFRESH_INTERVALS: dict[str, int] = {}
 _TICK_SECONDS = int(os.getenv("SECPHO_LIVE_TICK_SECONDS", "60"))
 
 # Stable record key per source for diffing (id where available, else a stable field).
-KEY_COLUMNS = {"retos": "reto_id", "proyectos": "proyecto_id", "casos_exito": "title", "actividades": "activity_id"}
+KEY_COLUMNS = {
+    "retos": "reto_id", "proyectos": "proyecto_id", "casos_exito": "title", "actividades": "activity_id",
+    "negocio_financiero": "socio", "cuotas": "altabaja_id", "invoices": "invoice_id", "contributions": "socio",
+}
 
 _LAST: dict[str, pd.DataFrame] = {}          # previous pull per source (in RAM, for diffing)
 _LAST_REFRESH: dict[str, float] = {}         # monotonic time of last refresh attempt (cadence)
@@ -277,6 +389,23 @@ def diff_frames(old_df, new_df, key: str) -> dict[str, list]:
     }
 
 
+def _change_entry(name: str, d: dict) -> dict:
+    """Build a change-feed entry from a diff. For 🔴 SENSITIVE_SOURCES the bounded sample of changed
+    key values is OMITTED (their key is the socio name / a financial record id) — only the counts are
+    kept, so a surfaced feed can never reveal WHICH socios had financial changes to a non-granted
+    caller. Non-sensitive sources keep the key sample for useful digests."""
+    keys = {} if name in SENSITIVE_SOURCES else {k: v[:20] for k, v in d.items()}
+    return {
+        "ts": datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds"),
+        "source": name,
+        "added": len(d["added"]),
+        "modified": len(d["modified"]),
+        "removed": len(d["removed"]),
+        "sensitive": name in SENSITIVE_SOURCES,
+        "keys": keys,
+    }
+
+
 def _refresh_once(names: list[str] | None = None, apply_fn=None) -> list[dict]:
     """One refresh cycle for the given sources: load → diff vs the previous in-RAM pull → record any
     change → apply (swap into the app's view). The first pull of a source is the baseline (no change
@@ -296,14 +425,7 @@ def _refresh_once(names: list[str] | None = None, apply_fn=None) -> list[dict]:
         if prev is not None:
             d = diff_frames(prev, df, KEY_COLUMNS.get(name, ""))
             if d["added"] or d["modified"] or d["removed"]:
-                entry = {
-                    "ts": datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds"),
-                    "source": name,
-                    "added": len(d["added"]),
-                    "modified": len(d["modified"]),
-                    "removed": len(d["removed"]),
-                    "keys": {k: v[:20] for k, v in d.items()},  # bounded sample of changed keys
-                }
+                entry = _change_entry(name, d)
                 _CHANGES.append(entry)
                 emitted.append(entry)
         _LAST[name] = df
