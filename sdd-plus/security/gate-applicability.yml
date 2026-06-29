@@ -227,12 +227,12 @@ gates:
     status: "N/A"
     evidence:
       - type: "repo_evidence"
-        detail: "The deployed web app has NO file upload and fetches only a FIXED outbound URL (OpenAI Responses API, https://api.openai.com/v1/responses) with no user-controlled URL. Static/artifact serving applies a Path(...).name basename defense. The event-registration import is an OFFLINE pipeline script, not part of the deployed web app. Low risk; not a high-risk-isolation gate."
-        reference: "backend_api/mvp_web_app.py:47 (OPENAI_RESPONSES_URL), 4675/4683 (Path(...).name basename for /static/ and /artifacts/)"
-    reason: "No upload, no user-controlled URL fetch, and no in-app import/export in the deployed web app; only a single fixed outbound integration exists. Not high-risk, so no human confirmation required."
-    human_confirmation_required: false
-    confirmed_by: ""
-    confirmed_at: ""
+        detail: "The deployed web app has NO file upload. Outbound HTTP is limited to FIXED, hard-coded hosts with no user-controlled URL: the OpenAI Responses API (https://api.openai.com/v1/responses) and, added by the access-control change, the Render API (https://api.render.com/v1/...) used only by render_env.py to persist the SECPHO_USERS roster. Neither destination is derived from request input, so there is no SSRF surface. Static/artifact serving applies a Path(...).name basename defense. The event-registration import is an OFFLINE pipeline script, not part of the deployed web app."
+        reference: "backend_api/render_env.py:21 (RENDER_API_BASE fixed host); backend_api/mvp_web_app.py (OPENAI_RESPONSES_URL); /static/ + /artifacts/ basename defense"
+    reason: "No upload and no user-controlled URL fetch; the two outbound integrations target fixed hard-coded hosts (OpenAI, Render) with no request-derived URL, so there is no SSRF/upload abuse surface. Re-flagged because the access-control change added a second outbound integration; Owner reviewed and confirmed."
+    human_confirmation_required: true
+    confirmed_by: "Daniel / SECPHO"
+    confirmed_at: "2026-06-29"
     unresolved_questions: []
   - gate_id: 10
     gate_name: "Gate 10 — Dependency, SBOM & Supply Chain"
@@ -326,14 +326,14 @@ gates:
       - "Run a prompt-injection test pass covering both user messages and data-borne free-text."
   - gate_id: 16
     gate_name: "Gate 16 — Multi-Tenant & Internal Permission Isolation"
-    applies: false
+    applies: true
     confidence: "high"
-    status: "N/A"
+    status: "PASS"
     evidence:
       - type: "repo_evidence"
-        detail: "Single tenant (SECPHO only); there is no org/team/workspace model and no cross-tenant data. The only boundary is user vs admin role, which is covered by Gate 6 (object authorization / is_admin) and Gate 8 (auth/sessions). Documented; this is not a tenant-isolation system."
-        reference: "backend_api/mvp_web_app.py:4528-4530 (is_admin role boundary)"
-    reason: "No tenant/org/client/team model exists; the single user-vs-admin boundary is handled by Gates 6 and 8. No cross-tenant isolation surface, so no human confirmation required."
+        detail: "The access-control change adds a real internal permission-isolation layer: three roles (dev > admin > user) plus a per-user grant catalog over data sources and tools, enforced fail-closed server-side. Each agent tool requires its grant (dispatch_tool); /api/agent requires tool.chat; sensitive data (financial/PII) and the admin surfaces are gated; role AND grants are re-derived per request from the live roster (so a demote/delete takes effect immediately, not after the cookie expires); the user-manager endpoints are admin/dev-only with dev-protection and last-admin lockout guards. An adversarial 6-dimension security review found and fixed 3 issues (incl. a fail-open roster read that could clobber all credentials) before merge; 110 tests pass."
+        reference: "sdd-plus/specs/capabilities/access-control.md; backend_api/mvp_web_app.py (ROLE_RANK, resolve_grants, _effective_role, TOOL_REQUIRED_GRANT, org_user_guard, _handle_org_users); tests/test_rbac.py, tests/test_org_users_endpoint.py"
+    reason: "This change introduces internal permission isolation (roles + per-user grants gating data and tools), so the gate now applies; it is implemented fail-closed, adversarially reviewed, and test-covered. (Owner: review this PASS assessment.)"
     human_confirmation_required: false
     confirmed_by: ""
     confirmed_at: ""
@@ -370,14 +370,14 @@ gates:
       - "Set SECPHO_SESSION_SECRET on Render; add durable storage (or export-before-redeploy) for feedback; define a secret rotation plan."
   - gate_id: 19
     gate_name: "Gate 19 — Business Logic Abuse"
-    applies: false
-    confidence: "medium"
-    status: "N/A"
+    applies: true
+    confidence: "high"
+    status: "PASS"
     evidence:
       - type: "repo_evidence"
-        detail: "No payments, plans, credits, quotas, invites, or entitlements exist. Recommendation logic is deterministic, and the tool-build loop is allowlisted (covered by Gate 13). No business-rule abuse surface."
-        reference: "backend_api/mvp_web_app.py (no payment/plan/credit logic); create_socio_metric_chart allowlist at 669/773"
-    reason: "No plans, payments, credits, invites, quotas, or entitlements are present; the only auto-build path is allowlisted and covered by Gate 13. Not high-risk, so no human confirmation required."
+        detail: "The access-control change adds business-logic flows (org user creation, role assignment, grant assignment, password reset) with abuse potential. These are guarded: org_user_guard enforces dev-protection (only a dev may create/modify/delete a dev or assign the dev role) and a last-admin lockout (the final admin-or-dev cannot be removed or demoted); creation requires a @secpho.org email; one-time passwords are server-minted, pbkdf2-hashed, and never logged; writes serialize under a lock with a fresh read-before-write and refuse to clobber a populated roster with an empty/unparseable read. The adversarial review specifically targeted business-logic abuse and its 3 findings were fixed before merge. No payments/plans/credits/quotas exist."
+        reference: "backend_api/mvp_web_app.py (org_user_guard, apply_org_user_action, _handle_org_users, valid_secpho_email); tests/test_rbac.py (guard tests), tests/test_org_users_endpoint.py"
+    reason: "The user-management endpoints add invite/role/entitlement-like business logic, so the gate now applies; the abuse paths (privilege escalation, lockout, roster clobber) are guarded, adversarially reviewed, and test-covered. (Owner: review this PASS assessment.)"
     human_confirmation_required: false
     confirmed_by: ""
     confirmed_at: ""

@@ -1,0 +1,17 @@
+# LaunchGuardian scan scope. `exclude.paths` REPLACES the built-in defaults (it does not extend
+# them), so the defaults are re-listed here plus the local virtualenv, which is third-party and not
+# shipped — scanning it produced 30 false-positive findings (joblib/pandas/pip internals).
+scan:
+  # Test files are fixtures, not shipped code; they legitimately contain fake credentials (e.g. a
+  # hard-coded test SESSION_SECRET used only to sign cookies in the harness). Exclude them from
+  # production scanning so those test-only values are not flagged as committed secrets.
+  include_tests: false
+exclude:
+  paths:
+    - node_modules
+    - .git
+    - reports/launchguardian
+    - secpho_env
+  globs:
+    - "**/*.min.js"
+    - "**/fixtures/**"

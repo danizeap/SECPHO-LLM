@@ -1,0 +1,13 @@
+# Gitleaks config for the SECPHO repo. Extends the default ruleset and allowlists the test tree,
+# whose fixtures legitimately contain FAKE credentials only — e.g. a hard-coded test SESSION_SECRET
+# used solely to sign cookies in the test harness. Never a real secret, never used in production.
+title = "secpho-gitleaks"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Test fixtures hold fake credentials only; not production secrets."
+paths = [
+  '''tests/.*''',
+]
