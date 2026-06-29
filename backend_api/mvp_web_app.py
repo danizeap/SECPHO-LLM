@@ -255,6 +255,31 @@ AUTH_REQUIRED = bool(USERS or APP_PASSWORD or ADMIN_PASSWORD)
 ADMIN_ENABLED = bool(ADMIN_PASSWORD) or any(u["role"] in {"admin", "dev"} for u in USERS.values())
 
 
+def _user_tag(email: str) -> str:
+    """Opaque, stable per-user tag for client-side conversation-history namespacing. Keyed by
+    SESSION_SECRET so it cannot be enumerated across accounts and never exposes the email itself."""
+    e = (email or "").strip().lower()
+    if not e:
+        return "anon"
+    return hmac.new(SESSION_SECRET.encode(), e.encode(), hashlib.sha256).hexdigest()[:16]
+
+
+def _history_tag(session: dict | None) -> str:
+    """Per-browser conversation-history namespace tag injected into the chat page. For a
+    roster-validated named account it is stable per user (so the same user keeps their history);
+    otherwise (shared-password / anon / a deleted account) the login email is SELF-ASSERTED and
+    untrusted, so we bind to the per-login `nonce` instead — every login gets a fresh namespace, so
+    one user cannot reuse another's typed email to forge their tag and read their prior chat."""
+    session = session or {}
+    email = (session.get("sub") or "").strip().lower()
+    if email and USERS.get(email) is not None:
+        return _user_tag(email)
+    nonce = session.get("nonce") or ""
+    if nonce:
+        return _user_tag("session:" + (session.get("role") or "") + ":" + nonce)
+    return "anon"
+
+
 def _effective_role(session: dict) -> str:
     """The session's role, re-derived PER REQUEST from the live roster for named accounts — so a
     demote or delete takes effect on the next request instead of lingering until the cookie expires
@@ -4286,6 +4311,7 @@ CHAT_HTML = """
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="secpho-uid" content="{{UID}}">
   <title>SECPHO Intelligence Chat</title>
   <style>
     :root {
@@ -5157,7 +5183,8 @@ CHAT_HTML = """
 
     // ---- Conversation history (client-side, localStorage) -------------------
     var WELCOME_HTML = (document.getElementById('welcome') || {}).outerHTML || '';
-    var CONV_KEY = 'secpho_convs', ACTIVE_KEY = 'secpho_active', CONV_CAP = 40;
+    var CONV_KEY = 'secpho_convs', ACTIVE_KEY = 'secpho_active', UID_KEY = 'secpho_uid', CONV_CAP = 40;
+    var CONV_UID = (function(){ try { return (document.querySelector('meta[name="secpho-uid"]')||{}).content || 'anon'; } catch(e){ return 'anon'; } })();
     var activeConvId = null;
 
     function loadConvs(){ try { return JSON.parse(localStorage.getItem(CONV_KEY) || '[]'); } catch(e){ return []; } }
@@ -5181,6 +5208,9 @@ CHAT_HTML = """
       return txt ? txt.slice(0, 48) : t('newchat');
     }
     function saveActive(){
+      // Multi-tab guard: if another tab switched the logged-in user, do NOT persist this tab's
+      // (now stale) conversation under the new user's namespace.
+      try { if (localStorage.getItem(UID_KEY) !== CONV_UID) return; } catch(e){}
       var html = snapshotMessages();
       if (!html) return;
       if (!activeConvId) activeConvId = 'c' + Date.now();
@@ -5231,7 +5261,19 @@ CHAT_HTML = """
       if (id === activeConvId){ activeConvId = null; try { localStorage.removeItem(ACTIVE_KEY); } catch(e){} restoreInto(null); }
       renderConvList();
     }
+    function purgeIfDifferentUser(){
+      // Per-user isolation: if the stored owner tag differs from the logged-in user, wipe the
+      // (possibly sensitive) conversation history before loading. Cleared, not just hidden.
+      try {
+        if (localStorage.getItem(UID_KEY) !== CONV_UID){
+          localStorage.removeItem(CONV_KEY);
+          localStorage.removeItem(ACTIVE_KEY);
+          localStorage.setItem(UID_KEY, CONV_UID);
+        }
+      } catch(e){}
+    }
     function initConversations(){
+      purgeIfDifferentUser();
       var lst = document.getElementById('convList');
       if (lst && !lst._wired){ lst.addEventListener('click', onConvListClick); lst._wired = true; }
       var act = null; try { act = localStorage.getItem(ACTIVE_KEY); } catch(e){}
@@ -5269,6 +5311,8 @@ CHAT_HTML = """
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape') closeFeedback();
     });
+    var _logout = document.querySelector('a[href="/logout"]');
+    if (_logout) _logout.addEventListener('click', function(){ try { localStorage.removeItem(CONV_KEY); localStorage.removeItem(ACTIVE_KEY); } catch(e){} });
     applyLang(LANG);
     setModel(MODEL);
     initConversations();
@@ -5878,7 +5922,8 @@ class Handler(BaseHTTPRequestHandler):
             if not self.is_authenticated():
                 self.send_redirect("/login")
                 return
-            self.send_html(CHAT_HTML)
+            uid = _history_tag(self.session())
+            self.send_html(CHAT_HTML.replace("{{UID}}", uid))
             return
 
         if parsed.path == "/health":
