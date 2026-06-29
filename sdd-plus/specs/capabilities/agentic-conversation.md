@@ -124,7 +124,7 @@ The system SHALL drop personal email from people returned in bulk lists (`_agent
 - **THEN** each entry carries member_id, name, socio, role, technologies, and sectors but not email.
 
 ### Requirement: Auth-gated, fail-closed agent endpoint
-The system SHALL expose `POST /api/agent` behind the `/api` authentication gate and the `llm` rate-limit bucket, reject an empty message with 400 and a body over 200000 bytes with 413, and fall back internally to `chat_flow` when the LLM is unavailable or returns an empty answer — never returning 500. The frontend chat always posts to `/api/agent`.
+The system SHALL expose `POST /api/agent` behind the `/api` authentication gate and the `llm` rate-limit bucket, reject an empty message with 400 and a body over 200000 bytes with 413, and fall back internally to `chat_flow` when the LLM is unavailable or returns an empty answer — never returning 500. The frontend chat always posts to `/api/agent`. The endpoint additionally enforces the access model (see the `access-control` capability): it requires the `tool.chat` grant, threads the caller's resolved grants into the tool loop so each tool is gated by its required grant, and the `chat_flow` fallback requires the baseline data grant and redacts personal email — so it never serves what the gated agent path would withhold.
 
 #### Scenario: No API key configured
 - **WHEN** `OPENAI_API_KEY` is unset or the agent returns an empty answer

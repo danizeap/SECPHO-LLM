@@ -75,14 +75,157 @@ def verify_password(password: str, stored: str) -> bool:
         return False
 
 
-def load_users() -> dict:
-    """Parse SECPHO_USERS: 'email|role|pbkdf2_sha256$...' entries separated by ';' or newlines."""
+# --- Role + grant model (rbac-user-management) ---------------------------------------------------
+# Three roles with precedence dev > admin > user. dev = admin + system internals (tool loop,
+# feedback, scoring); admin = all data/tools + the user manager; user = only granted keys.
+ROLE_RANK = {"user": 1, "admin": 2, "dev": 3}
+
+# The grant catalog IS the checkbox matrix in Settings -> Usuarios. (key, group, sensitive).
+# Sensitive keys default OFF for new users and are only grantable by admin/dev.
+GRANT_CATALOG = [
+    ("data.socios", "Datos", False),
+    ("data.eventos", "Datos", False),
+    ("data.retos", "Datos", False),
+    ("data.proyectos", "Datos", False),
+    ("data.casos", "Datos", False),
+    ("data.financiero", "Datos", True),
+    ("data.contactos", "Datos", True),
+    ("tool.chat", "Tools", False),
+    ("tool.matchmaking", "Tools", False),
+    ("tool.scoring", "Tools", True),
+    ("tool.feedback", "Tools", True),
+]
+ALL_GRANTS = frozenset(k for k, _g, _s in GRANT_CATALOG)
+SENSITIVE_GRANTS = frozenset(k for k, _g, s in GRANT_CATALOG if s)
+# Sensible non-sensitive default for a freshly created user (and legacy 3-field lines).
+DEFAULT_USER_GRANTS = frozenset(k for k, _g, s in GRANT_CATALOG if not s)
+
+
+def grants_for(role: str, grant_field: str | None) -> frozenset:
+    """Resolve a user's effective grant set. admin/dev implicitly hold the whole catalog; a user
+    holds exactly the (valid) keys in their stored field, defaulting to the non-sensitive set when
+    the field is absent (legacy 3-field line). Fail-closed: unknown keys are dropped."""
+    role = (role or "").lower()
+    if ROLE_RANK.get(role, 0) >= ROLE_RANK["admin"]:
+        return ALL_GRANTS
+    raw = (grant_field or "").strip()
+    if not raw:
+        return DEFAULT_USER_GRANTS
+    keys = {k.strip() for k in raw.split(",") if k.strip()}
+    return frozenset(keys & ALL_GRANTS)
+
+
+def parse_users_string(raw: str) -> dict:
+    """Parse a SECPHO_USERS value: entries separated by ';' or newlines, each
+    'email|role|pbkdf2_sha256$...' with an OPTIONAL 4th field 'grant1,grant2,...'. Legacy 3-field
+    lines stay valid (role-default grants). role accepts user/admin/dev."""
     users = {}
-    for line in re.split(r"[;\n]+", os.getenv("SECPHO_USERS", "")):
+    for line in re.split(r"[;\n]+", raw or ""):
         parts = [p.strip() for p in line.split("|")]
-        if len(parts) == 3 and parts[0] and parts[1].lower() in {"user", "admin"} and parts[2]:
-            users[parts[0].lower()] = {"role": parts[1].lower(), "pw": parts[2]}
+        if len(parts) in (3, 4) and parts[0] and parts[1].lower() in ROLE_RANK and parts[2]:
+            role = parts[1].lower()
+            grant_field = parts[3] if len(parts) == 4 else None
+            users[parts[0].lower()] = {"role": role, "pw": parts[2], "grants": grants_for(role, grant_field)}
     return users
+
+
+def load_users() -> dict:
+    return parse_users_string(os.getenv("SECPHO_USERS", ""))
+
+
+def serialize_users(users: dict) -> str:
+    """Encode the roster back to a SECPHO_USERS value. admin/dev omit the grant field (implicit full
+    catalog); a user writes its explicit, validated grant keys. Inverse of parse_users_string."""
+    lines = []
+    for email in sorted(users):
+        u = users[email]
+        role, pw = u.get("role", "user"), u.get("pw", "")
+        if ROLE_RANK.get(role, 0) >= ROLE_RANK["admin"]:
+            lines.append(f"{email}|{role}|{pw}")
+        else:
+            grants = ",".join(sorted(g for g in (u.get("grants") or ()) if g in ALL_GRANTS))
+            lines.append(f"{email}|{role}|{pw}|{grants}" if grants else f"{email}|{role}|{pw}")
+    return ";\n".join(lines)
+
+
+def hash_password(password: str, iterations: int = 200_000) -> str:
+    """pbkdf2_sha256 hash in the same '$'-delimited format verify_password expects."""
+    salt = secrets.token_bytes(16)
+    dk = hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), salt, iterations)
+    return f"pbkdf2_sha256${iterations}${salt.hex()}${dk.hex()}"
+
+
+_PW_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789"  # no ambiguous chars
+
+
+def gen_password(length: int = 14) -> str:
+    return "".join(secrets.choice(_PW_ALPHABET) for _ in range(length))
+
+
+_SECPHO_EMAIL_RE = re.compile(r"^[a-z0-9._%+\-]+@secpho\.org$")
+
+
+def valid_secpho_email(email: str) -> bool:
+    return bool(_SECPHO_EMAIL_RE.match((email or "").strip().lower()))
+
+
+def org_user_guard(actor_rank: int, action: str, target_email: str, new_role: str | None, users: dict) -> str | None:
+    """Pure authorization for a user-management action. Returns an error code, or None if allowed."""
+    target_email = (target_email or "").lower()
+    if actor_rank < ROLE_RANK["admin"]:
+        return "forbidden"
+    target = users.get(target_email)
+    # Only a dev may create/modify/delete a dev account or assign the dev role.
+    if new_role == "dev" and actor_rank < ROLE_RANK["dev"]:
+        return "dev_requires_dev"
+    if target and target.get("role") == "dev" and actor_rank < ROLE_RANK["dev"]:
+        return "dev_requires_dev"
+    if action == "create":
+        return "already_exists" if target else None
+    if not target:
+        return "not_found"
+    # Lockout guard: never remove or demote the LAST admin-or-dev account.
+    privileged = [e for e, u in users.items() if ROLE_RANK.get(u.get("role"), 0) >= ROLE_RANK["admin"]]
+    removing_privilege = action == "delete" or (
+        action == "update" and new_role is not None and ROLE_RANK.get(new_role, 0) < ROLE_RANK["admin"]
+    )
+    target_is_privileged = ROLE_RANK.get(target.get("role"), 0) >= ROLE_RANK["admin"]
+    if removing_privilege and target_is_privileged and privileged == [target_email]:
+        return "would_lock_out"
+    return None
+
+
+def apply_org_user_action(action: str, email: str, new_role: str | None, grants_in: list, users: dict):
+    """Apply an already-authorized action to a COPY of the roster. Returns (new_users, one_time_pw)."""
+    users = dict(users)
+    email = (email or "").lower()
+    otp = None
+    valid = ",".join(g for g in (grants_in or []) if g in ALL_GRANTS)
+    if action == "create":
+        role = new_role or "user"
+        otp = gen_password()
+        users[email] = {"role": role, "pw": hash_password(otp), "grants": grants_for(role, valid)}
+    elif action == "update":
+        existing = users[email]
+        role = new_role or existing.get("role", "user")
+        users[email] = {"role": role, "pw": existing["pw"], "grants": grants_for(role, valid)}
+    elif action == "reset_password":
+        otp = gen_password()
+        users[email] = {**users[email], "pw": hash_password(otp)}
+    elif action == "delete":
+        users.pop(email, None)
+    return users, otp
+
+
+def persist_users(users: dict) -> dict:
+    """The SINGLE swap point for where the roster is durably stored. Today: the Render env var via
+    render_env. Off-Render (dedicated host) swap this for a file/WP writer — nothing else changes."""
+    serialized = serialize_users(users)
+    try:
+        import render_env
+    except Exception:
+        return {"ok": False, "error": "writer_unavailable"}
+    return render_env.update_users_env(serialized)
 
 
 USERS = load_users()
@@ -109,7 +252,49 @@ def _load_or_create_session_secret() -> str:
 SESSION_SECRET = _load_or_create_session_secret()
 SESSION_SECRET_FROM_ENV = bool(os.getenv("SECPHO_SESSION_SECRET") or os.getenv("SESSION_SECRET"))
 AUTH_REQUIRED = bool(USERS or APP_PASSWORD or ADMIN_PASSWORD)
-ADMIN_ENABLED = bool(ADMIN_PASSWORD) or any(u["role"] == "admin" for u in USERS.values())
+ADMIN_ENABLED = bool(ADMIN_PASSWORD) or any(u["role"] in {"admin", "dev"} for u in USERS.values())
+
+
+def _effective_role(session: dict) -> str:
+    """The session's role, re-derived PER REQUEST from the live roster for named accounts — so a
+    demote or delete takes effect on the next request instead of lingering until the cookie expires
+    (mirrors resolve_grants). In named-account mode (USERS configured) a session whose account no
+    longer exists has NO role; shared-password mode (no roster) trusts the signed cookie role."""
+    email = (session.get("sub") or "").lower()
+    user = USERS.get(email)
+    if user is not None:
+        return (user.get("role") or "").lower()
+    if USERS:
+        return ""  # named-account mode but the account is gone (deleted) -> unprivileged
+    return (session.get("role") or "").lower()  # shared-password mode -> trust the signed cookie
+
+
+def role_at_least(session: dict | None, minimum: str) -> bool:
+    """True when the session's LIVE-derived role meets/exceeds `minimum` (dev>admin>user). Open dev
+    mode counts as plain user. Fail-closed on a missing session."""
+    if not session:
+        return False
+    role = "user" if session.get("auth_disabled") else _effective_role(session)
+    return ROLE_RANK.get(role, 0) >= ROLE_RANK.get(minimum, 99)
+
+
+def resolve_grants(session: dict | None) -> frozenset:
+    """The grant keys a session holds, derived PER REQUEST from the live USERS map (not the cookie),
+    so an admin's grant change takes effect at the next redeploy rather than lingering until the
+    cookie expires. Fail-closed: no session -> no grants; a deleted named account -> no grants."""
+    if not session:
+        return frozenset()
+    if session.get("auth_disabled"):
+        return DEFAULT_USER_GRANTS  # open dev mode: usable, never sensitive/admin
+    email = (session.get("sub") or "").lower()
+    user = USERS.get(email)
+    if user is not None:
+        return user["grants"]  # authoritative named account
+    if USERS:
+        return frozenset()  # named-account mode but the account is gone (deleted) -> no grants
+    return grants_for(session.get("role") or "", None)  # shared-password session -> role default
+
+
 STATE_LOCK = threading.Lock()
 RATE_LIMIT_EVENTS: dict[str, list[float]] = {}
 
@@ -378,7 +563,7 @@ def parse_session_cookie(cookie_value: str) -> dict | None:
         return None
     if int(payload.get("exp", 0)) < int(time.time()):
         return None
-    if payload.get("role") not in {"user", "admin"}:
+    if payload.get("role") not in ROLE_RANK:
         return None
     return payload
 
@@ -3097,7 +3282,32 @@ def _agent_resolve_member_id(args: dict):
     return None
 
 
+# Each agent tool requires the caller to hold this grant (rbac-user-management P4b). Enforced
+# fail-closed in dispatch_tool whenever ctx carries a "grants" set (always set on the /api/agent
+# path); internal/test callers that omit "grants" are not gated, preserving existing behavior.
+TOOL_REQUIRED_GRANT = {
+    "search_people": "data.socios",
+    "get_person_profile": "data.socios",
+    "search_socios": "data.socios",
+    "get_socio_profile": "data.socios",
+    "rank_socios": "data.socios",
+    "ecosystem_overview": "data.socios",
+    "aggregate_stats": "data.socios",
+    "list_events": "data.eventos",
+    "list_activities": "data.eventos",
+    "list_retos": "data.retos",
+    "list_projects": "data.proyectos",
+    "search_success_cases": "data.casos",
+    "recommend_contacts": "tool.matchmaking",
+    "rerank_contacts": "tool.matchmaking",
+}
+
+
 def dispatch_tool(name: str, args: dict, ctx: dict) -> dict:
+    required = TOOL_REQUIRED_GRANT.get(name)
+    grants = ctx.get("grants")
+    if required is not None and grants is not None and required not in grants:
+        return {"error": "forbidden", "tool": name, "required_grant": required}
     try:
         if name == "search_people":
             company = clean(args.get("company"), "")
@@ -3318,8 +3528,10 @@ def run_agent(input_items: list, ctx: dict, max_steps: int = 4) -> tuple[str, st
     return "", "agent_max_steps", trace
 
 
-def agent_chat(message: str, history: list, member_id: int | None = None) -> dict:
+def agent_chat(message: str, history: list, member_id: int | None = None, grants=None) -> dict:
     ctx = {"selected": member_id}
+    if grants is not None:
+        ctx["grants"] = grants  # fail-closed per-tool gating in dispatch_tool
     input_items = []
     for turn in (history or [])[-6:]:
         role = "assistant" if str(turn.get("role")) == "assistant" else "user"
@@ -4493,6 +4705,26 @@ ADMIN_HTML = """<!doctype html>
     .card { background:var(--panel); border:1px solid #232327; border-left:3px solid var(--brand); border-radius:10px; padding:12px 14px; margin-bottom:10px; }
     .card b { color:var(--ink); } .card small { color:var(--muted); }
     .tag { display:inline-block; font-size:11px; padding:2px 8px; border-radius:999px; background:#1f1f23; color:var(--brand); margin-left:6px; }
+    .note-line { font-size:12px; color:var(--muted); margin:6px 0; line-height:1.5; }
+    .urow { display:flex; align-items:center; gap:10px; padding:9px 0; border-top:1px solid #232327; }
+    .urow .ue { flex:1; min-width:0; overflow:hidden; }
+    .urow .ue small { color:var(--muted); display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .rolepill { font-size:11px; padding:2px 9px; border-radius:999px; }
+    .rolepill.dev { background:#241f3a; color:#b9a9ff; }
+    .rolepill.admin { background:#10303a; color:#5fd0e0; }
+    .rolepill.user { background:#1f1f23; color:var(--muted); }
+    .addbox { margin-top:16px; background:#121214; border:1px solid #232327; border-radius:10px; padding:14px; }
+    .addrow { display:flex; gap:10px; margin-bottom:10px; align-items:center; }
+    .addrow.end { justify-content:flex-end; }
+    .addbox input[type=text], .addbox select { padding:9px 11px; border-radius:8px; border:1px solid #232327; background:#0e0e10; color:var(--ink); font:inherit; }
+    .addbox input#ouEmail { flex:1; }
+    .btn2 { padding:9px 13px; border-radius:8px; border:1px solid #232327; background:#1d1d21; color:var(--ink); cursor:pointer; font:inherit; }
+    .btn2.primary { border-color:var(--brand); color:var(--brand); }
+    .btn2.danger { border-color:var(--hot); color:var(--hot); }
+    .grantgrid { display:grid; grid-template-columns:1fr 1fr; gap:5px 18px; margin:8px 0 12px; }
+    .ghead { font-size:11px; text-transform:uppercase; letter-spacing:.05em; color:var(--muted); margin:4px 0 2px; }
+    .gchk { display:flex; align-items:center; gap:8px; font-size:13px; padding:2px 0; }
+    .gchk.sensitive { color:#e0a96d; }
   </style>
 </head>
 <body>
@@ -4510,6 +4742,23 @@ ADMIN_HTML = """<!doctype html>
     <section>
       <h2>Tool requests &amp; learning loop</h2>
       <div id="tools">Loading...</div>
+    </section>
+    <section id="orgSection">
+      <h2>Usuarios</h2>
+      <div id="orgWriterNote" class="note-line"></div>
+      <div id="orgUsers">Loading...</div>
+      <div class="addbox">
+        <div class="addrow">
+          <input type="text" id="ouEmail" placeholder="nombre.apellido@secpho.org" autocomplete="off">
+          <select id="ouRole"></select>
+        </div>
+        <div class="grantgrid" id="ouGrants"></div>
+        <div class="addrow end">
+          <button class="btn2" id="ouCancel" data-action="cancel" type="button" style="display:none">Cancelar</button>
+          <button class="btn2 primary" id="ouSubmit" data-action="submit" type="button">Crear usuario</button>
+        </div>
+        <div id="ouResult" class="note-line"></div>
+      </div>
     </section>
   </main>
   <script>
@@ -4530,7 +4779,115 @@ ADMIN_HTML = """<!doctype html>
         ).join('') : 'No tool requests yet.';
       } catch(e){ document.getElementById('tools').textContent = 'Could not load tool requests.'; }
     }
+    var ORG = { catalog: [], roles: ['user','admin'], users: [], editing: null, me: '' };
+    var GLABEL = {'data.socios':'Socios y miembros','data.eventos':'Eventos y actividades','data.retos':'Retos','data.proyectos':'Proyectos','data.casos':'Casos de exito','data.financiero':'Datos financieros','data.contactos':'Contactos / PII','tool.chat':'Chat','tool.matchmaking':'Matchmaking + informe','tool.scoring':'Consola de scoring','tool.feedback':'Feedback'};
+    function glabel(k){ return GLABEL[k] || k; }
+    function defaultGrants(){ return ORG.catalog.filter(function(c){ return !c.sensitive; }).map(function(c){ return c.key; }); }
+    function buildGrantGrid(selected){
+      selected = selected || [];
+      function col(title, group){
+        var items = ORG.catalog.filter(function(c){ return c.group === group; }).map(function(c){
+          var on = selected.indexOf(c.key) >= 0 ? ' checked' : '';
+          return '<label class="gchk' + (c.sensitive ? ' sensitive' : '') + '"><input type="checkbox" data-grant="' + esc(c.key) + '"' + on + '>' + esc(glabel(c.key)) + (c.sensitive ? ' (sensible)' : '') + '</label>';
+        }).join('');
+        return '<div><div class="ghead">' + esc(title) + '</div>' + items + '</div>';
+      }
+      document.getElementById('ouGrants').innerHTML = col('Datos','Datos') + col('Herramientas','Tools');
+    }
+    function selectedGrants(){
+      return Array.prototype.slice.call(document.querySelectorAll('#ouGrants input[data-grant]:checked')).map(function(el){ return el.getAttribute('data-grant'); });
+    }
+    function renderOrgUsers(data){
+      ORG.catalog = data.catalog || [];
+      ORG.roles = data.roles || ['user','admin'];
+      ORG.users = data.users || [];
+      ORG.me = data.me || '';
+      document.getElementById('orgWriterNote').textContent = data.writer_enabled ? '' : 'Aviso: el escritor de Render no esta configurado (RENDER_API_KEY / RENDER_SERVICE_ID). Los cambios funcionan en esta instancia pero no sobreviven a un redeploy.';
+      document.getElementById('ouRole').innerHTML = ORG.roles.map(function(r){ return '<option value="' + esc(r) + '">' + esc(r) + '</option>'; }).join('');
+      var rows = ORG.users.map(function(u){
+        var g = (u.role === 'admin' || u.role === 'dev') ? 'todo' : ((u.grants || []).map(glabel).join(', ') || 'sin acceso');
+        return '<div class="urow"><div class="ue"><b>' + esc(u.email) + '</b>' + (u.is_self ? ' <small>(tu)</small>' : '') + '<small>' + esc(g) + '</small></div>' +
+          '<span class="rolepill ' + esc(u.role) + '">' + esc(u.role) + '</span>' +
+          '<button class="btn2" data-action="edit" data-email="' + esc(u.email) + '" type="button">Editar</button>' +
+          '<button class="btn2" data-action="reset" data-email="' + esc(u.email) + '" type="button">Contrasena</button>' +
+          '<button class="btn2 danger" data-action="delete" data-email="' + esc(u.email) + '" type="button">Eliminar</button></div>';
+      }).join('');
+      document.getElementById('orgUsers').innerHTML = rows || 'No hay usuarios.';
+      if(!ORG.editing) buildGrantGrid(defaultGrants());
+    }
+    async function loadOrgUsers(){
+      try {
+        var r = await fetch('/api/org/users');
+        if(!r.ok){ document.getElementById('orgUsers').textContent = r.status === 403 ? 'Sin acceso.' : 'No se pudo cargar.'; return; }
+        renderOrgUsers(await r.json());
+      } catch(e){ document.getElementById('orgUsers').textContent = 'No se pudo cargar usuarios.'; }
+    }
+    function resetOrgForm(){
+      ORG.editing = null;
+      var ein = document.getElementById('ouEmail'); ein.value = ''; ein.removeAttribute('readonly');
+      document.getElementById('ouSubmit').textContent = 'Crear usuario';
+      document.getElementById('ouCancel').style.display = 'none';
+      buildGrantGrid(defaultGrants());
+    }
+    async function orgPost(payload){
+      var r = await fetch('/api/org/users', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+      var j = {}; try { j = await r.json(); } catch(e){}
+      return { ok: r.ok, status: r.status, data: j };
+    }
+    function showOrgResult(res){
+      var el = document.getElementById('ouResult');
+      if(!res.ok){ el.style.color = 'var(--hot)'; el.textContent = 'Error: ' + (res.data.error || res.status); return; }
+      el.style.color = 'var(--muted)';
+      if(res.data.one_time_password){
+        el.innerHTML = 'Contrasena de un solo uso: <b style="color:var(--ink)">' + esc(res.data.one_time_password) + '</b> &mdash; copiala ahora, no se vuelve a mostrar.' + (res.data.persisted === false ? ' <span style="color:var(--hot)">(solo en memoria: configura Render)</span>' : '');
+      } else {
+        el.textContent = res.data.persisted === false ? 'Guardado solo en memoria (configura Render para persistir).' : ('Guardado.' + (res.data.deploy_triggered ? ' Redeploy en curso (~1-2 min).' : ''));
+      }
+    }
+    document.addEventListener('click', async function(ev){
+      var btn = ev.target.closest ? ev.target.closest('[data-action]') : null;
+      if(!btn) return;
+      var action = btn.getAttribute('data-action');
+      var email = btn.getAttribute('data-email');
+      if(action === 'cancel'){ resetOrgForm(); document.getElementById('ouResult').textContent = ''; return; }
+      if(action === 'edit'){
+        var u = ORG.users.filter(function(x){ return x.email === email; })[0];
+        if(!u) return;
+        ORG.editing = email;
+        var ein = document.getElementById('ouEmail'); ein.value = email; ein.setAttribute('readonly','readonly');
+        document.getElementById('ouRole').value = u.role;
+        buildGrantGrid((u.role === 'admin' || u.role === 'dev') ? ORG.catalog.map(function(c){ return c.key; }) : (u.grants || []));
+        document.getElementById('ouSubmit').textContent = 'Guardar cambios';
+        document.getElementById('ouCancel').style.display = '';
+        document.getElementById('ouResult').textContent = '';
+        return;
+      }
+      if(action === 'reset'){
+        if(!confirm('Generar una nueva contrasena para ' + email + '?')) return;
+        showOrgResult(await orgPost({ action:'reset_password', email: email }));
+        return;
+      }
+      if(action === 'delete'){
+        if(!confirm('Eliminar a ' + email + '? Esta accion no se puede deshacer.')) return;
+        var dr = await orgPost({ action:'delete', email: email });
+        if(dr.ok){ document.getElementById('ouResult').textContent = ''; loadOrgUsers(); } else { showOrgResult(dr); }
+        return;
+      }
+      if(action === 'submit'){
+        var payload = {
+          action: ORG.editing ? 'update' : 'create',
+          email: ORG.editing || document.getElementById('ouEmail').value.trim().toLowerCase(),
+          role: document.getElementById('ouRole').value,
+          grants: selectedGrants()
+        };
+        var sr = await orgPost(payload);
+        showOrgResult(sr);
+        if(sr.ok){ resetOrgForm(); loadOrgUsers(); }
+        return;
+      }
+    });
     load();
+    loadOrgUsers();
   </script>
 </body>
 </html>
@@ -4741,7 +5098,89 @@ class Handler(BaseHTTPRequestHandler):
 
     def is_admin(self) -> bool:
         session = self.session()
-        return bool(ADMIN_ENABLED and session and session.get("role") == "admin")
+        return bool(ADMIN_ENABLED and role_at_least(session, "admin"))
+
+    def is_dev(self) -> bool:
+        session = self.session()
+        return bool(ADMIN_ENABLED and role_at_least(session, "dev"))
+
+    def user_grants(self) -> frozenset:
+        return resolve_grants(self.session())
+
+    def has_grant(self, key: str) -> bool:
+        """Fail-closed per-request check that the caller holds grant `key`."""
+        return key in resolve_grants(self.session())
+
+    def _handle_org_users(self, body: dict) -> None:
+        """Admin/dev user management: create/update/delete/reset_password. Persists via persist_users
+        (the Render env writer today). One-time passwords are minted server-side, returned ONCE, and
+        only their hash is stored — never logged."""
+        session = self.session() or {}
+        actor_email = (session.get("sub") or "").lower()
+        actor_rank = ROLE_RANK["dev"] if self.is_dev() else ROLE_RANK["admin"]
+        action = clean(body.get("action"), "").lower()
+        email = clean(body.get("email"), "").lower()
+        new_role = clean(body.get("role"), "").lower() or None
+        grants_in = [g for g in body.get("grants", []) if isinstance(g, str)] if isinstance(body.get("grants"), list) else []
+
+        if action not in {"create", "update", "delete", "reset_password"}:
+            self.send_json({"error": "bad_action"}, status=400)
+            return
+        if not email:
+            self.send_json({"error": "email_required"}, status=400)
+            return
+        if action == "create" and not valid_secpho_email(email):
+            self.send_json({"error": "email_must_be_secpho"}, status=400)
+            return
+        if new_role and new_role not in ROLE_RANK:
+            self.send_json({"error": "bad_role"}, status=400)
+            return
+
+        import render_env
+        with STATE_LOCK:
+            # Fresh read-before-write from the authoritative store when the writer is live, so
+            # concurrent admin edits last-writer-win on current data; else use the in-memory roster.
+            base = USERS
+            if render_env.write_enabled():
+                fresh = render_env.read_users_env()
+                # fresh is None (unreachable / unparseable 200) -> keep base=USERS (fail closed, do
+                # not compute a write against a guessed-empty roster).
+                if fresh is not None:
+                    parsed = parse_users_string(fresh)
+                    # Integrity guard: never compute a write against an EMPTY authoritative roster
+                    # while we still hold a populated one — that would clobber every credential.
+                    if not parsed and USERS:
+                        self.send_json({"error": "roster_read_empty"}, status=409)
+                        return
+                    base = parsed
+            err = org_user_guard(actor_rank, action, email, new_role, base)
+            if err:
+                status = 403 if err in {"forbidden", "dev_requires_dev", "would_lock_out"} else 409 if err in {"already_exists", "not_found"} else 400
+                self.send_json({"error": err}, status=status)
+                return
+
+            new_users, otp = apply_org_user_action(action, email, new_role, grants_in, base)
+            result = persist_users(new_users)
+
+            if not result.get("ok") and result.get("error") != "render_writer_disabled":
+                self.send_json({"error": result.get("error", "persist_failed")}, status=502)
+                return
+
+            USERS.clear()
+            USERS.update(new_users)  # reflect immediately in this process
+            persisted = bool(result.get("ok"))
+            LOGGER.info(
+                "org-user %s by %s -> %s (role=%s) persisted=%s",
+                action, actor_email or "?", email, new_users.get(email, {}).get("role", "-"), persisted,
+            )
+            resp = {"ok": True, "persisted": persisted}
+            if not persisted:
+                resp["warning"] = "writer_disabled_in_memory_only"  # no Render secrets: lost on redeploy
+            else:
+                resp["deploy_triggered"] = result.get("deploy_triggered", False)
+            if otp:
+                resp["one_time_password"] = otp
+            self.send_json(resp)
 
     def secure_cookie_suffix(self) -> str:
         forwarded_proto = self.headers.get("X-Forwarded-Proto", "")
@@ -4869,6 +5308,11 @@ class Handler(BaseHTTPRequestHandler):
             if not self.is_authenticated():
                 self.send_redirect("/login")
                 return
+            # The dedicated scoring console is the one surface tool.scoring gates; the inline chat
+            # tuner (/api/rerank, /api/report-tuned) stays open to all chat users (Owner decision).
+            if not (self.is_admin() or self.has_grant("tool.scoring")):
+                self.send_redirect("/")
+                return
             self.send_html(TUNING_HTML)
             return
 
@@ -4986,7 +5430,7 @@ class Handler(BaseHTTPRequestHandler):
             return
 
         if parsed.path == "/api/feedback-inbox":
-            if not self.is_admin():
+            if not (self.is_admin() or self.has_grant("tool.feedback")):
                 self.send_forbidden()
                 return
             body = load_feedback_inbox().encode("utf-8")
@@ -4996,6 +5440,30 @@ class Handler(BaseHTTPRequestHandler):
             self.send_header("Content-Length", str(len(body)))
             self.end_headers()
             self.wfile.write(body)
+            return
+
+        if parsed.path == "/api/org/users":
+            if not self.is_admin():
+                self.send_forbidden()
+                return
+            me = (self.session() or {}).get("sub", "")
+            import render_env
+            users_view = [
+                {
+                    "email": email,
+                    "role": USERS[email].get("role", "user"),
+                    "grants": sorted(g for g in (USERS[email].get("grants") or ()) if g in ALL_GRANTS),
+                    "is_self": email == (me or "").lower(),
+                }
+                for email in sorted(USERS)
+            ]
+            self.send_json({
+                "users": users_view,
+                "catalog": [{"key": k, "group": g, "sensitive": s} for k, g, s in GRANT_CATALOG],
+                "roles": (["user", "admin", "dev"] if self.is_dev() else ["user", "admin"]),
+                "writer_enabled": render_env.write_enabled(),
+                "me": (me or "").lower(),
+            })
             return
 
         self.send_response(404)
@@ -5085,6 +5553,26 @@ class Handler(BaseHTTPRequestHandler):
             self.send_json(result, status=200 if result.get("ok") else 400)
             return
 
+        if parsed.path == "/api/org/users":
+            if not self.is_admin():
+                self.send_forbidden()
+                return
+            try:
+                length = int(self.headers.get("Content-Length", "0"))
+            except ValueError:
+                length = 0
+            if length > 20000:
+                self.send_json({"error": "payload_too_large"}, status=413)
+                return
+            raw = self.rfile.read(length).decode("utf-8") if length else "{}"
+            try:
+                body = json.loads(raw)
+            except json.JSONDecodeError:
+                self.send_json({"error": "invalid_json"}, status=400)
+                return
+            self._handle_org_users(body if isinstance(body, dict) else {})
+            return
+
         if parsed.path == "/api/report":
             if is_rate_limited(self.client_ip(), "report"):
                 self.send_json({"error": "rate_limited"}, status=429)
@@ -5168,10 +5656,14 @@ class Handler(BaseHTTPRequestHandler):
             if not message:
                 self.send_json({"error": "empty_message"}, status=400)
                 return
+            if not self.has_grant("tool.chat"):
+                self.send_forbidden()
+                return
+            grants = self.user_grants()
             history = payload.get("history") if isinstance(payload.get("history"), list) else []
             member_id = to_int(payload.get("id"))
             if openai_available():
-                result = agent_chat(message, history, member_id)
+                result = agent_chat(message, history, member_id, grants=grants)
                 if clean(result.get("answer"), ""):
                     self.send_json({
                         "answer": result["answer"],
@@ -5183,7 +5675,21 @@ class Handler(BaseHTTPRequestHandler):
                         "model": current_model(),
                     })
                     return
-            fb = chat_flow(message, member_id)
+            # Heuristic fallback (LLM unavailable or empty agent answer). Unlike the agent path it is
+            # NOT per-tool grant-gated, so enforce the access model here too: require the baseline
+            # data grant before serving any socio/people data, and redact PII from whatever it
+            # returns — the fallback must never leak what the gated agent path would have withheld.
+            if not self.has_grant("data.socios"):
+                msg = ("No puedo responder eso con tu nivel de acceso actual."
+                       if current_lang() == "es"
+                       else "I can't answer that with your current access level.")
+                self.send_json({
+                    "answer": msg, "answer_html": markdown_to_chat_html(msg),
+                    "mode": "restricted", "model": current_model(),
+                    "llm_available": openai_available(),
+                })
+                return
+            fb = redact_pii(chat_flow(message, member_id))
             self.send_json({
                 **fb,
                 "answer_html": fb.get("answer_html") or markdown_to_chat_html(fb["answer"]),

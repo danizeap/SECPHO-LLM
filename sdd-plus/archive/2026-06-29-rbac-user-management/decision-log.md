@@ -1,0 +1,18 @@
+# Decision Log
+
+## Change
+
+rbac-user-management
+
+## Decisions
+
+| Date | Decision | Reason | Alternatives Considered |
+| --- | --- | --- | --- |
+| 2026-06-22 | Keep `SECPHO_USERS` env var as the user store, written at runtime via the Render API (`render_env.py`). | Owner choice: zero new persistence and zero new data custody (on-thesis), yet lets admins with no Render dashboard self-serve. | Supabase (reserved for wecollabify); paid Render persistent disk (cost, leaves free tier); env-paste only (Sergio/Eli have no Render access → fails self-serve). |
+| 2026-06-22 | Three roles `dev > admin > user`; `dev` adds system internals (tool loop, feedback, scoring) on top of `admin`. | Matches Owner's vision: Daniel=dev, Sergio/Eli=admin, created accounts=user. | Binary `is_admin()` only (insufficient — no dev tier, no per-user scope). |
+| 2026-06-22 | Per-user grant catalog (data + tool keys); sensitive keys (`data.financiero`, `data.contactos`, `tool.scoring`, `tool.feedback`) default-off, admin/dev-settable only. | Lets admins checkbox-scope access; protects financial/PII by default; future tools = new checkboxes. | Coarse all-or-nothing per role (too blunt for the financial/PII gate). |
+| 2026-06-22 | Resolve grants per-request from the in-process `USERS` map (keyed by cookie email), not from the cookie payload. | Revocation/changes apply at the next redeploy (~90s) instead of lingering until cookie expiry; single source of truth. | Embed grants in the signed cookie (stale until ≤8h TTL — weak for sensitive revocation). |
+| 2026-06-22 | Admin-generated passwords are one-time, server-minted, shown once over TLS, stored only as pbkdf2 hash; never logged or seen by the LLM. | Prohibited-action safety: app never handles/persists plaintext credentials unsafely. | Admin types the password (worse — plaintext handling, weak passwords). |
+| 2026-06-22 | The weight-tuner stays open to all chat users; `tool.scoring` gates ONLY the standalone `/tuning` console page. | Owner decision: the inline `[tune]` widget + `/api/rerank` + `/api/report-tuned` are core to the report/chat UX and should not be tightened; the grant still has a concrete meaning (the dedicated console). | Restrict the whole tuner (inline + console + tuned report) behind `tool.scoring` (rejected — would change the report/tuner experience users rely on). |
+| 2026-06-23 | Adversarial security review (6 dimensions) run at close-out; 3 confirmed findings fixed before archive. | This is the permission layer; multi-agent adversarial verification caught a catastrophic-clobber path the verifier + 104 tests missed. | Ship on the verifier pass alone (rejected — the HIGH fail-open-clobber finding would have shipped). Findings: (1) HIGH fail-open roster read in `render_env._extract_value` (unrecognized 200 → "" → empty base → a benign admin create overwrites every credential) → fail-closed parse returns None + `_handle_org_users` refuses an empty authoritative read while holding a populated roster (409). (2) MEDIUM heuristic fallback (`chat_flow`) bypassed grant gating + PII redaction → fallback now requires `data.socios` and runs `redact_pii`. (3) MEDIUM role trusted from the cookie (revocation lag ≤8h) → `role_at_least`/`is_admin`/`is_dev` re-derive role from the live roster via `_effective_role`, mirroring `resolve_grants`. +6 regression tests (suite 110). |
+| 2026-06-22 | WordPress-hosted roster documented as the production end-state, not built now. | Fully discharges custody onto SECPHO's system of record when it graduates off the developer's Render; swap `render_env.py`→`wp_users.py` only. | Build it now (needs WP-dev work the Owner doesn't control yet). |
