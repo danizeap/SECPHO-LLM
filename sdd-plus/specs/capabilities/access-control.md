@@ -143,3 +143,15 @@ from the heuristic fallback and from the matchmaking report.
 - **WHEN** the same financial tool is invoked with and without `data.financiero`
 - **THEN** the granted caller gets the computed result; the ungranted caller gets `forbidden` and the
   tool never executes.
+
+### Requirement: Two-tier gating for health/churn
+Engagement tools (`at_risk_socios`, `socio_health`, `health_overview`) SHALL require `data.socios`;
+the churn-reason tool (`churn_breakdown`) SHALL require `data.financiero`, because the reasons are
+candid internal assessments of why members left. Reading membership status to restrict
+`at_risk_socios`/`health_overview` to active members exposes no reason or amount and is permitted at
+the `data.socios` tier.
+
+#### Scenario: Churn reasons need the financial tier
+- **WHEN** a `data.socios`-only caller invokes `churn_breakdown`
+- **THEN** `dispatch_tool` returns `forbidden`; only a `data.financiero` holder reaches the candid
+  churn reasons.

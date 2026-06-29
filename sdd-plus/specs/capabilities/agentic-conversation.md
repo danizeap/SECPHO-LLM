@@ -151,3 +151,29 @@ financial answer SHALL carry an as-of stamp.
 #### Scenario: Ungranted financial caller refused
 - **WHEN** a caller without `data.financiero` triggers a financial tool
 - **THEN** `dispatch_tool` returns `forbidden` before the tool runs and the agent does not guess a figure.
+
+### Requirement: Health/churn intelligence tools
+The agent SHALL expose deterministic health/churn tools: `at_risk_socios` (active socios going quiet,
+ranked stalest-first, threshold default 120 days, active-members-only by default), `socio_health`
+(one socio's engagement: last activity, recency, totals, recent 180-day trend), `health_overview`
+(cluster engagement health — grounded on active members with a deterministic `going_quiet_pct` when
+membership data is present, else the activity-feed population with no rate), and `churn_breakdown`
+(leavers grouped by reason category + recent leavers + tenure-at-leave). Engagement tools require
+`data.socios`; `churn_breakdown` (candid reasons) requires `data.financiero`. All figures SHALL be
+computed deterministically; the LLM SHALL quote them verbatim and SHALL NOT derive a rate, percentage,
+ratio, or total that no tool returned (it MAY suggest outreach).
+
+#### Scenario: Who's going quiet (actionable)
+- **WHEN** a `data.socios` holder asks who to reach out to
+- **THEN** `at_risk_socios` returns ACTIVE members with no recent activity, stalest first (long-departed
+  socios excluded unless `active_only=false`), each with last-activity date and days-since.
+
+#### Scenario: No derived rate
+- **WHEN** a user asks for a churn rate or percentage the tools did not return
+- **THEN** the agent says it is not available rather than computing one (only tool-returned figures,
+  e.g. `health_overview.going_quiet_pct`, are quoted).
+
+#### Scenario: Why members leave (gated)
+- **WHEN** a `data.financiero` holder asks why members churn
+- **THEN** `churn_breakdown` returns leavers grouped by candid reason category plus recent leavers; a
+  caller without `data.financiero` is refused before the tool runs.
