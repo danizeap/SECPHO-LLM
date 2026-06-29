@@ -2775,6 +2775,146 @@ def churn_breakdown(limit: int = 15) -> dict:
             "recent_leavers": recent, "as_of": _live_as_of("cuotas")}
 
 
+# --------------------------------------------------------------------------- #
+# Collaboration network (P5, slice 3). DETERMINISTIC co-participation graph from shared projects +
+# retos (gate data.socios). Math decides; the LLM narrates. Non-sensitive relationship structure.
+# --------------------------------------------------------------------------- #
+_LEGAL_FORMS = {"sl", "sa", "slu", "sau", "sll", "sal", "sccl", "sc", "scoop", "coop", "aie", "ute", "slne"}
+
+
+def _norm_legal(token: str) -> str:
+    return re.sub(r"[.\s]", "", token.lower())
+
+
+def _split_entities(value) -> list:
+    """Split a participant field into entity names. Delimiters are comma/pipe/semicolon/slash, but a
+    bare legal-form suffix ('SL', 'S.L.', 'S.A.'…) is RE-JOINED to the preceding name so
+    'Lasercare, SL' stays one entity, not two spurious nodes."""
+    s = re.sub(r"[|;/]", ",", str(value or ""))
+    out = []
+    for tok in s.split(","):
+        tok = tok.strip()
+        if not tok:
+            continue
+        if out and _norm_legal(tok) in _LEGAL_FORMS:
+            out[-1] = out[-1] + ", " + tok
+        else:
+            out.append(tok)
+    return out
+
+
+_NETWORK = {"sig": None, "adj": None}
+
+
+def _net_add(adj, a, b, vtype, label):
+    for x, y in ((a, b), (b, a)):
+        e = adj.setdefault(x, {}).setdefault(y, {"weight": 0, "via": []})
+        e["weight"] += 1
+        if len(e["via"]) < 12:
+            e["via"].append({"type": vtype, "label": label})
+
+
+def _build_network():
+    """Undirected weighted co-participation graph: nodes = socios, an edge per shared project/reto,
+    weight = number of shared records. Built from the in-memory frames, cached on their identity."""
+    proj = DATA.get("proyectos", pd.DataFrame())
+    ret = DATA.get("retos", pd.DataFrame())
+    sig = ((id(proj), len(proj)) if isinstance(proj, pd.DataFrame) else None,
+           (id(ret), len(ret)) if isinstance(ret, pd.DataFrame) else None)
+    if _NETWORK["sig"] == sig and _NETWORK["adj"] is not None:
+        return _NETWORK["adj"]
+    adj = {}
+    if isinstance(proj, pd.DataFrame) and not proj.empty and "partners" in proj.columns:
+        for _, r in proj.iterrows():
+            ents = sorted(set(_split_entities(r.get("partners"))))
+            label = clean(r.get("acronym") or r.get("title"), "proyecto")
+            for i in range(len(ents)):
+                for j in range(i + 1, len(ents)):
+                    _net_add(adj, ents[i], ents[j], "project", label)
+    if isinstance(ret, pd.DataFrame) and not ret.empty:
+        for _, r in ret.iterrows():
+            ents = set(_split_entities(r.get("applying_entities")))
+            ents |= set(_split_entities(r.get("issuing_entities")))
+            ents |= set(_split_entities(r.get("beneficiary_socio")))
+            ents = sorted(e for e in ents if e)
+            label = clean(r.get("title") or r.get("reto_number"), "reto")
+            for i in range(len(ents)):
+                for j in range(i + 1, len(ents)):
+                    _net_add(adj, ents[i], ents[j], "reto", label)
+    _NETWORK.update(sig=sig, adj=adj)
+    return adj
+
+
+def _net_find(adj, name):
+    """Resolve a query to a network node: prefer an exact (case-insensitive) match, else the shortest
+    containing name. Tie-break by (length, name) so resolution is DETERMINISTIC regardless of the
+    underlying frame row order (which can change across live pulls)."""
+    nl = name.lower()
+    exact = [n for n in adj if n.lower() == nl]
+    pool = exact or [n for n in adj if nl in n.lower()]
+    return min(pool, key=lambda n: (len(n), n)) if pool else None
+
+
+def socio_network(socio: str = "", limit: int = 15) -> dict:
+    """One socio's collaborators (ranked by shared project/reto count) + its degree. Deterministic."""
+    name = (socio or "").strip()
+    if not name:
+        return {"error": "socio_required"}
+    adj = _build_network()
+    node = _net_find(adj, name)
+    if not node:
+        return {"socio_query": name, "found": False}
+    neighbors = adj.get(node, {})
+    ranked = sorted(neighbors.items(), key=lambda kv: (-kv[1]["weight"], kv[0]))
+    collaborators = [{"socio": c, "shared": e["weight"],
+                      "via_projects": sum(1 for v in e["via"] if v["type"] == "project"),
+                      "via_retos": sum(1 for v in e["via"] if v["type"] == "reto")}
+                     for c, e in ranked[:max(1, min(limit, 50))]]
+    return {"socio": node, "degree": len(neighbors), "collaborators": collaborators,
+            "as_of": _live_as_of("proyectos", "retos")}
+
+
+def network_overview(limit: int = 15) -> dict:
+    """Cluster collaboration hubs: most-connected socios by weighted degree, node/edge counts."""
+    adj = _build_network()
+    if not adj:
+        return {"available": False}
+    nodes = list(adj)
+    wdeg = {n: sum(e["weight"] for e in adj[n].values()) for n in nodes}
+    deg = {n: len(adj[n]) for n in nodes}
+    hubs = sorted(nodes, key=lambda n: (-wdeg[n], -deg[n], n))[:max(1, min(limit, 50))]
+    return {"available": True, "socios": len(nodes), "connections": sum(deg.values()) // 2,
+            "top_hubs": [{"socio": n, "collaborators": deg[n], "shared_total": wdeg[n]} for n in hubs],
+            "as_of": _live_as_of("proyectos", "retos")}
+
+
+def connection_between(socio_a: str = "", socio_b: str = "", grants=None) -> dict:
+    """How two socios are linked: the shared projects/retos between them, or that they're not linked.
+    The via LABELS (reto problem statements / project names) are gated content — a reto label is
+    withheld unless the caller holds `data.retos`, a project label unless `data.proyectos` — so this
+    `data.socios` tool cannot leak what `list_retos`/`list_projects` gate. `grants=None` (internal/test
+    callers) shows labels."""
+    a, b = (socio_a or "").strip(), (socio_b or "").strip()
+    if not a or not b:
+        return {"error": "two_socios_required"}
+    adj = _build_network()
+    na, nb = _net_find(adj, a), _net_find(adj, b)
+    if not na or not nb:
+        return {"found": False, "reason": "socio_not_in_network"}
+    e = adj.get(na, {}).get(nb)
+    if not e:
+        return {"socio_a": na, "socio_b": nb, "connected": False}
+    via = []
+    for v in e["via"]:
+        need = "data.retos" if v["type"] == "reto" else "data.proyectos"
+        if grants is not None and need not in grants:
+            via.append({"type": v["type"], "label": "[withheld]"})   # gated label, no leak
+        else:
+            via.append(v)
+    return {"socio_a": na, "socio_b": nb, "connected": True, "shared": e["weight"], "via": via,
+            "as_of": _live_as_of("proyectos", "retos")}
+
+
 def list_retos(query: str = "", status: str = "", limit: int = 8) -> dict:
     retos = DATA.get("retos", pd.DataFrame())
     if retos is None or retos.empty:
@@ -3669,6 +3809,10 @@ TOOL_REQUIRED_GRANT = {
     "health_overview": "data.socios",
     # churn reasons are candid internal assessments → financial-tier gate (Owner decision).
     "churn_breakdown": "data.financiero",
+    # collaboration network — non-sensitive member-relationship structure.
+    "socio_network": "data.socios",
+    "network_overview": "data.socios",
+    "connection_between": "data.socios",
 }
 
 
@@ -3746,6 +3890,17 @@ def dispatch_tool(name: str, args: dict, ctx: dict) -> dict:
 
         if name == "churn_breakdown":
             return churn_breakdown(limit=15)
+
+        if name == "socio_network":
+            return socio_network(socio=clean(args.get("socio") or args.get("query"), ""))
+
+        if name == "network_overview":
+            return network_overview()
+
+        if name == "connection_between":
+            return connection_between(socio_a=clean(args.get("socio_a") or args.get("a"), ""),
+                                      socio_b=clean(args.get("socio_b") or args.get("b"), ""),
+                                      grants=ctx.get("grants"))
 
         if name == "ecosystem_overview":
             return ecosystem_overview()
@@ -3861,6 +4016,17 @@ AGENT_TOOL_SCHEMAS = [
     {"type": "function", "strict": False, "name": "churn_breakdown",
      "description": "Why members have left: leavers grouped by reason category, plus recent leavers with their reason and tenure-at-leave. Sensitive internal data.",
      "parameters": {"type": "object", "properties": {}}},
+    {"type": "function", "strict": False, "name": "socio_network",
+     "description": "A socio's collaboration network: who it co-participates with (shared projects/retos), ranked by shared count, with its degree (number of distinct collaborators). Use for 'who does X work with / collaborate with'.",
+     "parameters": {"type": "object", "properties": {
+         "socio": {"type": "string", "description": "Company/socio name."}}}},
+    {"type": "function", "strict": False, "name": "network_overview",
+     "description": "Cluster collaboration hubs: the most-connected socios (by shared projects/retos), plus total socios and connections in the network.",
+     "parameters": {"type": "object", "properties": {}}},
+    {"type": "function", "strict": False, "name": "connection_between",
+     "description": "How two socios are connected: the shared projects/retos linking them, or that there is no direct collaboration.",
+     "parameters": {"type": "object", "properties": {
+         "socio_a": {"type": "string"}, "socio_b": {"type": "string"}}}},
     {"type": "function", "strict": False, "name": "ecosystem_overview",
      "description": "High-level counts and top technologies/sectors/provinces across the whole SECPHO dataset.",
      "parameters": {"type": "object", "properties": {}}},
