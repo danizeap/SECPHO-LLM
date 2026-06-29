@@ -152,6 +152,12 @@ financial answer SHALL carry an as-of stamp.
 - **WHEN** a caller without `data.financiero` triggers a financial tool
 - **THEN** `dispatch_tool` returns `forbidden` before the tool runs and the agent does not guess a figure.
 
+#### Scenario: Cluster turnover reported as robust stats, not a misleading sum
+- **WHEN** `financial_overview` summarizes member-reported turnover (`negocio_financiero`)
+- **THEN** it reports `socios_with_turnover` (count), `median_turnover`, and `max_turnover`, and SHALL
+  NOT report a raw `total_turnover` sum, because self-reported turnover is heavy-tailed (a few members
+  report group/global figures) so a sum is dominated by outliers and misleads as a cluster total.
+
 ### Requirement: Health/churn intelligence tools
 The agent SHALL expose deterministic health/churn tools: `at_risk_socios` (active socios going quiet,
 ranked stalest-first, threshold default 120 days, active-members-only by default), `socio_health`

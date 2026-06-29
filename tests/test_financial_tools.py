@@ -84,7 +84,29 @@ def test_financial_overview_exact(monkeypatch):
     assert inv["total_invoiced"] == "1.936,00 €"        # excludes Cancelada (999)
     assert inv["paid_by_concept"] == {"Cuota": "1.210,00 €"}
     assert out["membership"] == {"active_members": 1, "left_members": 1, "annual_cuota_base": "1.200,00 €"}
-    assert out["turnover"]["socios_with_turnover"] == 1 and out["turnover"]["total_turnover"] == "1.500.000,00 €"
+    assert out["turnover"]["socios_with_turnover"] == 1
+    assert out["turnover"]["median_turnover"] == "1.500.000,00 €"
+    assert out["turnover"]["max_turnover"] == "1.500.000,00 €"
+    assert "total_turnover" not in out["turnover"]            # robust stats, not a misleading sum
+
+
+def test_turnover_robust_to_outliers(monkeypatch):
+    # A few normal socios + one giant outlier (e.g. a member reporting group/global turnover).
+    # The cluster summary must NOT present a raw sum (the outlier dominates it); median stays sane.
+    monkeypatch.setitem(app.DATA, "invoices", pd.DataFrame())
+    monkeypatch.setitem(app.DATA, "cuotas", pd.DataFrame())
+    monkeypatch.setitem(app.DATA, "negocio_financiero", pd.DataFrame([
+        {"socio": "A", "revenue": "2.000.000,00 €", "investment_received": "", "employees": "10"},
+        {"socio": "B", "revenue": "2.500.000,00 €", "investment_received": "", "employees": "11"},
+        {"socio": "C", "revenue": "3.000.000,00 €", "investment_received": "", "employees": "12"},
+        {"socio": "D", "revenue": "3.500.000,00 €", "investment_received": "", "employees": "13"},
+        {"socio": "E", "revenue": "100.000.000.000,00 €", "investment_received": "", "employees": "9"},
+    ]))
+    t = app.financial_overview()["turnover"]
+    assert t["socios_with_turnover"] == 5
+    assert t["median_turnover"] == "3.000.000,00 €"           # unmoved by the outlier
+    assert t["max_turnover"] == "100.000.000.000,00 €"        # surfaces the outlier instead
+    assert "total_turnover" not in t                          # no €100B-style misleading sum
 
 
 def test_socio_financials(monkeypatch):

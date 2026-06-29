@@ -2556,10 +2556,14 @@ def financial_overview() -> dict:
         }
     if negocio is not None and not negocio.empty:
         rev = negocio["revenue"].map(_parse_eur).dropna()
+        # Self-reported company turnover is heavy-tailed (a few members report group/global figures),
+        # so a raw .sum() is dominated by outliers and misleads as a "cluster total" (it produced a
+        # ~€100B headline on live data). Report robust stats instead: median (typical), max (largest,
+        # which surfaces the outlier), and the count. No sum.
         out["turnover"] = {
             "socios_with_turnover": int(len(rev)),
-            "total_turnover": _fmt_eur(rev.sum() if len(rev) else None),
             "median_turnover": _fmt_eur(rev.median() if len(rev) else None),
+            "max_turnover": _fmt_eur(rev.max() if len(rev) else None),
         }
     return out
 
